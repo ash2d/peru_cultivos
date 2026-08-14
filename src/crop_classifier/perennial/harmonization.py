@@ -22,7 +22,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-# ⚠️ MEASURED ON THIS DATA AND REJECTED (docs/all_peru/RESULTS.md §9.3.2, §9.5).
+# ⚠️ MEASURED ON THIS DATA AND REJECTED (docs/RESULTS.md §6.4).
 # Applying these coefficients makes the PETT-PERENNIAL control-pool shift 2.5x WORSE
 # (-0.0423 -> -0.1073) and lowers class agreement. On same-day L7/OLI parcel pairs over Peru,
 # raw OLI already reads *greener* than ETM+ (mean NDVI +0.055) and these coefficients push it

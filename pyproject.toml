@@ -45,6 +45,11 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/crop_classifier"]
 
+[tool.pytest.ini_options]
+markers = [
+    "closed_route: guards code for an estimand that was abandoned; kept so it does not rot",
+]
+
 [tool.ruff]
 line-length = 100
 src = ["src", "tests"]

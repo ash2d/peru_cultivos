@@ -1,4 +1,4 @@
-"""Figures for the summary report (docs/SUMMARY_FULL.md).
+"""Figures for the summary report (docs/REPORT.md).
 
 Two questions these exist to answer, both of which are prior to any model:
 

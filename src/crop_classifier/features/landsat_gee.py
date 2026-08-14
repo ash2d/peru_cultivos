@@ -84,7 +84,7 @@ def init_ee(project: str = GEE_PROJECT):
 # OLI observations out of 5.65 M — it has effectively never seen L8/L9. Restricting the
 # panel to TM/ETM+ removes the radiometric transfer risk entirely, at the cost of relying
 # on SLC-off L7 after May 2003. Which trade is better is an empirical question about
-# coverage; see docs/perennial/l7_coverage.md.
+# coverage; see docs/DATA.md §7.1.
 MISSION_FILTER: set[str] | None = None
 
 

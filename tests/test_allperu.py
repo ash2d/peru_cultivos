@@ -1,4 +1,4 @@
-"""Unit tests for the all-Peru extension (docs/all_peru/).
+"""Unit tests for the all-Peru extension (docs/RESULTS.md §4).
 
 Three things here are load-bearing and fail *silently* if they regress, which is why each
 has a test rather than a comment:

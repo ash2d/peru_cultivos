@@ -1,4 +1,7 @@
-"""Tests for the window pivot (docs/all_peru/window_plan.md): windows, tenure, LOYO, sample.
+"""Tests for the window pivot (docs/RESULTS.md §5): windows, tenure, LOYO, sample.
+
+⛔ CLOSED ROUTE. T1, T2 and T3 all failed and no extraction was funded (docs/RESULTS.md §5).
+Kept so the code does not rot; LOYO/tenure helpers here are still used by live work.
 
 Every test here pins a *decision*, not an implementation detail — the aggregation rule (mean
 probability, then one threshold), the ≥3-observed-years qualification, weighted shares, the
@@ -18,6 +21,8 @@ from crop_classifier.allperu import tenure as TEN
 from crop_classifier.allperu import window_sample as WS
 from crop_classifier.allperu import windows as W
 from crop_classifier.splits import _draw_test_units, _joint_tv_distance, pick_test_units
+
+pytestmark = pytest.mark.closed_route
 
 
 # ------------------------------------------------------------------------------------

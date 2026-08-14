@@ -1,4 +1,4 @@
-"""Year-leak audit — step 2a of ``docs/all_peru/temporal_ood_plan.md``.
+"""Year-leak audit — the temporal-OOD work (docs/RESULTS.md §6).
 
 The generalised form of the ``frac_l7`` finding (``../perennial/RESULTS.md`` §4.6): *any*
 feature that identifies **which year you are in** is a feature that will mislead you in a

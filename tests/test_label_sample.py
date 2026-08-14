@@ -1,4 +1,4 @@
-"""Unit tests for the S2 labelling draw (docs/all_peru/s2_labelling_plan.md §12).
+"""Unit tests for the S2 labelling draw (docs/s2_labelling/plan.md).
 
 **There is one round and no second pass**, so a design bug here is not correctable
 downstream — it is the campaign. Four things are therefore pinned:
@@ -101,7 +101,8 @@ class TestSensitivitySweep:
 
 class TestDraw:
     @pytest.fixture(scope="class")
-    def drawn(self):
+    @classmethod
+    def drawn(cls):
         u = _universe()
         return draw(u, total=90, floor=30, pilot_n=12, overlap_n=6, save=False)
 

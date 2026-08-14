@@ -1,6 +1,6 @@
 """How many labelled parcels does a land-state classifier need? — measured, not assumed.
 
-Sizes a photo-interpretation campaign (`docs/all_peru/endpoint_labels_plan.md`) by running a
+Sizes a photo-interpretation campaign (`docs/s2_labelling/plan.md`) by running a
 learning curve on the **existing** national Landsat store and PETT labels. That is a proxy for
 a Sentinel-2 campaign, and a deliberately conservative one: S2 gives ~9x the pixels per parcel,
 so the achievable ceiling should be higher. What transfers is the *shape* — where the curve

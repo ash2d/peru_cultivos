@@ -126,7 +126,7 @@ LOCATION_FEATURES = ["centroid_lat"]
 # same estimator as a max over 13, so these move when only the *number of looks* changes —
 # measured, within parcel: mean |slope| 0.35 within-SD per e-fold of observation count for
 # min/max/amplitude against 0.08 for the harmonic/slope fits (`allperu.density`, the step-1a
-# audit in docs/all_peru/RESULTS.md §9.1). Landsat density is not stationary — ~24 clear
+# audit in docs/RESULTS.md §6.1). Landsat density is not stationary — ~24 clear
 # observations per parcel-year in 2004-08 against ~13 in 2019-23 — so a model leaning on
 # them reads archive depth as land-use change.
 ORDER_FEATURES = [f"{ch}_{k}" for ch in

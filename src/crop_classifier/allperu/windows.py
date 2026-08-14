@@ -1,6 +1,6 @@
 """Multi-year **windows** — the estimand forced by the Phase-7 gate failure.
 
-Implements ``docs/all_peru/window_plan.md``.
+Implements ``docs/RESULTS.md §5``.
 
 Both panels failed S5 flicker (0.43-0.98 against a 0.15 criterion) on every architecture,
 which killed the *per-parcel annual trajectory*. It did not kill the research question, which

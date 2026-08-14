@@ -72,7 +72,7 @@ def train(model_name: str = "lightgbm", n_folds: int | None = None,
     each parcel appears at both its own and the endpoint observation density under one
     label. Val/test are untouched for the same reason as ``train_years``: CV has to stay
     comparable, and a degraded row in a validation fold would be a row the model trained
-    on. See docs/all_peru/temporal_ood_plan.md §1b."""
+    on. See docs/RESULTS.md §6.2."""
     drop_features = resolve_drop_features(drop_features)
     train_years = parse_year_spec(train_years)
     parcels = load_parcels(require_quality=True)

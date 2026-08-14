@@ -22,7 +22,7 @@ _LAZY_MODULES = {
     "lightgbm": "crop_classifier.models.trees",
     "ltae": "crop_classifier.models.ltae",
     "psetae": "crop_classifier.models.psetae",
-    # the phenology rule model (docs/perennial/plan.md D4) — numpy/pandas only, so it is
+    # the phenology rule model (docs/RESULTS.md §2) — numpy/pandas only, so it is
     # safe alongside either of the above
     "rules": "crop_classifier.perennial.rules",
 }

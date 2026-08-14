@@ -1,6 +1,6 @@
 """Land-tenure (``ESTADO en RRPP``) per parcel — the treatment variable of the window pivot.
 
-``docs/all_peru/window_plan.md`` §M4/§4.5 makes the tenure contrast the deliverable, so the
+``docs/RESULTS.md §5`` §M4/§4.5 makes the tenure contrast the deliverable, so the
 column has to come out of the raw workbooks and land on ``COD_PREDIO``. It is **not** in any
 processed table: ``build_training_data.load_sset()`` and ``allperu.build_labels.SSET_COLS``
 both omit it, so nothing downstream has ever seen it.

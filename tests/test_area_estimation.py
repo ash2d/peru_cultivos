@@ -1,4 +1,7 @@
-"""Area estimators (plan §13): the Olofsson (2014) stratified estimator and friends.
+"""Area estimators: the Olofsson (2014) stratified estimator and friends.
+
+⛔ CLOSED ROUTE. No area or share estimate may be produced from the panel — the gate failed
+(docs/RESULTS.md §3, §4.4, §9). Built, unit-tested, and **unrun**.
 
 The plan asks for "the worked example from the 2014 paper". The paper is not available
 offline here and reconstructing its Table 8 from memory did not reproduce its published
@@ -15,6 +18,8 @@ import numpy as np
 import pytest
 
 from crop_classifier.perennial import area as A
+
+pytestmark = pytest.mark.closed_route
 
 CLASSES = ["PERENNIAL", "ANNUAL"]
 

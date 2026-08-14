@@ -3,7 +3,7 @@
 > **Frozen 2026-08-13, before any parcel was labelled. Revised the same day** — a sixth
 > value (`NON_AGRICULTURE`) was added, `OTHER` was narrowed to make room for it, the
 > confidence control was removed, and the two image panels changed (see
-> [`s2_labelling_RESULTS.md`](s2_labelling_RESULTS.md) §12). **Still frozen before any
+> [`plan.md`](plan.md) §5). **Still frozen before any
 > parcel was labelled**, so nothing on record was collected under the old text.
 >
 > The same text is embedded in every labelling HTML behind the *Codebook* button, so what a

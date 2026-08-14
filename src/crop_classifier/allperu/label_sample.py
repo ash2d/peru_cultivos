@@ -1,4 +1,4 @@
-"""Draw the S2 endpoint-labelling sample (docs/all_peru/s2_labelling_plan.md §§1-2).
+"""Draw the S2 endpoint-labelling sample (docs/s2_labelling/plan.md).
 
 **One round, 1,000 parcels, no second pass.** Everything here therefore has to be
 defensible before it is drawn rather than corrected afterwards, so the module does four

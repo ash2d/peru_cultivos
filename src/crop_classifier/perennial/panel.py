@@ -62,7 +62,7 @@ PANEL_MISSIONS: set[str] | None = {"L5", "L7"}
 # Thin years to flag rather than interpolate (measured, L5+L7): 1997 48.3 % (the 1997-98
 # El Nino), 2009 47.0 %, 2011 37.3 % (Landsat 5's degraded final years — adding L5 back
 # rescues neither, so they are thin under any TM/ETM+ policy), 2012 80.3 % (L7 SLC-off
-# alone). See docs/perennial/l7_coverage.md.
+# alone). See docs/DATA.md §7.1.
 PANEL_START_YEAR = 1996
 PANEL_END_YEAR = 2023
 DEFAULT_YEARS = list(range(PANEL_START_YEAR, PANEL_END_YEAR + 1))
@@ -167,7 +167,7 @@ def timing_probe(n_parcels: int = 500, years: tuple[int, ...] = (1995, 2005, 201
     per parcel-year => slower and bigger), so the 1998-derived 0.19 s/parcel-year rate
     must **not** be extrapolated to 2023.
 
-    ``out`` names the destination CSV; it defaults to ``docs/perennial/panel_budget.csv``,
+    ``out`` names the destination CSV; it defaults to ``docs/figures/panel_budget.csv``,
     the Piura panel's measured budget. **A second panel must pass its own path** — that file
     is the record of what the first extraction cost and overwriting it destroys the only
     evidence of a rate that was never supposed to be extrapolated.
@@ -201,7 +201,7 @@ def timing_probe(n_parcels: int = 500, years: tuple[int, ...] = (1995, 2005, 201
               f"gate {len(surv) / len(p):.1%}", flush=True)
     df = pd.DataFrame(rows)
     if save:
-        dest = Path(out) if out is not None else Path("docs/perennial/panel_budget.csv")
+        dest = Path(out) if out is not None else Path("docs/figures/panel_budget.csv")
         dest.parent.mkdir(parents=True, exist_ok=True)
         df.to_csv(dest, index=False)
         print(f"wrote {dest}")

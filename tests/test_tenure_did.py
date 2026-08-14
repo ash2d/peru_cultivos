@@ -1,4 +1,4 @@
-"""Tests for the two-period tenure DiD (docs/all_peru/tenure_did_plan.md v2).
+"""Tests for the two-period tenure DiD (docs/RESULTS.md §7).
 
 Every test here pins a **decision**, not an implementation detail. The decisions are the ones
 that, if silently changed by a later refactor, would leave every downstream number looking

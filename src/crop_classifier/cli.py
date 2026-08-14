@@ -11,9 +11,9 @@ labels_app = typer.Typer(no_args_is_help=True)
 splits_app = typer.Typer(no_args_is_help=True)
 features_app = typer.Typer(no_args_is_help=True)
 perennial_app = typer.Typer(no_args_is_help=True,
-                            help="3-class perennial/annual/pasture work (docs/perennial)")
+                            help="3-class perennial/annual/pasture work (docs/RESULTS.md §2)")
 allperu_app = typer.Typer(no_args_is_help=True,
-                          help="all-Peru extension: 14 linkable departments (docs/all_peru)")
+                          help="all-Peru extension: 14 linkable departments (docs/RESULTS.md §4)")
 app.add_typer(labels_app, name="labels")
 app.add_typer(splits_app, name="splits")
 app.add_typer(features_app, name="features")
@@ -88,7 +88,7 @@ def perennial_panel(step: str = typer.Argument(
                         None, help="infer: write predictions here instead of "
                                    "panel_predictions.parquet (a second model). "
                                    "probe: write the measured budget CSV here instead of "
-                                   "docs/perennial/panel_budget.csv — a second panel must "
+                                   "docs/figures/panel_budget.csv — a second panel must "
                                    "pass its own path, never overwrite the first's record"),
                     bundle_suffix: str = typer.Option(
                         "", help="infer: read <panel>/<year><suffix>/ instead of the "
@@ -535,7 +535,7 @@ def allperu_esri_dates(out: Path = typer.Option(Path("docs/figures/esri_imagery_
 
     Probes real parcel centroids, not a bbox — one huge old tile and one small new tile count
     the same in a tile query, and only the parcel-weighted number decides anything.
-    See docs/all_peru/endpoint_labels_plan.md §2.
+    See docs/s2_labelling/plan.md.
     """
     from crop_classifier.allperu import esri_dates as ed
     if depts:
@@ -569,7 +569,7 @@ def allperu_s2_labels(
         max_chunks: int | None = typer.Option(None, help="extract: stop after N chunks"),
         supp_depts: str = typer.Option("", help="pool: comma list to supplement"),
         overwrite: bool = typer.Option(False, help="chips: re-render existing")):
-    """S2 endpoint-labelling campaign (docs/all_peru/s2_labelling_plan.md).
+    """S2 endpoint-labelling campaign (docs/s2_labelling/plan.md).
 
     The steps run in the plan's §11 order, cheapest-that-can-kill-it first::
 

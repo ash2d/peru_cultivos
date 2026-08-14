@@ -37,7 +37,7 @@ def feat() -> Path:
     parcels, same years, same pixels, only the label column differs — so it defaults to
     ``FEAT`` and those two never set ``CC_FEAT``.
 
-    The all-Peru work (docs/all_peru) is the first thing that needs a *different* store:
+    The all-Peru work (docs/RESULTS.md §4) is the first thing that needs a *different* store:
     different parcels entirely. It sets ``CC_FEAT=data/processed/all_peru/features``, which
     keeps the audited Piura store immutable.
 

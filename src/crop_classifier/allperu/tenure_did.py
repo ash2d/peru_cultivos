@@ -1,4 +1,4 @@
-"""Two-period tenure difference-in-differences — ``docs/all_peru/tenure_did_plan.md`` v2.
+"""Two-period tenure difference-in-differences — ``docs/RESULTS.md §7`` v2.
 
 Four estimands failed because each needed the classifier to deliver a defensible *level* or
 *trend*, and the predicted probability drifts as the Landsat archive thins (§8.3). This design
@@ -636,7 +636,7 @@ def registration(cohort_min_year: int = 2004, control: str = "no_inscrito") -> d
     m = amplification_factor("W99", POST_WINDOWS, pl_a, pl_b, full)
     return {
         "registered_on": "2026-08-11",
-        "plan": "docs/all_peru/tenure_did_plan.md §9 (the v3 reopening)",
+        "plan": "docs/RESULTS.md §7 (the v3 reopening)",
         "primary_decision_rule": (
             "An effect is REPORTED only if the 95 % CI of (headline - M * placebo) "
             "excludes zero, at the derived M. Otherwise the outcome is NOT-SEPARABLE: "

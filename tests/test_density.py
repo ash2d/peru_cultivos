@@ -1,4 +1,4 @@
-"""Tests for the observation-density work (docs/all_peru/temporal_ood_plan.md step 1).
+"""Tests for the observation-density work (docs/RESULTS.md §6).
 
 Every test pins a **decision**, not an implementation:
 

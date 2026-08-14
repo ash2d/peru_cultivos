@@ -1,4 +1,4 @@
-"""All-Peru extension of the Piura Chain-A pipeline (docs/all_peru/).
+"""All-Peru extension of the Piura Chain-A pipeline (docs/RESULTS.md §4).
 
 Same real-key join chain as ``crop_classifier.build_training_data`` — BD SSET
 ``CodigoSSET`` -> ``Grafica_Tabular/<Dept>.dta`` -> ``QGIS/<DEPT>/`` polygons — run over

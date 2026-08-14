@@ -1,4 +1,4 @@
-"""Admitting OLI — step 3 of ``docs/all_peru/temporal_ood_plan.md``.
+"""Admitting OLI — the temporal-OOD work (docs/RESULTS.md §6.4).
 
 ``perennial/panel.PANEL_MISSIONS = {"L5", "L7"}`` was chosen so every panel year is inferred
 on radiometry the model trained on (training is 52.8 % L5 / 47.2 % L7 / 0 % OLI). Defensible

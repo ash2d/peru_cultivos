@@ -1,4 +1,4 @@
-"""Tests for the temporal-OOD work (docs/all_peru/temporal_ood_plan.md steps 2 and 3).
+"""Tests for the temporal-OOD work (docs/RESULTS.md §6).
 
 These pin **decisions**, not implementations:
 

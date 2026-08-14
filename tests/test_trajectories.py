@@ -1,11 +1,19 @@
-"""Trajectory smoothing and change detection (plan §13)."""
+"""Trajectory smoothing and change detection.
+
+⛔ CLOSED ROUTE. Per-parcel annual trajectories were abandoned — the panel gate failed on
+every arm (docs/RESULTS.md §3, §4.4). This module is built, unit-tested and **stays unrun**.
+These tests are kept so the code does not rot if the estimand is ever revived.
+"""
 
 from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from crop_classifier.perennial import trajectories as T
+
+pytestmark = pytest.mark.closed_route
 
 GAP = T.GAP
 ANN, PAS, PER = 0, 1, 2

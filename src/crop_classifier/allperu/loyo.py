@@ -202,7 +202,7 @@ def lodo_by_cohort(tag: str = "nolat", min_parcels: int = 300,
     Re-scoring the LODO predictions by cohort holds out the **department** *and* varies the
     year, so a feature that only memorises place cannot help. It costs nothing — the
     per-department fits already exist — and it is the number to read when CV, LODO and LOYO
-    disagree (docs/all_peru/RESULTS.md §9.2).
+    disagree (docs/RESULTS.md §6.2).
 
     ⚠️ It is not a substitute for LOYO: each cohort here is scored by 14 different models,
     one per department, so it measures the *joint* out-of-distribution setting, not the

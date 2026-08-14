@@ -4,12 +4,13 @@
 > and Landsat imagery, four successive attempts to turn it into a measure of agricultural
 > change, and what each attempt showed.
 >
-> Longer versions: [`SUMMARY_FULL.md`](SUMMARY_FULL.md) (full narrative),
-> [`all_peru/RESULTS.md`](all_peru/RESULTS.md) (national numbers),
-> [`perennial/RESULTS.md`](perennial/RESULTS.md) (3-class detail).
+> This is the human-facing narrative. The numbers of record, per strand and with verdicts, are
+> in [`RESULTS.md`](RESULTS.md); the current state and next actions are in
+> [`STATUS.md`](STATUS.md).
 >
 > Last updated **2026-08-12**, after the two-period tenure difference-in-differences returned
-> the project's first actual estimate.
+> the project's first actual estimate. ⚠️ It therefore predates the S2 labelling campaign
+> being built — see [`s2_labelling/plan.md`](s2_labelling/plan.md) for that.
 
 ---
 
@@ -434,7 +435,8 @@ the classifier's absolute level. That code is written and unit-tested and stays 
 
 ### ➡ The next step: photo-interpret endpoint labels
 
-[`all_peru/endpoint_labels_plan.md`](all_peru/endpoint_labels_plan.md).
+[`s2_labelling/plan.md`](s2_labelling/plan.md) — **since built; only the human labelling
+remains.**
 
 **Every accuracy number in this document is measured at the label year, ~1997–2006. Not one is
 measured at the endpoint, 2019–2023, which is the only period the research question is about.**

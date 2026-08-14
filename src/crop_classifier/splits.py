@@ -237,7 +237,8 @@ def assign(config_path: Path | None = None, save: bool = True) -> gpd.GeoDataFra
               f"neighbour leakage is only partially controlled. FLAGGED for review.")
 
     # ---- locked test (contiguous regions: buffer cost scales with perimeter) ----
-    # `balance_test_on` + `n_test_candidates` add §4.4 of docs/all_peru/window_plan.md: pick
+    # `balance_test_on` + `n_test_candidates` add the window-pivot split work
+    # (docs/RESULTS.md §5): pick
     # the best of N equally-valid draws on the joint year x label composition. Defaults keep
     # the original single-draw behaviour so existing splits stay reproducible.
     balance_cols = cfg.get("balance_test_on") or []

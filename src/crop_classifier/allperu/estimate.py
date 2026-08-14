@@ -23,7 +23,7 @@ observation (~2011) which would support a two-period difference-in-differences; 
 design change, not something this module quietly assumes.
 
 ⚠️ **This module refuses to run while the gates fail.** T1, T2 and T3 all returned FAIL on
-2026-08-10 (see docs/all_peru/RESULTS.md §9), and producing a contrast from a panel that
+2026-08-10 (see docs/RESULTS.md §6), and producing a contrast from a panel that
 failed validation is not a weaker finding, it is a wrong one. ``--force`` exists so the
 refusal can be overridden deliberately and visibly, and it stamps ``gates_failed`` into every
 artifact it writes.

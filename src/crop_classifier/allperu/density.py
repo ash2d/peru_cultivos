@@ -1,4 +1,4 @@
-"""Observation-density robustness — step 1 of ``docs/all_peru/temporal_ood_plan.md``.
+"""Observation-density robustness — the temporal-OOD work (docs/RESULTS.md §6).
 
 The measured problem (RESULTS.md §8.3): clear Landsat observations per parcel-year fall from
 ~24 (W04) to ~13 (W19) as L5 retires and L7 goes SLC-off, and within parcel the predicted

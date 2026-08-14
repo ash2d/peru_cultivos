@@ -1,0 +1,244 @@
+# 3-class label policy: PERENNIAL / ANNUAL / PASTURE_FALLOW (docs/perennial/plan.md §3).
+# USER-EDITABLE. `perennial labels` reads this file; the resolved token->group table is
+# written to class_lexicon_resolved.csv next to the outputs.
+#
+# The classes proxy the research question "has land shifted from non-export to export
+# crops?": perennial ~ export (mango, lime, coffee, banana, cacao, avocado), annual ~
+# domestic (rice, maize, cotton, beans, wheat). They are also the three land *states* a
+# 30 m Landsat year separates well: canopy all year / green-then-bare cycles / neither.
+
+# D2 DIAGNOSTIC VARIANT: PASTURE and FALLOW kept apart. The 12-class results show they
+# are separately learnable (F1 ~0.48 / ~0.50) and they are spectrally *opposite* (green vs
+# bare), so merging them creates a deliberately heterogeneous class — and indeed
+# PASTURE_FALLOW is the weakest 3-class class (F1 ~0.50). Train the leading architecture
+# on this once, collapse PASTURE+FALLOW post-hoc to 3, and compare against the directly
+# trained 3-class model.
+classes: [PERENNIAL, ANNUAL, PASTURE, FALLOW]
+group_priority: [PERENNIAL, ANNUAL, PASTURE, FALLOW]
+
+# ---- policy flags (docs/perennial/plan.md §2) ----
+# D1: sugarcane is a multi-year ratoon crop (spectrally perennial) but is not an export
+# perennial and MapBiomas classes it as a *temporary* crop. `annual` keeps our definition
+# aligned with MapBiomas; §9.5 re-runs the headline trend with `perennial` as a
+# sensitivity check.
+cana_policy: annual                # annual | perennial
+# D2: prepared bare ground is spectrally fallow, and these classes are land-state, not
+# crop identity. (labels.py's 12-class policy drops land_prep instead.)
+land_prep_policy: pasture_fallow   # pasture_fallow | drop
+# D1: trees that look exactly like orchards but are not export crops. Folding them into
+# PERENNIAL would corrupt the interpretation; there are too few (~350 records) to train a
+# 4th class. Excluded from training — at inference they will be predicted PERENNIAL and
+# are a known false-positive source for the export-crop reading.
+woody_noncrop_policy: exclude      # exclude | perennial
+
+# ---- resolution order for one (crop, category) token ----
+# 1. woody_noncrop        -> excludes the whole parcel (if policy is `exclude`)
+# 2. an explicit list below (perennial / annual / pasture_fallow)
+# 3. category_default[category]   (deliberate policy for non-crop categories)
+# 4. crop_fallback               (a *guess* for unlisted `crop`-category tokens; audited
+#                                 in unassigned_tokens.csv and capped by
+#                                 max_unassigned_frac)
+category_default:                # superseded by four_class_names while four_class: true
+  pasture: PASTURE_FALLOW
+  fallow: PASTURE_FALLOW
+  land_prep: PASTURE_FALLOW      # overridden to null when land_prep_policy: drop
+  unspecified: null              # null = token contributes nothing
+crop_fallback: ANNUAL            # annuals dominate the unlisted tail
+max_unassigned_frac: 0.02        # build fails loudly above this
+
+# ---- the lexicon ----
+# The top 88 tokens (>=15 records) cover 79,164 of 80,618 records and are all assigned by
+# hand below; the rest of each list is high-frequency OCR/spelling variants from the tail
+# and tail tokens whose category label is wrong (e.g. DESCANSO misspellings typed as
+# `crop`). Counts in comments are records in training_crop_records.parquet.
+
+perennial:
+  # export basket + other woody/multi-year crops with a canopy that persists all year
+  - PLATANO            # 5,087
+  - CAFE               # 4,395
+  - MANGO              # 2,459
+  - LIMON              # 1,889
+  - NARANJA            # 1,183
+  - CACAO              # 524
+  - GUABO              # 173
+  - COCO               # 140
+  - FRUTALES           # 124
+  - TAMARINDO          # 104
+  - CIRUELA            # 91
+  - PALTA              # 81
+  - GRANADILLA         # 43
+  - MARACUYA           # 42
+  - PAPAYA             # 41
+  - MAMEY              # 39
+  - GUANABANA          # 36
+  - TUNA               # 27
+  - PACAE
+  - LUCUMO
+  - MANDARINA
+  - OLIVO
+  - TORONJA
+  - POMARROSA
+  # tail variants / rarer fruit
+  - PLATANAO           # 15
+  - LIMA               # 7
+  - UVA                # 6
+  - CHIRIMOYA          # 5
+  - ZAPOTE             # 5
+  - PLTANO
+  - PLATAO
+  - PLATNO
+  - PALTANO
+  - PLANTANO
+  - PLATABNO
+  - BANANO
+  - BANANERO
+  - HUANABANA
+  - NARANJAO
+  - NARANAJA
+  - NARANAJ
+  - NARANAJO
+  - MANGO KENT
+  - CACA               # CACAO typo (4)
+
+annual:
+  - ARROZ              # 26,422
+  - MAIZ               # 9,009
+  - ALGODON            # 4,049
+  - TRIGO              # 1,736
+  - FRIJOL             # 1,472
+  - ZARANDAJA          # 459
+  - YUCA               # 432  (8-24 month root crop; MapBiomas: temporary)
+  - GIRASOL            # 376
+  - ARVEJA             # 357
+  - PAPA               # 337
+  - CAMOTE             # 226
+  - FRIJOL DE PALO     # 214
+  - FRIJOL CAUPI       # 82
+  - CEBADA             # 75
+  - TOMATE             # 67
+  - OLLUCO             # 53
+  - OCA                # 50
+  - HABA               # 45
+  - FRIJOL CASTILLA    # 43
+  - MAIZ AMARILLO DURO # 38
+  - AJO                # 37
+  - MARIGOLD           # 37
+  - MENESTRAS          # 28
+  - ZANAHORIA          # 26
+  - SOYA               # 23
+  - REPOLLO            # 23
+  - CHOCLO             # 22
+  - PAN LLEVAR         # 22  (subsistence annuals)
+  - HORTALIZAS         # 17
+  - CEBOLLA            # 15
+  - ALGAODON           # 23  OCR
+  - ARRROZ             # 15  OCR
+  # tail: rarer annuals + OCR variants
+  - AJI
+  - ZAPALLO
+  - MELON
+  - MANI
+  - ESPARRAGO          # perennial crowns, but MapBiomas classes it temporary (13 records)
+  - ESPARRAGOS
+  - FLORES
+  - CULANTRO
+  - VERDURAS
+  - LECHUGA
+  - PIMIENTO
+  - SANDIA
+  - MAIZ CHOCLO
+  - FRIJOL POROTO
+  - FRIJOL BAYO
+  - FRIJOL CANARIO
+  - ARBERJA
+  - II CAMPAÑA AGRICOLA
+  - ALMACIGO DE ARROZ
+  - ARROZ EN TRANSPLANTE
+  - ARROA
+  - ARROZZ
+  - ARRIOZ
+  - ARROIZ
+  - ARRIZ
+  - ARRO
+  - RROZ
+  - NAIZ
+  - MIAZ
+  - MAZI
+  - MAIZX
+  - ALAGODON
+  - ALGODN
+  - LAGODON
+  - TRGO
+
+# Grazing tokens from the `pasture_fallow` list below; in the 4-class variant these go to
+# PASTURE while the rest (resting/prepared ground) go to FALLOW.
+pasture_tokens: [PASTIZAL, POTRERO, AREA DE POTRERO, GRASS, NATURAL]
+
+# tokens whose *category* is `crop` but which describe bare/resting/grazed ground
+pasture_fallow:
+  - PASTIZAL
+  - POTRERO
+  - AREA DE POTRERO     # 19
+  - GRASS
+  - SIN PLANTACION
+  - TUMBA               # slash
+  - MACHACO             # pre-planting flood irrigation (Piura) -> bare, prepared
+  - RIEGO MACHACO
+  - RIEGO DE MACHACO
+  - RIEGO
+  - PARA ARROZ          # 23  ground prepared for rice, not yet sown
+  - PARA SEMBRAR ARROZ
+  - ZONA ALTA
+  - NATURAL
+  # DESCANSO ("resting") misspellings that the normaliser tagged `crop`
+  - DESCXANSO
+  - END ESCANSO
+  - ENDESCANSO
+  - DERSCANSO
+  - DECANSO
+  - DESANSO
+  - DESXCANSO
+  - DESCCANSO
+  - DESCASO
+  - DESWCANSO
+  - DESCUENTO
+  - TERRENO EN DECANSO
+  - TERRENO EN DESCASO
+  - TERRENO EN DECSNASO
+
+# spectrally perennial, but not export crops — excluded from training (see policy above)
+woody_noncrop:
+  - ALGARROBO           # 90
+  - GUAYAQUIL           # 135  (Guadua bamboo)
+  - COBERTURA ARBOREA   # 112
+  - REFORESTACION       # 62
+  - ROBLE               # 60
+  - EUCALIPTO           # 21
+  - FAIQUE              # 18
+  - HUALTACO
+  - HIGUERON
+  - NOGAL
+  - PALO DE OSO
+  - TALLA
+  - CAÑA DE GUAYAQUIL
+  - CAÑA BRAVA
+  - EXISTENCIA DE ALGARROBOS
+
+# ---- hard gates (identical to config/data.yaml — same parcels, same physics) ----
+area_min_ha: 0.09       # < 1 Landsat pixel
+area_max_ha: 50.0
+require_year: true      # titling year trusted as-is, but must exist
+year_min: 1990
+year_max: 2020
+
+# ---- abstain gate ----
+min_valid_obs: 4        # n_valid_obs >= 4 -> quality_ok
+
+# ---- D2 diagnostic: 4-class variant (PASTURE and FALLOW kept apart) ----
+# Built behind this flag so the leading model can be trained on it once and collapsed
+# post-hoc to 3 classes, testing whether merging two spectrally opposite classes hurt.
+four_class: true
+four_class_names:
+  pasture: PASTURE
+  fallow: FALLOW
+  land_prep: FALLOW

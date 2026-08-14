@@ -1,0 +1,33 @@
+# Python-generated files
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+
+# Run logs from long background jobs (panel extract/assemble)
+logs/
+
+# Model run outputs (782 MB of parquet/boosters). The two selection records that
+# docs cite by path are force-added: `git add -f runs/all_peru/selected_model*.json`.
+runs/
+
+# Data & credentials
+data/
+*.tif
+*.tiff
+.env
+*-key.json
+credentials.json

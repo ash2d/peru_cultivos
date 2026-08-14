@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="220" viewBox="0 0 1200 220">
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L10,3 L0,6 Z" fill="#475569"/></marker></defs>
+<style>text{font-family:Arial,sans-serif;fill:#172033} .box{fill:#eef4fb;stroke:#416788;stroke-width:2;rx:10} .t{font-size:16px;text-anchor:middle} .b{font-weight:bold} .line{stroke:#475569;stroke-width:2;fill:none;marker-end:url(#a)} .lab{font-size:13px;fill:#475569;text-anchor:middle}</style>
+<rect class="box" x="20" y="55" width="190" height="100"/><text class="t" x="115" y="82"><tspan class="b">BD SSET</tspan><tspan x="115" dy="22">land-titling crop registry</tspan><tspan x="115" dy="20">~348k Piura records</tspan></text>
+<rect class="box" x="250" y="55" width="190" height="100"/><text class="t" x="345" y="82"><tspan class="b">grafica_tabular_Piura</tspan><tspan x="345" dy="22">cadastral bridge</tspan></text>
+<rect class="box" x="480" y="55" width="190" height="100"/><text class="t" x="575" y="82"><tspan class="b">qgis_stefany shapefile</tspan><tspan x="575" dy="22">190,098 parcel polygons</tspan></text>
+<rect class="box" x="710" y="55" width="170" height="100"/><text class="t" x="795" y="92"><tspan class="b">(polygon, crop, year)</tspan><tspan x="795" dy="22">66,352 parcels</tspan></text>
+<rect class="box" x="920" y="55" width="250" height="100"/><text class="t" x="1045" y="82"><tspan class="b">Landsat 5/7 via GEE</tspan><tspan x="1045" dy="22">per-parcel pixels at label year</tspan><tspan x="1045" dy="20">Training table: features + label</tspan></text>
+<path class="line" d="M210 105H250"/><text class="lab" x="230" y="96">CodigoSSET</text><path class="line" d="M440 105H480"/><text class="lab" x="460" y="96">COD_PREDIO</text><path class="line" d="M670 105H710"/><path class="line" d="M880 105H920"/>
+</svg>

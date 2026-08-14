@@ -1,0 +1,62 @@
+# Label-space policy (plan.md §7, decisions A1/A2/A5). USER-EDITABLE.
+# `labels build` reads this file; every run saves the resolved copy next to its outputs.
+
+# ---- class vocabulary ----
+min_class_parcels: 300      # crops with fewer eligible parcels fall under rare_policy
+rare_policy: drop           # other | drop  (2026-07-22: no `other` bucket — rare crops dropped)
+
+# ---- class surgery (applied after the merge map, before rare-class filtering) ----
+# 2026-07-22 user decisions: GIRASOL removed (inadequate spatial support — 4 regions);
+# the lime/mango/mixed-orchard perennials collapse into one MANGO_LIMON class.
+relabel:
+  MANGO: MANGO_LIMON
+  LIMON: MANGO_LIMON
+  MIXED_ORCHARD: MANGO_LIMON
+drop_classes: [GIRASOL]
+
+# ---- category policy (A2) ----
+keep_categories: [crop]                # categories that become crop classes
+landcover_classes: [pasture, fallow]   # kept as their own classes (PASTURE / FALLOW); [] to exclude
+drop_categories: [land_prep, unspecified]
+
+# ---- intercrop merge map (A2) ----
+# A multi-crop parcel whose exact sorted crop-set matches a key collapses to the value.
+# Multi-crop parcels NOT listed here are excluded. Edit freely; keys are '+'-joined
+# alphabetically-sorted normalised crop names.
+# Extended 2026-07-22 (domain-side decision): coffee-shade systems -> CAFE; cacao
+# systems -> CACAO; orchard+annual -> the perennial (visible year-round); lime+mango
+# orchards -> a new MIXED_ORCHARD class; annual+annual -> the declared main crop;
+# crop+fallow/land-prep token -> the crop.
+merge:
+  "CAFE+PLATANO": CAFE
+  "CAFE+NARANJA+PLATANO": CAFE
+  "CAFE+NARANJA": CAFE
+  "CAFE+CAÑA DE AZUCAR+PLATANO": CAFE
+  "CAFE+GUABO+PLATANO": CAFE
+  "CAFE+PASTO": CAFE
+  "CAFE+PASTO ELEFANTE+PLATANO": CAFE
+  "CACAO+CAFE+PLATANO": CAFE
+  "CACAO+MANGO": CACAO
+  "MANGO+PLATANO": MANGO
+  "MAIZ+MANGO": MANGO
+  "LIMON+MAIZ": LIMON
+  "LIMON+MANGO": MIXED_ORCHARD
+  "LIMON+MAIZ+MANGO": MIXED_ORCHARD
+  "ARROZ+MAIZ": ARROZ
+  "ARROZ+DESCANSO": ARROZ
+  "ARROZ+MECANIZADO": ARROZ
+  "FRIJOL+MAIZ": MAIZ
+  "ARVEJA+MAIZ": MAIZ
+  "MAIZ+YUCA": MAIZ
+  "MAIZ+ZARANDAJA": MAIZ
+  "MAIZ+PLATANO": MAIZ
+  "MAIZ+PASTO": MAIZ
+  "ALGODON+MAIZ": ALGODON
+
+# ---- hard gates (A5 + A1) ----
+area_min_ha: 0.09           # < 1 Landsat pixel -> excluded
+area_max_ha: 50.0           # oversized parcels excluded for now (mostly real, but be safe)
+require_year: true          # titling year trusted as-is (A1), but must exist
+
+# ---- abstain gate (finalised after the stage-1 coverage pass) ----
+min_valid_obs: 4            # n_valid_obs >= 4 -> quality_ok (plan §7)

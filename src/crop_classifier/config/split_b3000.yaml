@@ -1,0 +1,17 @@
+# Spatial split policy (plan.md §5, decision A2: 1 km blocks + buffered dead-zone).
+block_km: 1.0        # block grid size in km (EPSG:32717) — reporting + fine structure
+region_km: 5.0       # super-region grid: test/fold units are CONTIGUOUS cells this size.
+                     # Buffer cost scales with held-out perimeter, so a few large regions
+                     # cost far less training data than many scattered 1 km blocks
+                     # (scattered: 33,245/48,289 parcels buffered out; see splits_meta).
+buffer_m: 3000       # leakage-bound variant: 3-class spatial agreement is much
+                     # higher than at 12 classes (0.845 under 100 m, 0.61 at 4-5 km vs a
+                     # 0.477 baseline), so the 1.5 km buffer controls less of it here.
+                     # Reported alongside the 1500 m result to bound how optimistic CV is.
+n_folds: 5
+test_frac: 0.15      # locked test share (whole regions)
+seed: 42
+
+# Autocorrelation audit (sets/justifies buffer_m)
+audit_max_dist_m: 5000
+audit_sample: 30000  # parcels sampled for the pairwise-agreement curve

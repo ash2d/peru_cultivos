@@ -1,0 +1,76 @@
+{
+  "model_run": "lightgbm_nometa_nolat_aug_yleak10",
+  "selected_on": "out-of-distribution-YEAR skill (temporal_ood_plan.md T-D1), subject to no leave-one-department-out regression (T-D3), with leave-one-department-AND-year-out (LODYO) as the tie-break",
+  "supersedes": "selected_model_20260809.json (lightgbm_nometa_nolat, selected on LODO alone)",
+  "reason": "Re-selected 2026-08-11 after temporal_ood_plan.md steps 1-3. Same architecture and the same withheld features as the previous primary, plus two changes: (a) degradation augmentation -- the training rows are duplicated at endpoint observation density (allperu.density.build_degraded_features, features_lightgbm_degraded.parquet); (b) the top-10 year-identifying features are withheld (year-leak audit, allperu/yearleak.py). It improves EVERY deciding metric over the incumbent -- CV +0.0006, LODO +0.0024, LOYO +0.0025, LODYO +0.0040, W2 control slope -0.0592 -> -0.0382 (35 % flatter, the largest move any arm produced) -- and costs nothing anywhere. IMPORTANT: none of the labelled differences is individually significant (paired p 0.14-0.54); the case for adoption is consistency in sign across four independent criteria plus the W2 move, not a demonstrated effect. IMPORTANT: this does NOT mean the temporal problem is fixed. Step 1's acceptance FAILED on every arm (W2 target |0.01|, best 0.038; LOYO worst-cohort gap target 0.10, best 0.151). No trajectory, transition or area estimate is licensed. See RESULTS.md 9.",
+  "cv_macro_f1": 0.5811,
+  "lodo_mean_macro_f1": 0.4789,
+  "loyo_mean_macro_f1": 0.5261,
+  "lodyo_mean_macro_f1": 0.5173,
+  "w2_control_slope_per_decade": -0.0382,
+  "temperature": 1.0808876002394172,
+  "evaluation_note": "LOYO alone must NOT be used to select. It holds region approximately fixed so that year varies, which means a time-invariant feature is as exploitable in LOYO as in spatial CV: centroid_lat is worth +0.0476 on CV, +0.0474 on LOYO and -0.0596 on LODO. LODYO (allperu lodyo -- re-scoring existing LODO predictions per label-year cohort, free) holds out place AND year, and there centroid_lat's advantage is -0.005. RESULTS.md 9.2.1.",
+  "candidates": [
+    {
+      "run": "lightgbm_nometa_nolat",
+      "cv_macro_f1": 0.5805,
+      "lodo_mean_macro_f1": 0.4765,
+      "loyo_mean_macro_f1": 0.5236,
+      "lodyo_mean_macro_f1": 0.5133,
+      "w2_control_slope_per_decade": -0.0592,
+      "temperature": 1.06559341641755,
+      "note": "the previous primary; every metric here is the baseline the new arm is measured against"
+    },
+    {
+      "run": "lightgbm_nometa_nolat_aug",
+      "cv_macro_f1": 0.5795,
+      "lodo_mean_macro_f1": 0.477,
+      "loyo_mean_macro_f1": 0.5291,
+      "lodyo_mean_macro_f1": 0.5149,
+      "w2_control_slope_per_decade": -0.0512,
+      "temperature": 1.107502116172187,
+      "note": "degradation augmentation alone: best LOYO mean of the nolat family (+0.0054, paired p 0.073) but a smaller W2 gain than the combination"
+    },
+    {
+      "run": "lightgbm_nometa_nolat_yleak10",
+      "cv_macro_f1": 0.5815,
+      "lodo_mean_macro_f1": 0.4772,
+      "loyo_mean_macro_f1": 0.5267,
+      "lodyo_mean_macro_f1": 0.5135,
+      "w2_control_slope_per_decade": -0.0679,
+      "temperature": 1.0987740287356464,
+      "note": "year-leak drop alone: best LOYO spread (sd 0.0500 vs 0.0568) but W2 -0.0679, WORSE than the incumbent. Only the combination improves both"
+    },
+    {
+      "run": "lightgbm_nometa_nolat_norder",
+      "cv_macro_f1": 0.5763,
+      "lodo_mean_macro_f1": 0.4754,
+      "loyo_mean_macro_f1": 0.521,
+      "lodyo_mean_macro_f1": 0.511,
+      "w2_control_slope_per_decade": -0.0596,
+      "temperature": 1.1065226897492084,
+      "note": "NOT ADOPTED. Dropping all 33 order-statistic features is what the step-1a density audit most obviously implies, and LOYO rejects it: mean -0.0026, worst PERENNIAL recall 0.344 (worst of any arm). Third confirmation that a ranking generates candidates and cannot decide them"
+    },
+    {
+      "run": "lightgbm_nometa",
+      "cv_macro_f1": 0.6281,
+      "lodo_mean_macro_f1": 0.4169,
+      "loyo_mean_macro_f1": 0.571,
+      "lodyo_mean_macro_f1": 0.5083,
+      "w2_control_slope_per_decade": -0.0437,
+      "temperature": 1.09330627794998,
+      "note": "NOT ADOPTED. Wins LOYO mean by +0.047 -- and that gain is spatial memorisation, not temporal skill: it equals the CV gain to three decimals and reverses on LODO (-0.0596) and on LODYO (-0.005). Also the worst worst-cohort PERENNIAL recall of any arm (0.281)"
+    },
+    {
+      "run": "ltae",
+      "cv_macro_f1": 0.6021,
+      "lodo_mean_macro_f1": 0.4422,
+      "loyo_mean_macro_f1": 0.4784,
+      "lodyo_mean_macro_f1": 0.4965,
+      "w2_control_slope_per_decade": -0.1025,
+      "temperature": 2.0811955078721276,
+      "note": "NOT ADOPTED. Now measured on the temporal axis too and it is the WORST arm there: LOYO mean 0.4784, LODYO 0.4965, W2 -0.1025. A structurally static-free architecture transfers worse in time as well as in space"
+    }
+  ],
+  "gate_note": "Selection labels the PRIMARY model and does NOT decide which models are gated. All three arms were put through the Phase-7 panel gate because they differ in exactly the variable under test (statics). Every arm FAILED -- see RESULTS.md 7.5. No trajectories, transitions or area estimates exist."
+}

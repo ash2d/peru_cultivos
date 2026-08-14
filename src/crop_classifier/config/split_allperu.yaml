@@ -1,0 +1,27 @@
+# Spatial split policy for the all-Peru workspace (docs/all_peru/).
+#
+# Same policy as split.yaml with two changes, both forced by working at national rather
+# than departmental scale:
+#
+#  * `metric_crs` — Piura fits inside UTM 17S; Peru spans 17S/18S/19S. Block and region ids
+#    must come from ONE continuous grid or cells collide across zone boundaries, so the
+#    whole country is projected to UTM 18S. Peru reaches ~6.4 deg either side of the 75W
+#    central meridian => scale error < ~0.7 %, i.e. <11 m on the 1.5 km buffer. Harmless
+#    for gridding; it would not be acceptable for area estimation.
+#
+#  * `test_frac` — raised 0.15 -> 0.20. The locked test is what measures *spatial*
+#    generalisation, which is the point of going national, and the sample deliberately
+#    spreads over many more regions than Piura had, so a larger held-out share costs
+#    proportionally less per region.
+#
+# Everything else is deliberately identical to the Piura run so the two are comparable.
+metric_crs: 32718    # WGS84 / UTM 18S — one grid for the whole country
+block_km: 1.0
+region_km: 5.0
+buffer_m: 1500
+n_folds: 5
+test_frac: 0.20
+seed: 42
+
+audit_max_dist_m: 5000
+audit_sample: 30000

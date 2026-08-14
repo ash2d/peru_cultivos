@@ -1,0 +1,30 @@
+# Spatial split for the S2 endpoint-labelling campaign (s2_labelling_plan.md §3).
+#
+# Frozen and committed BEFORE a single parcel is labelled, and never shown in the
+# labelling HTML.
+#
+# Same policy as split_allperu.yaml with two changes:
+#
+#  * `buffer_m` 1500 -> 3000. Measured free on the national store (CV 0.580 ± 0.024 vs
+#    0.5805 ± 0.002), and with at most 2 parcels per 5 km region this sample is scattered
+#    enough that the dead-zone should cost very little. Check the realised cost after
+#    assignment: if >10 % of trainval is sterilised, drop back to 1500.
+#
+#  * `balance_test_on` / `n_test_candidates` — the draw is stratified by department, so the
+#    test set must be too, or a national headline is one region's luck. 200 candidate draws
+#    are scored on the joint department x declared-class composition and the closest kept.
+#    `year` is deliberately NOT balanced on here: every label in this campaign is a 2019+
+#    photo-interpretation, so there is no label-year composition to balance.
+metric_crs: 32718    # WGS84 / UTM 18S — one grid for the whole country
+block_km: 1.0
+region_km: 5.0
+buffer_m: 3000
+n_folds: 5
+test_frac: 0.20
+seed: 42
+
+balance_test_on: [dept, label]
+n_test_candidates: 200
+
+audit_max_dist_m: 5000
+audit_sample: 30000

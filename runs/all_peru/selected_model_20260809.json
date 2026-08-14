@@ -1,0 +1,31 @@
+{
+  "model_run": "lightgbm_nometa_nolat",
+  "selected_on": "leave-one-department-out mean macro-F1 (unseen-department transfer), not CV",
+  "reason": "Re-selected 2026-08-09 after adding LTAE as a third candidate. Unchanged: lightgbm_nometa_nolat still wins the deciding criterion. It leads the LODO mean (0.4765 vs LTAE 0.4422 and lightgbm_nometa 0.4169), is best in 8 of 14 departments, and ties lightgbm_nometa on pooled LODO (-0.0015). centroid_lat transfers like a lookup table, not like signal. See docs/all_peru/RESULTS.md 6.2/6.3.",
+  "cv_macro_f1": 0.5805,
+  "lodo_mean_macro_f1": 0.4765,
+  "lodo_pooled_macro_f1": 0.5374,
+  "lodo_std_macro_f1": 0.0820,
+  "temperature": 1.066,
+  "candidates": [
+    {
+      "run": "ltae",
+      "cv_macro_f1": 0.6021,
+      "lodo_mean_macro_f1": 0.4422,
+      "lodo_pooled_macro_f1": 0.5085,
+      "lodo_std_macro_f1": 0.0561,
+      "temperature": 2.081,
+      "note": "NEGATIVE RESULT. Structurally static-free (per-date tensors only), so the centroid_lat memorisation mechanism cannot apply to it at all -- yet it does NOT transfer best. It sits between the two LightGBM variants on LODO mean and is WORST on LODO pooled (-0.029 vs both). Its one win is consistency: the lowest across-department spread of the three (0.056 vs 0.082/0.098). It also loses CV to lightgbm_nometa (0.602 vs 0.628), reversing Piura, where tuned LTAE beat LightGBM on all five folds. Removing centroid_lat from LightGBM helps transfer (+0.060); removing every static via a different architecture does not help further."
+    },
+    {
+      "run": "lightgbm_nometa",
+      "cv_macro_f1": 0.6281,
+      "lodo_mean_macro_f1": 0.4169,
+      "lodo_pooled_macro_f1": 0.5389,
+      "lodo_std_macro_f1": 0.0980,
+      "temperature": 1.093,
+      "note": "highest CV, worst transfer to unseen departments"
+    }
+  ],
+  "gate_note": "Selection labels the PRIMARY model and does NOT decide which models are gated. All three arms were put through the Phase-7 panel gate because they differ in exactly the variable under test (statics). Every arm FAILED -- see RESULTS.md 7.5. No trajectories, transitions or area estimates exist."
+}

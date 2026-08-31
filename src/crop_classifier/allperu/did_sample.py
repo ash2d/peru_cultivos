@@ -1,4 +1,4 @@
-"""The extraction sample for the pre-trend-corrected tenure DiD (``tenure_did_plan.md`` §9).
+"""The extraction sample for the pre-trend-corrected tenure DiD (``docs/RESULTS.md`` §7).
 
 The v2 study stopped at N3 because its gate demanded *proof* that the pre-trend was
 negligible, and the equivalence test that would need 25,202 parcels per arm while all of Peru

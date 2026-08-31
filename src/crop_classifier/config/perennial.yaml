@@ -1,4 +1,4 @@
-# 3-class label policy: PERENNIAL / ANNUAL / PASTURE_FALLOW (docs/perennial/plan.md §3).
+# 3-class label policy: PERENNIAL / ANNUAL / PASTURE_FALLOW (docs/PIPELINE.md §4).
 # USER-EDITABLE. `perennial labels` reads this file; the resolved token->group table is
 # written to class_lexicon_resolved.csv next to the outputs.
 #
@@ -12,7 +12,7 @@ classes: [PERENNIAL, ANNUAL, PASTURE_FALLOW]
 # 30 m pixel regardless of what is intercropped beneath it.
 group_priority: [PERENNIAL, ANNUAL, PASTURE_FALLOW]
 
-# ---- policy flags (docs/perennial/plan.md §2) ----
+# ---- policy flags (docs/PIPELINE.md §4) ----
 # D1: sugarcane is a multi-year ratoon crop (spectrally perennial) but is not an export
 # perennial and MapBiomas classes it as a *temporary* crop. `annual` keeps our definition
 # aligned with MapBiomas; §9.5 re-runs the headline trend with `perennial` as a

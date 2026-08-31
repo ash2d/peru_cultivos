@@ -1,0 +1,59 @@
+# 3-class label policy for the **CENAGRO 2012 census** vocabulary.
+#
+# Derived from config/perennial_allperu.yaml by ADDING tokens only — no existing assignment
+# is changed, so a census crop and a PETT crop are still resolved by the same rules and a
+# measured change is a change in the land, not in the definition.
+#
+# Why it was needed: the census uses fuller crop names than the titling registry
+# ("LIMON ACIDO" not "LIMON", "MAIZ AMARILLO DURO" not "MAIZ"), and it has vocabulary the
+# registry has none of. Audited over 59,855 census token-instances, 2,448 (4.09 %) fell to
+# `crop_fallback: ANNUAL` — and **1,969 of those were the single token VERGEL FRUTICOLA,
+# literally "fruit orchard"**, i.e. the misassignment ran directly against the class the
+# research question is about. Everything added below is a token the audit surfaced.
+#
+# ⚠️ Use this config for the CENAGRO side only. Running it over the PETT records would
+# change PETT labels of record.
+
+# ⚠️ This file is a DIFF against its parent, resolved by `crop_classifier.config_loader`.
+# Read the parent for anything not listed below.
+
+extends: perennial_allperu.yaml
+
+# Tokens ADDED to the parent's lexicon. Nothing inherited is reassigned.
+add:
+  perennial:
+  - MELOCOTONERO
+  - MEMBRILLERO
+  - DAMASCO
+  - TANGELO
+  - PAJURO
+  - VERGEL FRUTICOLA
+  - TAPERIBA
+  - CIROLERO
+  - GUAYABO
+  - GRANADO
+  - CARAMBOLA
+  - NONI
+  - TUMBO
+  - GUANABO
+  annual:
+  - VERGEL HORTICOLA
+  - ESPINACA
+  - ALBAHACA
+  - RABANO
+  - SACHA INCHI
+  - YACON
+  - HIERBA BUENA
+  - MANZANILLA
+  - HO LAN TAO
+  - MARGARITA VARA
+  - CLAVEL
+  - ROSA
+  - AZUCENA
+  - CARTUCHO
+  - MOCO DE PAVO
+  pasture_fallow:
+  - DACTYLIS
+  - CARRIZO
+  woody_noncrop:
+  - TORNILLO

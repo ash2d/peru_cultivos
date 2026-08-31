@@ -25,7 +25,7 @@ parcel-years, comparable to the existing 25-year national panel's 114 k — buyi
 parcels at the same cost because it buys 10 years instead of 25. That trade is the point.
 
 ⚠️ **Drawing this sample is cheap; extracting it is not.** As of 2026-08-10 the T1/T2/T3
-gates in window_plan.md §5 have all **failed**, and the plan's own stop rule says no GEE
+gates in RESULTS.md §5 have all **failed**, and the plan's own stop rule says no GEE
 budget should be spent until that is understood. This module exists so the draw is
 reproducible and reviewable *before* anyone spends it, not as permission to spend.
 
@@ -63,7 +63,8 @@ def power_n(p1: float, p2: float, alpha: float = 0.05, power: float = 0.80,
 
     ``deff`` is the design effect from the sampling weights — the sample is deliberately
     unequal-probability, so the effective sample size is smaller than the parcel count.
-    window_plan.md §4.6 quotes ~1,500 before and ~2,100 after ``deff``; the ≥5,000 target is
+    The window plan (RESULTS.md §5) quoted ~1,500 before and ~2,100 after ``deff``;
+    the ≥5,000 target is
     for department fixed effects and heterogeneity, not for the headline test.
     """
     from scipy.stats import norm

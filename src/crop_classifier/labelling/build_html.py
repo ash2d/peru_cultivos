@@ -1,4 +1,4 @@
-"""Build the self-contained labelling HTML shards (s2_labelling_plan.md §7).
+"""Build the self-contained labelling HTML shards (docs/s2_labelling/plan.md).
 
 One file per shard of 200 parcels: two base64 JPEGs + an inline SVG NDVI trace per item
 (~58 KB), so a shard is ~12 MB — openable from disk with no server.
@@ -53,6 +53,18 @@ ITEM_FIELDS = ["item_id", "dept", "imagery_date", "imagery_res", "area_ha",
 # tidily would silently change what an already-briefed labeller's fingers do.
 LABELS = ["PERENNIAL", "ANNUAL", "OTHER", "WOODY_NON_CROP", "UNSURE",
           "NON_AGRICULTURE"]
+
+# ⚠️ Translation touches the **display name only**. The value written to the CSV, and every
+# value `ingest.py` compares against, stays the canonical English constant above. Localising
+# the stored value would mean the ingest silently matched nothing and reported an empty
+# label distribution rather than an error — the same class of failure as the four data traps.
+LABEL_DISPLAY = {
+    "en": {lab: lab for lab in LABELS},
+    "es": {"PERENNIAL": "PERENNE", "ANNUAL": "ANUAL", "OTHER": "OTRO",
+           "WOODY_NON_CROP": "LEÑOSO NO CULTIVO", "UNSURE": "NO SEGURO",
+           "NON_AGRICULTURE": "NO AGRÍCOLA"},
+}
+LANGS = tuple(LABEL_DISPLAY)
 
 # Fields that must NEVER appear, checked by the test suite against the raw HTML.
 FORBIDDEN_FIELDS = ["declared_class", "label_id", "split", "fold", "crop_set",
@@ -303,6 +315,78 @@ kbd{background:#0f151d;border:1px solid var(--line);border-radius:3px;padding:1p
 @media (max-width:1000px){.card{grid-template-columns:1fr}.card img{width:100%;height:auto}}
 """
 
+# ------------------------------------------------------------------------------------
+# User-visible strings
+#
+# Every user-visible string lives here and is injected as `const T` next to the payload;
+# the JS below only ever reads `T.*` and `NAMES[...]`. One code path serves both languages,
+# so a fix to the labelling logic cannot land in one language and miss the other.
+# ------------------------------------------------------------------------------------
+UI = {
+    "en": {
+        "title": "Parcel labelling", "your_name": "your name",
+        "name_ph": "type your name", "download": "Download CSV", "codebook": "Codebook",
+        "labelled": "labelled",
+        "cap_context": "context &mdash; whole parcel + surroundings, "
+                       "outlined yellow, neighbours cyan",
+        "cap_zoom": "zoom &mdash; 200 m across, same centre",
+        "imagery": "imagery",
+        "cap_trace_a": "Sentinel-2 NDVI, 24 months &mdash; ",
+        "cap_trace_b": " clear observations; line = parcel median, shaded band = the "
+                       "middle half of its pixels (p25&ndash;p75); dashed line = the "
+                       "imagery date",
+        "bm": "boundary no longer matches the visible field",
+        "crop_ph": "crop guess (optional)",
+        "hint_tail": "&nbsp;·&nbsp; <kbd>b</kbd> boundary &nbsp;"
+                     "<kbd>&larr;</kbd><kbd>&rarr;</kbd> navigate. Typing in a text box "
+                     "disables the shortcuts until you click away.",
+        "need_name": "Please type your name in the box at the top first — it goes into "
+                     "the file so we know whose labels these are.",
+        "resumed_a": "Resumed &mdash; ", "resumed_b": " of ",
+        "resumed_c": " labels restored from this browser. ",
+        "go_first": "go to the first unlabelled",
+    },
+    "es": {
+        "title": "Etiquetado de parcelas", "your_name": "su nombre",
+        "name_ph": "escriba su nombre", "download": "Descargar CSV", "codebook": "Manual",
+        "labelled": "etiquetadas",
+        "cap_context": "contexto &mdash; parcela completa y su entorno; "
+                       "contorno amarillo, vecinas en celeste",
+        "cap_zoom": "acercamiento &mdash; 200 m de ancho, mismo centro",
+        "imagery": "imagen",
+        "cap_trace_a": "NDVI Sentinel-2, 24 meses &mdash; ",
+        "cap_trace_b": " observaciones despejadas; línea = mediana de la parcela, banda "
+                       "sombreada = la mitad central de sus píxeles (p25&ndash;p75); "
+                       "línea punteada = fecha de la imagen",
+        "bm": "el borde ya no coincide con la chacra visible",
+        "crop_ph": "cultivo probable (opcional)",
+        "hint_tail": "&nbsp;·&nbsp; <kbd>b</kbd> borde &nbsp;"
+                     "<kbd>&larr;</kbd><kbd>&rarr;</kbd> navegar. Mientras escribe en un "
+                     "cuadro de texto los atajos quedan desactivados.",
+        "need_name": "Escriba su nombre en el cuadro de arriba antes de descargar — va "
+                     "dentro del archivo para saber de quién son las etiquetas.",
+        "resumed_a": "Reanudado &mdash; ", "resumed_b": " de ",
+        "resumed_c": " etiquetas recuperadas de este navegador. ",
+        "go_first": "ir a la primera sin etiquetar",
+    },
+}
+
+_KEY_HINT = {
+    "en": ["perennial", "annual", "other", "woody non-crop", "unsure", "non-agriculture"],
+    "es": ["perenne", "anual", "otro", "leñoso no cultivo", "no seguro", "no agrícola"],
+}
+
+
+def _js_head(lang: str) -> str:
+    """`T` (interface strings) and `NAMES` (button captions) for one language."""
+    names = LABEL_DISPLAY[lang]
+    hint = " &nbsp;".join(f"<kbd>{i + 1}</kbd> {w}"
+                          for i, w in enumerate(_KEY_HINT[lang]))
+    t = dict(UI[lang], hint=hint + " " + UI[lang]["hint_tail"])
+    return (f"const T={json.dumps(t, ensure_ascii=False)};\n"
+            f"const NAMES={json.dumps(names, ensure_ascii=False)};\n")
+
+
 _JS = r"""
 const KEYS={'1':'PERENNIAL','2':'ANNUAL','3':'OTHER','4':'WOODY_NON_CROP','5':'UNSURE',
             '6':'NON_AGRICULTURE'};
@@ -341,38 +425,30 @@ function nDone(){ return ITEMS.filter(x=>store[x.item_id]&&store[x.item_id].labe
 function render(){
   const it=ITEMS[i], r=rec(it.item_id);
   document.getElementById('pos').textContent=(i+1)+' / '+ITEMS.length;
-  document.getElementById('cnt').textContent=nDone()+' labelled';
+  document.getElementById('cnt').textContent=nDone()+' '+T.labelled;
   document.getElementById('pb').style.width=(100*nDone()/ITEMS.length)+'%';
   document.getElementById('wrap').innerHTML=
    '<div class="card">'
-   +'<div><img src="data:image/jpeg;base64,'+it.context+'"><div class="cap">context '
-   +'&mdash; whole parcel + surroundings, outlined yellow, neighbours cyan</div></div>'
-   +'<div><img src="data:image/jpeg;base64,'+it.zoom+'"><div class="cap">zoom '
-   +'&mdash; 200 m across, same centre</div></div>'
+   +'<div><img src="data:image/jpeg;base64,'+it.context+'"><div class="cap">'
+   +T.cap_context+'</div></div>'
+   +'<div><img src="data:image/jpeg;base64,'+it.zoom+'"><div class="cap">'
+   +T.cap_zoom+'</div></div>'
    +'<div><div class="meta"><b>'+it.item_id+'</b> &nbsp;·&nbsp; '+it.dept
-   +' &nbsp;·&nbsp; '+it.area_ha+' ha &nbsp;·&nbsp; imagery <b>'+it.imagery_date
+   +' &nbsp;·&nbsp; '+it.area_ha+' ha &nbsp;·&nbsp; '+T.imagery+' <b>'+it.imagery_date
    +'</b> ('+it.imagery_res+')</div>'
    +it.trace
-   +'<div class="cap">Sentinel-2 NDVI, 24 months &mdash; '+it.n_obs
-   +' clear observations; line = parcel median, shaded band = the middle half of its '
-   +'pixels (p25&ndash;p75); dashed line = the imagery date</div>'
+   +'<div class="cap">'+T.cap_trace_a+it.n_obs+T.cap_trace_b+'</div>'
    +'<div class="keys" id="keys"></div>'
    +'<div class="row">'
-   +'<label class="cb"><input type="checkbox" id="bm"> boundary no longer matches the '
-   +'visible field</label></div>'
-   +'<div class="row"><input type="text" id="crop" placeholder="crop guess (optional)">'
+   +'<label class="cb"><input type="checkbox" id="bm"> '+T.bm+'</label></div>'
+   +'<div class="row"><input type="text" id="crop" placeholder="'+T.crop_ph+'">'
    +'</div>'
-   +'<div class="note"><kbd>1</kbd> perennial &nbsp;<kbd>2</kbd> annual &nbsp;'
-   +'<kbd>3</kbd> other &nbsp;<kbd>4</kbd> woody non-crop &nbsp;<kbd>5</kbd> unsure'
-   +' &nbsp;<kbd>6</kbd> non-agriculture'
-   +' &nbsp;·&nbsp; <kbd>b</kbd> boundary &nbsp;'
-   +'<kbd>&larr;</kbd><kbd>&rarr;</kbd> navigate. Typing in a text box disables the '
-   +'shortcuts until you click away.</div></div></div>';
+   +'<div class="note">'+T.hint+'</div></div></div>';
   const kk=document.getElementById('keys');
   Object.keys(KEYS).forEach(function(k){
     const b=document.createElement('div');
     b.className='key'+(r.label===KEYS[k]?' sel':'');
-    b.innerHTML='<i>'+k+'</i>'+KEYS[k];
+    b.innerHTML='<i>'+k+'</i>'+NAMES[KEYS[k]];
     b.onclick=function(){setLabel(KEYS[k])};
     kk.appendChild(b);
   });
@@ -401,8 +477,7 @@ document.addEventListener('keydown',function(e){
 
 function csv(){
   tick(); save();
-  if(!who){ alert('Please type your name in the box at the top first — it goes into the '
-                  +'file so we know whose labels these are.');
+  if(!who){ alert(T.need_name);
             const w=document.getElementById('who'); if(w) w.focus(); return; }
   const head=['item_id','labeller','label','crop_guess',
               'boundary_mismatch','seconds_spent','timestamp'];
@@ -434,9 +509,8 @@ window.addEventListener('load',function(){
   if(!who&&w){ w.focus(); }
   if(nDone()>0){ const b=document.getElementById('banner');
     b.style.display='block';
-    b.innerHTML='Resumed &mdash; '+nDone()+' of '+ITEMS.length+
-      ' labels restored from this browser. <button onclick="jumpNext()">go to the '+
-      'first unlabelled</button>';
+    b.innerHTML=T.resumed_a+nDone()+T.resumed_b+ITEMS.length+T.resumed_c+
+      '<button onclick="jumpNext()">'+T.go_first+'</button>';
   }
   render();
 });
@@ -452,8 +526,8 @@ ITEMS_CLOSE = ";\n/*end-items*/\n"
 
 
 def render_html(items: list[dict], shard_id: str, labeller: str,
-                codebook_html: str = "") -> str:
-    """One self-contained shard file.
+                codebook_html: str | None = None, lang: str = "en") -> str:
+    """One self-contained shard file, in ``lang``.
 
     Written as flat concatenation rather than an indented triple-quoted template: the CSS
     and JS blocks interpolated into it contain unindented lines, so ``textwrap.dedent``
@@ -461,24 +535,31 @@ def render_html(items: list[dict], shard_id: str, labeller: str,
     reads like. ``ITEMS_OPEN``/``ITEMS_CLOSE`` are exact delimiters so the embedded
     payload can be recovered byte-for-byte by a test.
     """
+    if lang not in LANGS:
+        raise ValueError(f"lang must be one of {LANGS}, got {lang!r}")
+    u = UI[lang]
+    if codebook_html is None:
+        codebook_html = CODEBOOK_HTML[lang]
     payload = json.dumps(items, separators=(",", ":"))
     return (
-        '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">\n'
+        f'<!doctype html>\n<html lang="{lang}"><head><meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width,initial-scale=1">\n'
-        f"<title>Parcel labelling — {shard_id} ({labeller})</title>\n"
+        f"<title>{u['title']} — {shard_id} ({labeller})</title>\n"
         f"<style>{_CSS}</style></head><body>\n"
         '<header>\n'
-        '<h1>Parcel labelling &nbsp;<span style="color:#8b98a5;font-weight:400">'
+        f"<h1>{u['title']} &nbsp;"
+        '<span style="color:#8b98a5;font-weight:400">'
         f'{shard_id}</span></h1>\n'
-        '<label class="cb">your name '
-        '<input type="text" id="who" placeholder="type your name" '
+        f'<label class="cb">{u["your_name"]} '
+        f'<input type="text" id="who" placeholder="{u["name_ph"]}" '
         'style="width:150px"></label>\n'
         '<span id="pos" style="font-size:12px;color:#8b98a5"></span>\n'
         '<div class="bar"><i id="pb"></i></div>\n'
         '<span id="cnt" style="font-size:12px;color:#8b98a5"></span>\n'
-        '<button onclick="csv()">Download CSV</button>\n'
+        f'<button onclick="csv()">{u["download"]}</button>\n'
         "<button onclick=\"var e=document.getElementById('cb');"
-        "e.style.display=e.style.display==='none'?'block':'none'\">Codebook</button>\n"
+        "e.style.display=e.style.display==='none'?'block':'none'\">"
+        f'{u["codebook"]}</button>\n'
         "</header>\n"
         '<div style="max-width:1180px;margin:0 auto;padding:14px 14px 0">\n'
         '<div id="banner"></div>\n'
@@ -488,6 +569,7 @@ def render_html(items: list[dict], shard_id: str, labeller: str,
         "<script>\n"
         f"const SHARD_ID={json.dumps(shard_id)};\n"
         f"const LABELLER={json.dumps(labeller)};\n"
+        f"{_js_head(lang)}"
         f"{ITEMS_OPEN}{payload}{ITEMS_CLOSE}"
         "</script>\n"
         f"<script>{_JS}</script>\n"
@@ -495,92 +577,161 @@ def render_html(items: list[dict], shard_id: str, labeller: str,
     )
 
 
-CODEBOOK_HTML = """
-<div style="background:#121821;border:1px solid #232c36;border-radius:8px;padding:14px;
-     margin-bottom:12px;font-size:13px;line-height:1.55">
-<b style="font-size:14px">Codebook — pick one of six for every parcel</b>
+_CB_WRAP = ("""<div style="background:#121821;border:1px solid #232c36;border-radius:8px;"""
+            """padding:14px;margin-bottom:12px;font-size:13px;line-height:1.55">""")
+
+# The codebook the labeller actually reads. Deliberately short: it is opened mid-task, on a
+# parcel that is already confusing, and every sentence that is not a decision rule competes
+# with the ones that are. The long-form reasoning (why UNSURE exists, why confidence was
+# removed, why WOODY_NON_CROP must never fold into PERENNIAL) belongs in
+# docs/s2_labelling/plan.md §3, not here.
+#
+# WARNING: docs/s2_labelling/codebook.md must carry the same rules. What a labeller reads and what
+# is on the record cannot be allowed to drift apart.
+CODEBOOK_HTML = {}
+
+CODEBOOK_HTML["en"] = _CB_WRAP + """
+<b style="font-size:14px">Codebook &mdash; pick one of six for every parcel</b>
 <ul style="margin:8px 0 4px;padding-left:20px">
-<li><b>1 PERENNIAL</b> — woody or multi-year crop expected to hold the parcel &gt;3 years:
- mango, lime, avocado, olive, coffee, cacao, banana/plantain, oil palm.
- <i>Visual:</i> regular crown pattern or row structure, canopy texture, green in both
- seasons of the trace. <b>Sugarcane is ANNUAL here.</b></li>
-<li><b>2 ANNUAL</b> — sown and harvested within a cycle: rice, maize, cotton, potato,
- beans, wheat. <i>Visual:</i> uniform texture, no crowns, sharp field boundaries; one or
- two NDVI peaks with returns to bare.</li>
-<li><b>3 OTHER</b> — <b>farmable land that is not currently a crop</b>: pasture, fallow,
- ploughed or prepared bare ground, weeds and scrub on ground that could be sown.
- <i>Visual:</i> no crop geometry, or crop geometry with nothing growing across both
- seasons of the trace.</li>
-<li><b>4 WOODY_NON_CROP</b> — trees that are not a crop: windbreaks, riparian strips,
- invaded/abandoned parcels. <i>Visual:</i> tree cover without rows or a planting grid,
- often following a watercourse or field edge rather than filling the parcel.
- <b>Never fold this into PERENNIAL.</b></li>
-<li><b>5 UNSURE</b> — you genuinely cannot tell. Cloud, deep shadow, a parcel that is
- half one thing and half another, imagery too coarse to see whether those are crowns.
- <b>Use it freely.</b> An honest UNSURE is worth more than a guess: guesses are
- indistinguishable from real labels downstream, whereas UNSURE parcels are simply set
- aside. It is not a failure and it is not scored against you.</li>
-<li><b>6 NON_AGRICULTURE</b> — <b>land that is out of agricultural use altogether</b>:
- buildings, yards and settlement, greenhouses and industrial sheds, roads and tracks,
- canals and reservoirs, open water, active riverbed sand and gravel, quarries, bare rock.
- <i>Visual:</i> roofs, pavement, vehicle tracks, water, or unvegetated sand/rock with no
- field geometry at all.</li>
+<li><b>1 PERENNIAL</b> &mdash; woody or multi-year crop (&gt;3 years): mango, lime, avocado,
+ olive, coffee, cacao, banana, oil palm. <i>Looks like:</i> regular crowns or rows, canopy
+ texture; green in both seasons of the trace. <b>Sugarcane counts as ANNUAL.</b></li>
+<li><b>2 ANNUAL</b> &mdash; sown and harvested in one cycle: rice, maize, cotton, potato,
+ beans, wheat. <i>Looks like:</i> uniform texture, no crowns, sharp edges; one or two NDVI
+ peaks returning to bare.</li>
+<li><b>3 OTHER</b> &mdash; <b>farmable land not currently cropped</b>: pasture, fallow,
+ ploughed or prepared soil, weeds on sowable ground.</li>
+<li><b>4 WOODY_NON_CROP</b> &mdash; trees that are not a crop: windbreaks, riparian strips,
+ abandoned or invaded parcels. <i>Looks like:</i> tree cover with no rows or planting grid.
+ <b>Never merge this into PERENNIAL.</b></li>
+<li><b>5 UNSURE</b> &mdash; you genuinely cannot tell: cloud, deep shadow, half one thing and
+ half another, imagery too coarse. <b>Use it freely</b> &mdash; an honest UNSURE is worth
+ more than a guess.</li>
+<li><b>6 NON_AGRICULTURE</b> &mdash; land out of agricultural use: houses and settlement,
+ greenhouses and sheds, roads and tracks, canals and reservoirs, open water, riverbed sand
+ and gravel, quarries, bare rock.</li>
 </ul>
-<b style="color:#ffdd33">The one rule that separates 3 from 6 — apply it literally</b>
+<b style="color:#ffdd33">The rule that separates 3 from 6</b>
 <div style="margin:4px 0 8px">Ask: <b>could this ground be sown next season exactly as it
-stands?</b> &nbsp;<b>Yes</b> &rarr; <b>OTHER</b>. &nbsp;<b>No</b>, because something would
-have to be demolished, dug up or drained first, or because it is permanently water, rock or
-pavement &rarr; <b>NON_AGRICULTURE</b>.<br>
-Worked cases: dry bare fallow and ploughed soil are <b>OTHER</b> (farmland between crops);
-riverbed sand and quarry floor are <b>NON_AGRICULTURE</b>. Scrub on flat farmable ground is
-<b>OTHER</b>; scrub on bare rocky slope that was never field is <b>NON_AGRICULTURE</b>.
-Grazed pasture is <b>OTHER</b> however rough it looks.</div>
-<b>Decision rules for the ambiguous cases</b>
-<div style="margin:4px 0">Work down this ladder and stop at the first line that fits
-&gt;50 % of the parcel. The order matters: it is what keeps two labellers from splitting a
-parcel between 4 and 6, or between 3 and 6.</div>
+stands?</b> &nbsp;<b>Yes</b> &rarr; <b>OTHER</b>. &nbsp;<b>No</b> &mdash; something would have
+to be demolished, dug up or drained first, or it is permanently water, rock or pavement
+&rarr; <b>NON_AGRICULTURE</b>.<br>
+Dry fallow and ploughed soil are OTHER; riverbed sand and quarry floor are NON_AGRICULTURE.
+Scrub on flat farmable ground is OTHER; scrub on bare rocky slope that was never a field is
+NON_AGRICULTURE. Grazed pasture is OTHER however rough it looks.</div>
+<b>Order of decision</b>
+<div style="margin:4px 0">Work down and stop at the first line covering &gt;50 % of the
+parcel.</div>
 <ol style="margin:6px 0 4px;padding-left:22px">
 <li>woody / multi-year <b>crop</b> &rarr; <b>1 PERENNIAL</b></li>
-<li>sown-and-harvested <b>crop</b>, growing or between cycles &rarr; <b>2 ANNUAL</b></li>
-<li>tree or shrub cover that is <b>not</b> a crop &rarr; <b>4 WOODY_NON_CROP</b>
- <i>(before 6 — riparian trees along a river are woody non-crop; the water and gravel
- beside them are non-agriculture)</i></li>
+<li>sown-and-harvested <b>crop</b> &rarr; <b>2 ANNUAL</b></li>
+<li>trees or shrubs that are <b>not</b> a crop &rarr; <b>4 WOODY_NON_CROP</b>
+ <i>(before 6)</i></li>
 <li>surface that could not be sown as it stands &rarr; <b>6 NON_AGRICULTURE</b></li>
-<li>anything else — farmable ground, not currently cropped &rarr; <b>3 OTHER</b></li>
+<li>farmable ground, not currently cropped &rarr; <b>3 OTHER</b></li>
 <li>you cannot tell &rarr; <b>5 UNSURE</b></li>
 </ol>
+<b>Difficult cases</b>
 <ul style="margin:6px 0 4px;padding-left:20px">
-<li>mixed parcel &rarr; the class covering &gt;50 % of the parcel; if genuinely even,
- <b>UNSURE</b>. A farmhouse or shed inside a cropped field does not make the parcel
- NON_AGRICULTURE &mdash; only a parcel that is <i>mostly</i> built is;</li>
-<li>agroforestry with a closed tree canopy &rarr; <b>PERENNIAL</b>;</li>
-<li><b>young plantings</b> &rarr; PERENNIAL if a regular planting grid is legible
- <i>or</i> the trace shows low-amplitude green persisting through both dry seasons;
- otherwise <b>UNSURE</b>. <b>Never ANNUAL by default</b> — an immature orchard read as
- annual is a false negative on exactly the transition this study is about;</li>
-<li>unreadable parcel (cloud, deep shadow, partial coverage) &rarr; <b>UNSURE</b>;</li>
-<li>visible field boundary disagrees with the outline &rarr; label what is
- <i>inside the outline</i> and tick <b>boundary mismatch</b>.</li>
+<li>mixed parcel &rarr; the class covering &gt;50 %; if genuinely even, <b>UNSURE</b>. A
+ house or shed inside a cropped field does not make the parcel NON_AGRICULTURE;</li>
+<li><b>young plantings</b> &rarr; PERENNIAL if a planting grid is legible <i>or</i> the trace
+ keeps low green through both dry seasons; otherwise <b>UNSURE</b>. <b>Never ANNUAL by
+ default</b>;</li>
+<li>boundary disagrees with the outline &rarr; label what is <i>inside the outline</i> and
+ tick <b>boundary mismatch</b> (<kbd>b</kbd>).</li>
 </ul>
-<b>UNSURE is the only abstain.</b> If you cannot call a parcel, press <kbd>5</kbd>. There is
-no confidence control &mdash; it was removed, because a low-confidence guess and a real
-label are indistinguishable once they are in the training set, so a half-abstain helps
-nobody. Either call it or press <kbd>5</kbd>.
-<div style="margin-top:8px;color:#8b98a5"><b>The two images:</b> the left panel is
-<b>context</b> &mdash; the whole parcel <i>and what it sits in</i>, so a river, a town edge,
-forest or a block of different fields is visible; the right panel is the same centre zoomed
-to <b>200 m across</b>, for canopy texture &mdash; regular crowns in a grid means a planted
-orchard, irregular blobs means woody non-crop. Each panel has its own scale bar; they are
-not the same scale. Most imagery is 1.2 m, so the zoom enlarges rather than resolves: if you
-still cannot tell, that is an <b>UNSURE</b>.<br><br>
-<b>Reading the trace:</b> the line is the parcel's median greenness on each date; a fallow
-parcel stays flat across both seasons, an annual peaks once or twice and returns to bare, a
-young orchard shows low-amplitude green that persists. <b>The shaded band is the middle half
-of the parcel's own pixels</b> (p25&ndash;p75) on that date &mdash; <i>not</i> an error bar.
-A <b>narrow</b> band means the parcel is doing the same thing everywhere (uniform field,
-closed canopy); a <b>persistently wide</b> band means it is internally varied &mdash; tree
-crowns against bare inter-row, or genuinely half one thing and half another, which is a
-prompt to check the &gt;50 % rule or to press <kbd>5</kbd>.</div>
+<div style="margin-top:8px;color:#8b98a5"><b>The two images.</b> Left: the whole parcel and
+what it sits in (river, town edge, forest, block of fields). Right: same centre, 200 m
+across, for texture &mdash; regular crowns on a grid means a planted orchard, irregular blobs
+mean woody non-crop. Each panel has its own scale bar. Most imagery is 1.2 m, so the zoom
+enlarges rather than resolves: if you still cannot tell, that is <b>UNSURE</b>.<br><br>
+<b>The trace.</b> The line is the parcel median greenness per date. The shaded band is the
+middle half of its own pixels (p25&ndash;p75), <i>not</i> an error bar: narrow means the
+parcel does the same thing throughout; persistently wide means it is internally varied
+&mdash; crowns against bare inter-row, or genuinely half and half, which is a prompt to
+apply the &gt;50 % rule or press <kbd>5</kbd>.<br><br>
+&#9888; <b>Do not look anything up.</b> The parcel has an old crop declaration and it is
+deliberately not shown to you.</div>
+<div style="margin-top:10px;padding-top:8px;border-top:1px solid #232c36">
+<b style="color:#4ade80">When you finish</b> &mdash; once every parcel in this file is
+labelled, press <b>Download CSV</b> and send the file back. Your progress is saved only in
+this browser, so the CSV is the only copy that reaches anyone.</div>
+</div>
+"""
+
+CODEBOOK_HTML["es"] = _CB_WRAP + """
+<b style="font-size:14px">Manual &mdash; elija una de seis opciones para cada parcela</b>
+<ul style="margin:8px 0 4px;padding-left:20px">
+<li><b>1 PERENNE</b> &mdash; cultivo leñoso o plurianual (&gt;3 años): mango,
+ limón, palto, olivo, café, cacao, plátano, palma aceitera. <i>Se ve:</i>
+ copas regulares o hileras, textura de dosel; verde en las dos temporadas de la curva.
+ <b>La caña de azúcar va como ANUAL.</b></li>
+<li><b>2 ANUAL</b> &mdash; se siembra y cosecha en un ciclo: arroz, maíz,
+ algodón, papa, frijol, trigo. <i>Se ve:</i> textura uniforme, sin copas, bordes
+ nítidos; uno o dos picos de NDVI que vuelven a suelo desnudo.</li>
+<li><b>3 OTRO</b> &mdash; <b>tierra cultivable sin cultivo actual</b>: pasto, barbecho,
+ suelo arado o preparado, maleza sobre terreno sembrable.</li>
+<li><b>4 LEÑOSO NO CULTIVO</b> &mdash; árboles que no son cultivo: cortinas
+ rompevientos, franjas ribereñas, parcelas abandonadas o invadidas. <i>Se ve:</i>
+ cobertura arbórea sin hileras ni marco de plantación.
+ <b>Nunca lo junte con PERENNE.</b></li>
+<li><b>5 NO SEGURO</b> &mdash; de verdad no se puede saber: nube, sombra, mitad y mitad,
+ imagen demasiado gruesa. <b>Úselo sin problema</b>: una duda honesta vale más
+ que una adivinanza.</li>
+<li><b>6 NO AGRÍCOLA</b> &mdash; terreno fuera de uso agrícola: casas y poblado,
+ invernaderos y galpones, carreteras y trochas, canales y reservorios, agua, cauce de
+ río con arena o grava, canteras, roca desnuda.</li>
+</ul>
+<b style="color:#ffdd33">La regla que separa 3 de 6</b>
+<div style="margin:4px 0 8px">Pregúntese: <b>¿se podría sembrar este suelo
+la próxima campaña tal como está?</b> &nbsp;<b>Sí</b> &rarr;
+<b>OTRO</b>. &nbsp;<b>No</b> &mdash; habría que demoler, excavar o drenar primero, o es
+agua, roca o pavimento permanente &rarr; <b>NO AGRÍCOLA</b>.<br>
+Barbecho seco y suelo arado son OTRO; arena de cauce y piso de cantera son NO AGRÍCOLA.
+Maleza en terreno plano cultivable es OTRO; maleza en ladera rocosa que nunca fue chacra es
+NO AGRÍCOLA. El pasto pastoreado es OTRO por más rústico que se vea.</div>
+<b>Orden de decisión</b>
+<div style="margin:4px 0">Baje por la lista y pare en la primera línea que cubra
+&gt;50 % de la parcela.</div>
+<ol style="margin:6px 0 4px;padding-left:22px">
+<li><b>cultivo</b> leñoso o plurianual &rarr; <b>1 PERENNE</b></li>
+<li><b>cultivo</b> de siembra y cosecha &rarr; <b>2 ANUAL</b></li>
+<li>árboles o arbustos que <b>no</b> son cultivo &rarr; <b>4 LEÑOSO NO
+ CULTIVO</b> <i>(antes que 6)</i></li>
+<li>superficie que no se podría sembrar así como está &rarr; <b>6 NO
+ AGRÍCOLA</b></li>
+<li>terreno cultivable sin cultivo actual &rarr; <b>3 OTRO</b></li>
+<li>no se puede saber &rarr; <b>5 NO SEGURO</b></li>
+</ol>
+<b>Casos difíciles</b>
+<ul style="margin:6px 0 4px;padding-left:20px">
+<li>parcela mixta &rarr; la clase que cubre &gt;50 %; si está pareja, <b>NO SEGURO</b>.
+ Una casa o galpón dentro de una chacra no la hace NO AGRÍCOLA;</li>
+<li><b>plantaciones jóvenes</b> &rarr; PERENNE si se ve el marco de plantación
+ <i>o</i> la curva mantiene verde bajo en las dos secas; si no, <b>NO SEGURO</b>. <b>Nunca
+ ANUAL por defecto</b>;</li>
+<li>el borde visible no coincide con el contorno &rarr; etiquete lo que está
+ <i>dentro del contorno</i> y marque <b>borde no coincide</b> (<kbd>b</kbd>).</li>
+</ul>
+<div style="margin-top:8px;color:#8b98a5"><b>Las dos imágenes.</b> Izquierda: la
+parcela completa y su entorno (río, borde de pueblo, bosque, bloque de chacras).
+Derecha: el mismo centro a 200 m de ancho, para ver textura &mdash; copas regulares en marco
+= huerto plantado; manchas irregulares = leñoso no cultivo. Cada panel tiene su propia
+barra de escala. La mayoría de imágenes son de 1,2 m, así que el
+acercamiento agranda pero no revela más detalle: si aún no se distingue, es
+<b>NO SEGURO</b>.<br><br>
+<b>La curva.</b> La línea es la mediana de verdor de la parcela en cada fecha. La banda
+sombreada es la mitad central de sus propios píxeles (p25&ndash;p75), <i>no</i> un
+margen de error: angosta = la parcela hace lo mismo en todas partes; ancha y persistente =
+parcela dispareja (copas contra suelo entre hileras, o mitad y mitad), señal para
+aplicar la regla del &gt;50 % o pulsar <kbd>5</kbd>.<br><br>
+&#9888; <b>No consulte nada externo.</b> La parcela tiene una declaración de cultivo
+antigua y a propósito no se le muestra.</div>
+<div style="margin-top:10px;padding-top:8px;border-top:1px solid #232c36">
+<b style="color:#4ade80">Al terminar</b> &mdash; cuando haya etiquetado <b>todas</b> las
+parcelas de este archivo, pulse <b>Descargar CSV</b> y envíe el archivo. Su avance se
+guarda solo en este navegador, así que el CSV es la única copia que llega.</div>
 </div>
 """
 
@@ -589,7 +740,8 @@ prompt to check the &gt;50 % rule or to press <kbd>5</kbd>.</div>
 # Entry point
 # ------------------------------------------------------------------------------------
 def build(sample: pd.DataFrame, chip_dir: Path, px: pd.DataFrame, out_dir: Path,
-          shard_size: int = SHARD_SIZE, seed: int = 20260812) -> pd.DataFrame:
+          shard_size: int = SHARD_SIZE, seed: int = 20260812,
+          lang: str = "en") -> pd.DataFrame:
     """Emit every shard, plus the item_id -> COD_PREDIO key the ingest joins on.
 
     Shard assignment follows the campaign's structure (§2.1): the main parcels are split
@@ -601,6 +753,8 @@ def build(sample: pd.DataFrame, chip_dir: Path, px: pd.DataFrame, out_dir: Path,
     Item order inside every shard is randomised with a per-shard seed, so the department
     and class structure of the draw is not legible as an ordering.
     """
+    if lang not in LANGS:
+        raise ValueError(f"lang must be one of {LANGS}, got {lang!r}")
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     traces = build_traces(px)
@@ -618,7 +772,7 @@ def build(sample: pd.DataFrame, chip_dir: Path, px: pd.DataFrame, out_dir: Path,
             rng = np.random.default_rng(
                 _stable_seed(f"{shard_id}|{lab}") ^ seed)
             items = [base[k] for k in rng.permutation(len(base))]
-            html = render_html(items, shard_id, lab, CODEBOOK_HTML)
+            html = render_html(items, shard_id, lab, lang=lang)
             f = out_dir / f"{shard_id}_{lab}.html"
             f.write_text(html, encoding="utf-8")
             mb = f.stat().st_size / 1e6

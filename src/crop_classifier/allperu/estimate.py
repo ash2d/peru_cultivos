@@ -1,4 +1,4 @@
-"""T5 — the tenure contrast on the window estimand (window_plan.md §2, §5 T5).
+"""T5 — the tenure contrast on the window estimand (RESULTS.md §5, gate T5).
 
 The estimand, written down before anything runs:
 
@@ -167,7 +167,7 @@ def run(preds_path: Path, tenure_path: Path, run_dir: Path, tag: str = "nolat",
     if failed and not force:
         raise RuntimeError(
             "T5 refuses to run: the following gates are failed or missing — "
-            f"{failed}. window_plan.md §5 says stop and report. Re-run the gates, or pass "
+            f"{failed}. RESULTS.md §5 says stop and report. Re-run the gates, or pass "
             "force=True to override deliberately (the override is recorded in the output).")
 
     tenure = pd.read_parquet(tenure_path)

@@ -36,10 +36,10 @@ from typing import Any
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-import yaml
 from scipy.spatial import cKDTree
 from sklearn.model_selection import StratifiedGroupKFold
 
+from crop_classifier.config_loader import load_yaml_config
 from crop_classifier.paths import proc
 
 CONFIG_DIR = Path(__file__).resolve().parent / "config"
@@ -65,8 +65,7 @@ def out_paths() -> tuple[Path, Path, Path]:
 
 
 def load_config(path: Path | None = None) -> dict[str, Any]:
-    with open(path or CONFIG_DIR / "split.yaml") as f:
-        return yaml.safe_load(f)
+    return load_yaml_config(path or CONFIG_DIR / "split.yaml")
 
 
 # ------------------------------------------------------------------------------------

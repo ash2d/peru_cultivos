@@ -1,212 +1,157 @@
-# Labelling codebook — S2 endpoint campaign
+# Manual de etiquetado — campaña S2 (codebook)
 
-> **Frozen 2026-08-13, before any parcel was labelled. Revised the same day** — a sixth
-> value (`NON_AGRICULTURE`) was added, `OTHER` was narrowed to make room for it, the
-> confidence control was removed, and the two image panels changed (see
-> [`plan.md`](plan.md) §5). **Still frozen before any
-> parcel was labelled**, so nothing on record was collected under the old text.
+> **Frozen 2026-08-13, shortened and translated 2026-08-14, before any parcel was labelled.**
+> The same rules are embedded in every labelling HTML behind the *Manual* button, so what a
+> labeller reads and what is on the record here cannot drift apart. The delivered set is
+> **Spanish** (`labels_s2/html_es/`); the English build is kept as a reference
+> (`labels_s2/html/`).
 >
-> The same text is embedded in every labelling HTML behind the *Codebook* button, so what a
-> labeller reads and what is on the record here cannot drift apart.
->
-> The codebook is the single biggest determinant of κ. Read it once end to end before
-> starting, and re-read the decision rules whenever a parcel makes you hesitate.
+> Source of truth: `labelling/build_html.py::CODEBOOK_HTML`, one entry per language.
+> **It is deliberately short.** It is opened mid-task, on a parcel that is already
+> confusing, and every sentence that is not a decision rule competes with the ones that are.
+> The reasoning behind the design lives in [`plan.md`](plan.md) §3 and §5, not here.
 
-## What you are doing
+---
 
-**Type your name in the box at the top before you start.** The letter in the filename
-(`shard01_A.html`) is only a suggestion of who should take that file; what goes into the
-CSV is whatever you type. Your progress is saved against that name, so two people can use
-the same computer without clobbering each other.
+## Escriba su nombre antes de empezar
 
-For each parcel you see three things:
+La letra del nombre del archivo (`shard01_A.html`) sólo sugiere quién debería tomarlo. Lo que
+entra al CSV es el nombre que usted escriba. Su avance se guarda contra ese nombre, así que
+dos personas pueden usar la misma computadora sin pisarse.
 
-1. **context** (left) — the whole parcel outlined in **yellow**, its neighbours in thin
-   **cyan**, **plus a margin of the land around it**, on Esri World Imagery at the finest
-   zoom the service serves there. The same crop reads differently in different geographies,
-   so this panel is there to show you what the parcel *sits in* — a river, a town edge,
-   forest, a block of other field types;
-2. **zoom** (right) — the same centre, **200 m across**, so canopy texture is legible even
-   when the parcel is far too large for the left panel to show it;
-3. **NDVI trace** — 24 months of Sentinel-2 greenness, one point per clear observation,
-   with a shaded band around it and a dashed yellow line at the date the aerial imagery was
-   taken.
+Para cada parcela verá tres cosas:
 
-**Each panel carries its own scale bar and they are not the same scale.** The context panel
-is 400 m across for most parcels and up to 2.7 km for the largest; the zoom panel is always
-200 m.
+1. **contexto** (izquierda) — la parcela completa con contorno **amarillo**, las vecinas en
+   **celeste**, y su entorno: río, borde de pueblo, bosque, bloque de chacras;
+2. **acercamiento** (derecha) — el mismo centro, **200 m de ancho**, para ver textura;
+3. **curva NDVI** — 24 meses de verdor Sentinel-2, un punto por observación despejada, con
+   una línea punteada en la fecha de la imagen aérea.
 
-You pick **exactly one of six values** for every parcel.
+Cada panel tiene su propia barra de escala.
 
-## The six values
+---
 
-| key | value | covers |
+## Las seis opciones
+
+| tecla | valor | cubre |
 |---|---|---|
-| `1` | **PERENNIAL** | woody or multi-year crop expected to hold the parcel >3 years: mango, lime, avocado, olive, coffee, cacao, banana/plantain, oil palm |
-| `2` | **ANNUAL** | sown and harvested within a cycle: rice, maize, cotton, potato, beans, wheat |
-| `3` | **OTHER** | **farmable land that is not currently a crop**: pasture, fallow, ploughed or prepared bare ground, weeds and scrub on ground that could be sown |
-| `4` | **WOODY_NON_CROP** | trees that are not a crop: windbreaks, riparian strips, invaded/abandoned parcels |
-| `5` | **UNSURE** | you genuinely cannot tell |
-| `6` | **NON_AGRICULTURE** | **land out of agricultural use altogether**: buildings, yards, settlement, greenhouses, industrial sheds, roads and tracks, canals and reservoirs, open water, active riverbed sand and gravel, quarries, bare rock |
+| `1` | **PERENNE** | cultivo leñoso o plurianual (>3 años): mango, limón, palto, olivo, café, cacao, plátano, palma aceitera |
+| `2` | **ANUAL** | se siembra y cosecha en un ciclo: arroz, maíz, algodón, papa, frijol, trigo |
+| `3` | **OTRO** | tierra cultivable sin cultivo actual: pasto, barbecho, suelo arado o preparado, maleza sobre terreno sembrable |
+| `4` | **LEÑOSO NO CULTIVO** | árboles que no son cultivo: cortinas rompevientos, franjas ribereñas, parcelas abandonadas o invadidas |
+| `5` | **NO SEGURO** | de verdad no se puede saber |
+| `6` | **NO AGRÍCOLA** | fuera de uso agrícola: casas, invernaderos y galpones, carreteras, canales y reservorios, agua, cauce de río, canteras, roca desnuda |
 
-⚠️ **`UNSURE` stays on key `5` and `NON_AGRICULTURE` takes `6`.** `NON_AGRICULTURE` was
-added after the rest of the list existed; renumbering the abstain to make the table read
-tidily would change what an already-briefed labeller's fingers do.
+**Cómo se ven:** PERENNE — copas regulares o hileras, textura de dosel, verde en las dos
+temporadas de la curva. ⚠️ **La caña de azúcar va como ANUAL** (igual que en
+`config/perennial_allperu.yaml`, `cana_policy: annual`, y en MapBiomas).
+ANUAL — textura uniforme, sin copas, bordes nítidos; uno o dos picos que vuelven a suelo
+desnudo. LEÑOSO NO CULTIVO — cobertura arbórea **sin** hileras ni marco de plantación.
+⚠️ **Nunca lo junte con PERENNE:** lo leñoso no cultivo declarado es 2.79 % del universo
+nacional, más grande que el efecto que este estudio quiere medir.
 
-**UNSURE is not a failure and it is not scored against you — use it freely.** An honest
-UNSURE is worth more than a guess: a guess is indistinguishable from a real label
-downstream, whereas an UNSURE parcel is simply set aside. It is the right answer for cloud,
-deep shadow, a parcel that is half one thing and half another, or imagery too coarse to
-tell whether those blobs are crowns.
+**NO SEGURO no es una falla y no se le cuenta en contra — úselo sin problema.** Una duda
+honesta vale más que una adivinanza: la adivinanza es indistinguible de una etiqueta real
+más adelante, mientras que una parcela NO SEGURO simplemente se aparta.
 
-**PERENNIAL** — *visual:* regular crown pattern or row structure, canopy texture, green in
-both seasons of the trace.
-⚠️ **Sugarcane is ANNUAL here** (matching `config/perennial_allperu.yaml`'s
-`cana_policy: annual`, and MapBiomas).
+## La regla que separa 3 de 6 — aplíquela literalmente
 
-**ANNUAL** — *visual:* uniform texture, no crowns, sharp field boundaries; one or two NDVI
-peaks with returns to bare between them.
+Pregúntese: **¿se podría sembrar este suelo la próxima campaña tal como está?**
+**Sí** → **OTRO**. **No** — habría que demoler, excavar o drenar primero, o es agua, roca o
+pavimento permanente → **NO AGRÍCOLA**.
 
-**OTHER** — *visual:* no crop geometry at all, or crop geometry with nothing growing across
-both seasons of the trace.
+Barbecho seco y suelo arado son OTRO; arena de cauce y piso de cantera son NO AGRÍCOLA.
+Maleza en terreno plano cultivable es OTRO; maleza en ladera rocosa que nunca fue chacra es
+NO AGRÍCOLA. El pasto pastoreado es OTRO por más rústico que se vea.
 
-**WOODY_NON_CROP** — *visual:* tree cover **without** rows or a planting grid, often
-following a watercourse or a field edge rather than filling the parcel.
-⚠️ **Never fold this into PERENNIAL.** Declared woody non-crop is 2.79 % of the national
-pool, and that is a *lower* bound — it counts only what was declared, not twenty years of
-invasion. It is bigger than the effect this project is trying to measure.
+## Orden de decisión
 
-**NON_AGRICULTURE** — *visual:* roofs, pavement, vehicle tracks, water, or unvegetated
-sand/rock, with no field geometry at all.
+Baje por la lista y pare en la primera línea que cubra **>50 %** de la parcela. El orden es
+lo que evita que dos personas partan la misma parcela entre 4 y 6, o entre 3 y 6.
 
-## ⭐ The one rule that separates OTHER from NON_AGRICULTURE
+1. **cultivo** leñoso o plurianual → **1 PERENNE**
+2. **cultivo** de siembra y cosecha → **2 ANUAL**
+3. árboles o arbustos que **no** son cultivo → **4 LEÑOSO NO CULTIVO** *(antes que 6 — los
+   árboles ribereños son leñoso no cultivo; el agua y la grava al lado son no agrícola)*
+4. superficie que no se podría sembrar así como está → **6 NO AGRÍCOLA**
+5. terreno cultivable sin cultivo actual → **3 OTRO**
+6. no se puede saber → **5 NO SEGURO**
 
-These two classes are the pair most likely to cost κ, because until 2026-08-13 they were a
-single class. `OTHER` used to be defined as *"everything else: pasture, fallow, prepared
-bare ground, scrub, natural vegetation, water, built-up, road, riverbed"* — the last four of
-which are now `NON_AGRICULTURE`. Apply this test literally:
+## Casos difíciles
 
-> **Could this ground be sown next season exactly as it stands?**
->
-> * **Yes** → **OTHER**
-> * **No** — something would have to be demolished, dug up or drained first, or it is
->   permanently water, rock or pavement → **NON_AGRICULTURE**
+* **parcela mixta** → la clase que cubre >50 %; si está pareja, `NO SEGURO`. Una casa o
+  galpón dentro de una chacra no la hace NO AGRÍCOLA — sólo si está *mayormente* construida;
+* **agroforestería con dosel cerrado** → `PERENNE`;
+* **plantaciones jóvenes** → `PERENNE` si se ve el marco de plantación **o** la curva
+  mantiene verde bajo en las dos secas; si no, `NO SEGURO`. **Nunca `ANUAL` por defecto** —
+  un huerto joven leído como anual es un falso negativo justo sobre la transición que este
+  estudio mide;
+* **ilegible** (nube, sombra, cobertura parcial) → `NO SEGURO`;
+* **el borde visible no coincide con el contorno** → etiquete **lo que está dentro del
+  contorno** y marque **borde no coincide** (`b`).
 
-Worked cases, in both directions:
+## Leer las dos imágenes
 
-| what you see | class | why |
-|---|---|---|
-| dry bare fallow, ploughed soil | `OTHER` | farmland between crops — sow it tomorrow |
-| grazed pasture, however rough | `OTHER` | in agricultural use |
-| scrub on flat farmable ground | `OTHER` | clear the weeds and it is a field |
-| riverbed sand and gravel | `NON_AGRICULTURE` | active channel, not farmable ground |
-| quarry floor, bare rock, steep scree | `NON_AGRICULTURE` | no soil to sow |
-| houses, yards, sheds, greenhouses | `NON_AGRICULTURE` | would have to be demolished |
-| road, track, canal, reservoir | `NON_AGRICULTURE` | permanent infrastructure |
+La izquierda da **forma, vecinas y entorno**: la tierra perenne suele verse distinta de las
+chacras anuales de al lado, y el paisaje alrededor es lo que hace legible el mismo cultivo en
+Piura y en Huancavelica. La derecha da **textura**: copas regulares en marco = huerto
+plantado; manchas irregulares = leñoso no cultivo; tono uniforme = chacra anual o suelo
+desnudo.
 
-**Why this matters and is not pedantry:** a fallow field can convert to a perennial and a
-road cannot. Pooling them puts a structurally impossible outcome into the same class as the
-one this project exists to measure.
+⚠️ La mayoría de imágenes son de 1,2 m, así que el acercamiento **agranda pero no revela más
+detalle**. Si a 200 m de ancho todavía no se distingue, la información no está — eso es un
+`NO SEGURO`, no una mirada más larga.
 
-## Decision rules for the ambiguous cases
+## Leer la curva
 
-These are where κ is won. Every parcel gets one of the six, so each rule ends somewhere.
+Es lo más útil de la página, y es lo que hace posible distinguir ANUAL de OTRO: una sola foto
+aérea no separa una chacra cosechada de un barbecho.
 
-**Work down this ladder and stop at the first line that fits >50 % of the parcel.** The
-order is what keeps two labellers from splitting the same parcel between `4` and `6`, or
-between `3` and `6`:
+* **barbecho / desnudo** — plana y baja en las dos temporadas;
+* **anual** — uno o dos picos claros, volviendo a desnudo entre ellos;
+* **perenne madura** — verde persistente con oscilación *pequeña*;
+* **huerto joven** — verde de amplitud baja que nunca llega a desnudo.
 
-1. woody / multi-year **crop** → **1 PERENNIAL**
-2. sown-and-harvested **crop**, growing or between cycles → **2 ANNUAL**
-3. tree or shrub cover that is **not** a crop → **4 WOODY_NON_CROP**
-   — *before 6*: riparian trees along a river are woody non-crop; the water and gravel
-   beside them are non-agriculture
-4. surface that could not be sown as it stands → **6 NON_AGRICULTURE**
-5. anything else — farmable ground, not currently cropped → **3 OTHER**
-6. you cannot tell → **5 UNSURE**
+El eje y está fijo entre −0,1 y 1,0 en todas las parcelas, así que son directamente
+comparables.
 
-Then the specific cases:
+**La banda sombreada es la mitad central de los píxeles de la propia parcela (p25–p75), no un
+margen de error.** Banda angosta = la parcela hace lo mismo en todas partes (chacra uniforme,
+dosel cerrado). Banda ancha y persistente = parcela dispareja — copas contra suelo entre
+hileras, o de verdad mitad y mitad, señal para aplicar la regla del >50 % o pulsar `5`.
 
-* **Mixed parcel** → the class covering **>50 %** of the parcel. If genuinely even,
-  `UNSURE`. A farmhouse or shed inside a cropped field does **not** make the parcel
-  `NON_AGRICULTURE` — only a parcel that is *mostly* built is.
-* **Agroforestry with a closed tree canopy** → `PERENNIAL`.
-* **Young plantings** → `PERENNIAL` if a regular planting grid is legible **or** the trace
-  shows low-amplitude green persisting through both dry seasons. Otherwise `UNSURE`.
-  **Never `ANNUAL` by default** — an immature orchard read as annual is a false negative on
-  exactly the transition this project is about.
-* **Unreadable** (cloud, deep shadow, partial coverage) → `UNSURE`.
-* **The visible field boundary disagrees with the yellow outline** → label **what is inside
-  the outline**, and tick **boundary mismatch** (`b`).
+## Controles
 
-## Reading the NDVI trace
-
-The trace is the single most useful thing on the page, and it is what makes ANNUAL vs OTHER
-callable at all — a single aerial photograph cannot tell a harvested field from a fallow one.
-
-* **fallow / bare** — flat and low across both seasons;
-* **annual** — one or two clear peaks, returning near bare in between;
-* **mature perennial** — persistently green with a *small* seasonal swing;
-* **young orchard** — low-amplitude green that never quite goes to bare.
-
-The y-axis is fixed at −0.1 to 1.0 on every parcel, so traces are directly comparable.
-
-### The shaded band is spread, not uncertainty
-
-The line is the parcel's **median** greenness on each date. The band around it is the
-**middle half of the parcel's own pixels** on that date (25th to 75th percentile).
-
-⚠️ **It is not an error bar.** A wide band does not mean the measurement is poor; it means
-the parcel is not doing the same thing everywhere.
-
-* **narrow** — the parcel is uniform: one field of one thing, or a closed canopy;
-* **persistently wide** — the parcel is internally varied: tree crowns against bare
-  inter-row (a good sign for `PERENNIAL`), or genuinely half one thing and half another,
-  which is a prompt to check the >50 % rule or press `5`.
-
-## UNSURE is the only abstain
-
-If you cannot call a parcel, press `5`.
-
-**There is no confidence control any more.** It used to sit beside the label as a 1–3 grade
-and it has been removed: a low-confidence guess and a real label are indistinguishable once
-they are in the training set, so a half-abstain helped nobody and split the signal with the
-abstain that actually works. Either call the parcel or press `5`. G2 fails if more than
-25 % of the sample is `UNSURE`, so an honest abstain is read directly by a gate.
-
-## Reading the two images
-
-The left panel is **context** — it tells you the parcel's **shape, its neighbours, and what
-it sits in**. Perennial land usually looks different from the annual fields next to it, and
-that contrast is often the easiest signal on the page; the surrounding landscape (river,
-town edge, forest, irrigation block) is what makes the same crop legible in Piura and in
-Huancavelica. The right panel tells you the **texture**: regular crowns on a grid means a
-planted orchard; irregular blobs mean woody non-crop; smooth uniform tone means an annual
-field or bare ground.
-
-⚠️ Most imagery is 1.2 m, so the zoom panel **enlarges rather than resolves**. If it is
-still not clear at 200 m across, the information is not there — that is an `UNSURE`, not a
-harder look.
-
-## Controls
-
-| key | action |
+| tecla | acción |
 |---|---|
-| `1` `2` `3` `4` `5` `6` | assign the class **and advance** |
-| `b` | toggle boundary mismatch |
-| `←` `→` | move without labelling |
+| `1` `2` `3` `4` `5` `6` | asignar la clase **y avanzar** |
+| `b` | marcar/desmarcar borde no coincide |
+| `←` `→` | moverse sin etiquetar |
 
-Your work autosaves to the browser after every action, keyed to the shard *and your name*,
-so closing the tab loses nothing. Press **Download CSV** when you finish a shard (or partway — it can be
-downloaded as often as you like) and send the file back.
+**`NO SEGURO` es la única forma de abstenerse.** No hay control de confianza — se quitó,
+porque una adivinanza con confianza baja y una etiqueta real son indistinguibles una vez
+dentro del conjunto de entrenamiento. O la llama, o pulsa `5`.
 
-⚠️ **Do not look anything up.** The parcel's 1998 crop declaration exists and is
-deliberately not shown to you. If you were anchored on it you would manufacture agreement
-between the declaration and what you see, which is the exact failure this campaign is
-designed to avoid measuring.
+⚠️ **No consulte nada externo.** La parcela tiene una declaración de cultivo de 1997–2006 y a
+propósito no se le muestra. Si estuviera anclado en ella, fabricaría concordancia entre la
+declaración y lo que ve, que es exactamente el error que esta campaña existe para no cometer.
 
-## What you will not be told, and why
+## Al terminar
 
-The declared PETT class, the train/test assignment and the CV fold are **not present
-anywhere in the HTML file**, not merely hidden — `tests/test_build_html.py` asserts on the
-raw file text. Department is shown, because it is obvious from the imagery anyway.
+Cuando haya etiquetado **todas** las parcelas del archivo, pulse **Descargar CSV** y envíe el
+archivo. Su avance se guarda **sólo en este navegador**, así que el CSV es la única copia que
+llega. Puede descargarlo las veces que quiera.
+
+---
+
+## What the labeller is not told, and why
+
+The declared PETT class, the train/test assignment and the CV fold are **not present anywhere
+in the HTML file**, not merely hidden — `tests/test_build_html.py` asserts on the raw file
+text, in both languages. Department is shown, because it is obvious from the imagery anyway.
+
+**Translation touches the display name only.** The value written to the CSV, and every value
+`ingest.py` compares against, stays the canonical English constant (`PERENNIAL`, `ANNUAL`,
+`OTHER`, `WOODY_NON_CROP`, `UNSURE`, `NON_AGRICULTURE`). Localising the stored value would
+have made the ingest match nothing and report an empty label distribution rather than an
+error — the same class of silent failure as the four data traps in `DATA.md`.

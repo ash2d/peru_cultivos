@@ -1,4 +1,4 @@
-"""Unit tests for the Sentinel-2 extraction (s2_labelling_plan.md §12).
+"""Unit tests for the Sentinel-2 extraction (docs/s2_labelling/plan.md).
 
 Four things here fail silently and would corrupt the whole feature store:
 

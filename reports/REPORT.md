@@ -5,12 +5,13 @@
 > change, and what each attempt showed.
 >
 > This is the human-facing narrative. The numbers of record, per strand and with verdicts, are
-> in [`RESULTS.md`](RESULTS.md); the current state and next actions are in
-> [`STATUS.md`](STATUS.md).
+> in [`RESULTS.md`](../docs/RESULTS.md); the current state and next actions are in
+> [`STATUS.md`](../docs/STATUS.md).
 >
-> Last updated **2026-08-12**, after the two-period tenure difference-in-differences returned
-> the project's first actual estimate. ⚠️ It therefore predates the S2 labelling campaign
-> being built — see [`s2_labelling/plan.md`](s2_labelling/plan.md) for that.
+> Last updated **2026-08-31**. §1–§7 were written on 2026-08-12, after the two-period tenure
+> difference-in-differences returned the project's first actual estimate; §8 was added after the
+> Sentinel-2 endpoint labelling campaign returned. For the campaign's own plan and gates see
+> [`s2_labelling/plan.md`](../docs/s2_labelling/plan.md).
 
 ---
 
@@ -50,7 +51,7 @@ Every accuracy figure in this document is measured in ~1997–2006. Not one is m
 
 ## 1. The data, and the shape of the problem
 
-![Data overview flowchart](figures/data_overview_flowchart.svg)
+![Data overview flowchart](../docs/figures/data_overview_flowchart.svg)
 
 The chain is: a crop registry (free text, one row per declaration) → a cadastral bridge file
 that carries both key systems → parcel polygons. All three are needed, because the registry has
@@ -87,14 +88,14 @@ Three features of the labels shape everything that follows:
 
 ### 2.2 Twelve crop classes does not work
 
-![12-class per-class F1](figures/per_class_f1.png)
+![12-class per-class F1](../docs/figures/per_class_f1.png)
 
 Best model **0.427 macro-F1** (LTAE) on 49,648 parcels. Rice scores 0.751 and coffee 0.698;
 maize 0.228, banana 0.197, sugarcane 0.147, beans 0.114.
 
 The reason is visible in the seasonal curves:
 
-![12-class seasonal NDVI profiles](figures/profiles_12class_ndvi.png)
+![12-class seasonal NDVI profiles](../docs/figures/profiles_12class_ndvi.png)
 
 At 30 m resolution over parcels averaging ~0.5 ha — about five pixels — maize, beans, cotton
 and sugarcane look the same. Rice is separable because it floods; coffee because it keeps its
@@ -106,7 +107,7 @@ whether a parcel stays green year-round.**
 Regrouping into `PERENNIAL` / `ANNUAL` / `PASTURE_FALLOW` keeps **56,419 parcels**, including
 rare and mixed crops that the 12-class problem had to discard.
 
-![3-class seasonal profiles](figures/profiles_3class.png)
+![3-class seasonal profiles](../docs/figures/profiles_3class.png)
 
 Between August and December, perennial parcels sit at NDVI 0.50–0.60 while annual and
 pasture parcels fall to 0.31–0.44. Bare-soil index tells the mirror-image story. The
@@ -167,7 +168,7 @@ Piura: 7,690 parcels × 28 years = **215,320 parcel-years**. Nationally: 4,565 �
 
 Two gates had to pass before any trend could be believed.
 
-![Validation gates flowchart](figures/validation_gates_flowchart.svg)
+![Validation gates flowchart](../docs/figures/validation_gates_flowchart.svg)
 
 - **S4 — temporal transfer.** Score a parcel against its known label in nearby years. A
   perennial in 1998 should still read perennial in 1996 or 2001. Criterion: within 0.10 of
@@ -186,7 +187,7 @@ Two gates had to pass before any trend could be believed.
 
 ### 3.1 The El Niño (Piura only, but it explains the shape of the failure)
 
-![The 1997-98 El Niño signature](figures/elnino_signature.png)
+![The 1997-98 El Niño signature](../docs/figures/elnino_signature.png)
 
 Piura's 1997–98 El Niño brought flooding and extraordinary greening. Panel-wide Jan–Mar NDVI
 was 0.51–0.61 in 1998 against 0.33–0.45 in normal years. That is also when ~80 % of Piura's
@@ -204,12 +205,17 @@ what it does:
 Perennial detection goes to essentially zero. LTAE does the same thing (0.660 → 0.033), so it
 is the imagery, not the model.
 
-![Why the perennial signature collapses](figures/elnino_mechanism.png)
+![Why the perennial signature collapses](../docs/figures/elnino_mechanism.png)
 
-**Why:** a perennial parcel is identified by a *contrast* with its annual neighbours — greener
-floor, flatter season. The flood erased the contrast from both sides. The NDVI-floor gap fell
-from **+1.47 SD to +0.46 SD** and the seasonal-swing gap from −0.60 SD to −0.10 SD. Only
-bare-soil index held up (−0.76 → −0.90 SD), and it carries only 6.5 % of the model's weight.
+**Why:** the model has no absolute definition of "perennial". It learned thresholds — a greener
+NDVI floor, a flatter season — that work only because the two classes sit far apart on those
+features. The flood moved both classes toward each other. The NDVI-floor gap fell from
+**+1.47 SD to +0.46 SD** and the seasonal-swing gap from −0.60 SD to −0.10 SD, so a threshold
+fitted on normal years lands in the middle of both distributions. Only the bare-soil index held
+up (−0.76 → −0.90 SD), and it carries just 6.5 % of the model's weight.
+
+(These gaps are measured across parcels after the fact. **No model here uses a neighbour
+feature** — each prediction comes from one parcel's own time series.)
 
 ### 3.2 But the El Niño was not the real problem
 
@@ -217,7 +223,7 @@ The national panel starts in 1999, has no El Niño in its baseline, has no thin-
 (minimum 93.4 % parcel coverage across 25 years), and spreads its labels over 1997–2006.
 **S4 passes. S5 still fails, harder — 0.517 to 0.980.**
 
-![Flicker vs static features](figures/flicker_vs_statics.png)
+![Flicker vs static features](../docs/figures/flicker_vs_statics.png)
 
 *(Figure shows the Piura panel, where the pattern was first seen: 0.428 / 0.547 / 0.780. The
 national run reproduced it one rung worse at every step.)*
@@ -250,7 +256,7 @@ window-state twice or more**; 82 % never change at all.
 **The comparison does not.** The design needs a yardstick: parcels the titling record already
 calls `PERENNIAL` should stay perennial, so any movement in that group is measurement error.
 
-![Control-pool drift](figures/window_control_drift.png)
+![Control-pool drift](../docs/figures/window_control_drift.png)
 
 The control pool falls **12.5 percentage points** while the at-risk pool rises **1.8**. The
 yardstick moves
@@ -349,7 +355,7 @@ the sensitivity curve answers directly, and lets the reader pick their own assum
 hours), 219,375 parcel-years inferred.** The placebo was estimated first, enforced by the code
 path.
 
-![The tenure DiD result](figures/did_result.png)
+![The tenure DiD result](../docs/figures/did_result.png)
 
 | | coefficient | standard error | 95 % interval |
 |---|---:|---:|---|
@@ -426,7 +432,10 @@ bigger sample — the pool here is 363,529 parcels, about 55× the DiD's. Which 
 - **A feasibility method**: required sample from measured variance versus available sample from
   the archive, computable in minutes — which is what stopped the wrong version of the DiD before
   it spent anything.
-- **281 tests pass.** The national locked test is **still unspent**.
+- ⭐ **An endpoint measurement, at last** (§8): 865 hand-interpreted parcels on 2019+ imagery
+  across all 14 departments. Classifier 0.672 macro-F1 in-department and 0.539 out; and a
+  declared→observed transition matrix with no classifier in it at all.
+- **The test suite passes.** Both locked tests — national and S2 — are **still unspent**.
 
 ### Not solid
 
@@ -435,8 +444,9 @@ the classifier's absolute level. That code is written and unit-tested and stays 
 
 ### ➡ The next step: photo-interpret endpoint labels
 
-[`s2_labelling/plan.md`](s2_labelling/plan.md) — **since built; only the human labelling
-remains.**
+[`s2_labelling/plan.md`](../docs/s2_labelling/plan.md) — **since built, and since carried out. What it
+produced is §8 below**, which is the closest this project comes to answering its own question.
+The one piece still outstanding is the inter-rater check.
 
 **Every accuracy number in this document is measured at the label year, ~1997–2006. Not one is
 measured at the endpoint, 2019–2023, which is the only period the research question is about.**
@@ -454,7 +464,10 @@ predicted class × tenure, labelled **blind to the model's prediction**, with `U
 `NOT_AGRICULTURE` as permitted answers and a 10 % double-labelled subsample for an inter-rater
 score. The viewer already exists — `notebooks/04_inspect_parcel_basemaps.ipynb` draws a parcel
 and its neighbours on three basemaps — and it needs a work queue and a response store, not a
-rewrite. Neighbour context must stay, because perennial detection is a *contrast*, not a level.
+rewrite. Neighbour context must stay — not because the model uses it (it does not), but because
+a *human* reads land use comparatively: perennial land is easiest to spot against the annual
+fields beside it, and the surrounding landscape is what makes the same crop legible in Piura and
+in Huancavelica.
 
 It produces four things nothing else can:
 
@@ -472,6 +485,137 @@ It produces four things nothing else can:
 inter-rater check. No satellite budget, no model training. It is the cheapest task in the
 project in compute and the most expensive in attention, which is exactly why it keeps being
 deferred — and it is the only one that would let anybody state an endpoint number and defend it.
+
+---
+
+## 8. Attempt 5 — photo-interpret the endpoint ⭐ done, and it answers the question
+
+The task described above was carried out. **1,012 parcels labelled on ≤1.2 m imagery from
+2019–2025, 865 usable**, one annotator, across all 14 linkable departments — the project's
+first measurement in the period the research question is actually about.
+
+### 8.1 What the land looks like now, with no classifier involved
+
+The most useful output needs no model at all. Every one of these parcels carries a *declared*
+crop from the titling programme in 1996–2006 and a *photo-interpreted* land state today, so the
+two can simply be crossed. Rows are what the farmer declared; columns are what a human sees on
+recent imagery; cells are weighted shares of the row.
+
+| declared 1996–2006 ↓ | annual crop | not agriculture | farmable, not cropped | perennial crop | woody, not a crop |
+|---|---|---|---|---|---|
+| **annual crop** | 0.311 | 0.037 | **0.579** | 0.029 | 0.044 |
+| **pasture / fallow** | 0.116 | 0.065 | **0.737** | 0.036 | 0.047 |
+| **perennial crop** | 0.083 | 0.053 | 0.324 | 0.211 | **0.329** |
+
+**This does not show the shift the project was built around.** Of parcels declared as annual
+crops twenty-odd years ago, **2.9 % [0, 5.9] read as perennial today** — indistinguishable from
+zero. What they overwhelmingly read as is **farmable ground that is not currently cropped**
+(57.9 %). Land declared as pasture or fallow behaves the same way (73.7 %).
+
+⚠️ **This is a national average and it describes no particular department.** In **Piura** the
+same table reads the other way round: 86.7 % of declared-annual parcels still read as an annual
+crop, and only 6.7 % as uncropped. The "not currently cropped" result is carried by other
+departments; Piura's irrigated coastal valleys are still being farmed. (65 Piura parcels, so
+that contrast is indicative rather than precise.)
+
+Two further honest limits. A single endpoint observation **cannot
+separate abandonment from ordinary between-season fallow** — "not currently cropped" is exactly
+that and no more. And the perennial row is unsettling on its own terms: only 21.1 % of
+declared-perennial parcels still read as a perennial crop, while **32.9 % read as woody
+vegetation that is not a crop**. Whether that is an orchard gone wild or scrub that was never
+the crop is the hardest call in the codebook, it carries a third of the perennial sample, and
+the inter-rater measurement that would say how reliably it is being made **has not been done**.
+
+### 8.2 How good the classifier is at the endpoint — and the trap it walked into
+
+Three models were trained on these labels: a gradient-boosted tree on summary statistics
+(LightGBM), an attention network over the raw date sequence (LTAE), and a two-threshold NDVI
+rule as an honest floor. Scored two ways — holding out 5 km blocks *inside* departments the
+model has seen (cross-validation), and holding out **whole departments**.
+
+| | LightGBM | rule | LTAE |
+|---|---|---|---|
+| 4-class, cross-validation | 0.672 | 0.392 | **0.708** |
+| 4-class, unseen department | **0.539** | 0.360 | 0.515 |
+| 3-class, cross-validation | 0.747 | 0.675 | **0.804** |
+| 3-class, unseen department | **0.697** | 0.595 | 0.633 |
+
+(macro-F1: the F1 score computed per class and averaged with equal weight, so a rare class
+counts as much as a common one. Always guessing the largest class scores 0.171 and 0.228.)
+
+**LTAE wins cross-validation in all eight arms and loses in all four unseen-department
+comparisons.** From one to the other, LightGBM falls 0.05–0.13 and LTAE falls 0.14–0.19.
+
+This is the same finding as §2.4, in a new costume. There it was a latitude feature that scored
+well inside the training departments and negatively outside them. Here it is an *architecture*:
+given 47 satellite dates per parcel and about 500 training parcels, an attention encoder finds
+structure that identifies which department a parcel is in, and that structure is worth nothing
+anywhere else. **A model class can manufacture accuracy that does not travel, just as a feature
+can.**
+
+⚠️ And a caution about this document's own history: an earlier version of this comparison, run
+on a third of the labels, concluded the opposite. Nothing was wrong with it except that its
+unseen-department average was taken over **four** departments. There are now fourteen. An
+out-of-distribution mean has two sample sizes — parcels and *groups* — and it is the second that
+governs.
+
+### 8.3 Two follow-ups
+
+**Would a simpler question be easier?** The research question only needs "perennial or not", so
+the same models were retrained on exactly that. The headline score went up — macro-F1 0.672 to
+0.715 — and the model got worse. Averaging a per-class score over two classes instead of four
+raises the bar for doing nothing at all from **0.171 to 0.467**, and measured against that bar
+the two-class model was the weakest thing in the study. On the class that matters, perennial,
+it gained **0.004**. The lesson is a general one: a headline score is only readable next to what
+guessing would have got.
+
+What that exercise did settle is where the difficulty lives. The two-class runs differ only in
+whether "woody vegetation that is not a crop" is counted as perennial, and that single choice
+moves the perennial score by **0.19** — nearly fifty times the gain from simplifying the
+problem. The constraint is one ambiguous boundary in the codebook, not the number of classes,
+and it is the boundary nobody has yet measured the annotator's consistency on.
+
+**A second opinion on the "before".** Everything above uses the titling declaration as its
+baseline. Peru's **2012 agricultural census** independently recorded what was growing on some of
+the same parcels, so the two declarations can be crossed directly, with no satellite and no
+classifier involved.
+
+This was first done for Piura alone, on **8,669 parcels** with a crop recorded in both: perennial
+went from **28.2 % to 40.7 % of parcels** between ~1999 and 2012, and from **51.4 % to 66.0 % of
+land area**. One in five parcels growing an annual crop had switched to a perennial; only one in
+fourteen went the other way, and the parcels that switched were more than twice the size of
+those that did not — which is why the shift is larger measured by area than by count.
+
+⭐ **It has since gone national.** All twenty-five census departments were extracted, and the
+same comparison over the fourteen linkable ones covers **63,766 parcels** with a crop recorded on
+both sides — the largest change measurement in the project. Reweighted to the national
+population, perennial rises **+9.9 pp of parcels and +12.5 pp of land area**, with 7,158 parcels
+moving annual → perennial against 1,832 the other way. Piura's own figure in that build, +11.6
+pp, reproduces the +12.5 pp above on a differently-constructed link, which is the one external
+check either number has.
+
+**And it answers the titling question, in the descriptive direction.** Split by tenure at
+declaration, titled parcels shifted to perennials *slightly less* than untitled ones — **−2.1 pp
+± 0.6** on a base of about 10 pp — and by land area the gap disappears entirely (+0.3 pp). A
+tenure difference that flips sign between counting parcels and counting hectares is a
+composition difference in parcel size, not an effect. It does not overturn the bounded null of
+§6; it agrees with it, from an instrument with no imagery and no classifier in it.
+
+That is the clearest sign of the hypothesised shift anywhere in this project. It is also
+narrower than it looks: farms are matched to the census by the owner's *name* rather than by any
+parcel identifier, so the link is farmer-level, and the parcels that match are the larger,
+valley-floor, better-documented ones — which is why the reweighting is not optional. It says the
+land use did move; it does not say that titling moved it.
+
+### 8.4 What is still missing
+
+* **The inter-rater check.** One annotator, no repeat pass, so the labels have no measured noise
+  floor and every number above inherits that. It is the one remaining piece of labelling worth
+  doing: adding more *training* labels has stopped paying (the last 14 % of data moved LightGBM
+  +0.021 and LTAE −0.001), while a repeat pass buys a number the campaign has never had.
+* **The held-out test set is still unspent** — 201 parcels, 161 of them now labelled, untouched
+  by any fit. It can be spent once, on one model, and it should be spent after the inter-rater
+  check rather than before.
 
 ---
 

@@ -1,4 +1,4 @@
-# Spatial split for the S2 endpoint-labelling campaign (s2_labelling_plan.md §3).
+# Spatial split for the S2 endpoint-labelling campaign (docs/s2_labelling/plan.md).
 #
 # Frozen and committed BEFORE a single parcel is labelled, and never shown in the
 # labelling HTML.
@@ -15,16 +15,15 @@
 #    are scored on the joint department x declared-class composition and the closest kept.
 #    `year` is deliberately NOT balanced on here: every label in this campaign is a 2019+
 #    photo-interpretation, so there is no label-year composition to balance.
-metric_crs: 32718    # WGS84 / UTM 18S — one grid for the whole country
-block_km: 1.0
-region_km: 5.0
+
+# ⚠️ This file is a DIFF against its parent, resolved by `crop_classifier.config_loader`.
+# Read the parent for anything not listed below.
+
+extends: split_allperu.yaml
+
+# Keys this variant sets for itself; each REPLACES the parent's.
 buffer_m: 3000
-n_folds: 5
-test_frac: 0.20
-seed: 42
-
-balance_test_on: [dept, label]
+balance_test_on:
+- dept
+- label
 n_test_candidates: 200
-
-audit_max_dist_m: 5000
-audit_sample: 30000

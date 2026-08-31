@@ -1,4 +1,4 @@
-"""S2 per-date medians -> the LightGBM summary feature block (s2_labelling_plan.md §5.5).
+"""S2 per-date medians -> the LightGBM summary feature block (docs/s2_labelling/plan.md).
 
 Only the summary block is emitted. LTAE/PSE-LTAE are dropped from this strand (they lose
 on LODO 0.442 vs 0.477, LOYO 0.4784 and W2 -0.1025), so nothing needs the per-date or
@@ -17,9 +17,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
-from crop_classifier.features.assemble import _summaries
+from crop_classifier.features.assemble import _subsample_dates, _summaries
 from crop_classifier.features.indices import CHANNELS, add_indices, scale_sr_s2
 from crop_classifier.features.s2_gee import ag_year, f_pixels
 from crop_classifier.paths import feat
@@ -126,3 +127,84 @@ if __name__ == "__main__":
     assemble()
 
 
+
+
+# ------------------------------------------------------------------------------------
+# Per-date sequence tensor (LTAE)
+# ------------------------------------------------------------------------------------
+# The module header says LTAE was dropped from this strand. That was decided on the
+# **Landsat** store, where a parcel-year carries 13-24 clear looks and the attention model
+# lost on every transfer axis (LODO 0.442 vs 0.477, LOYO 0.4784, W2 -0.1025). Sentinel-2
+# gives a median 49 clear dates inside the same agricultural year — roughly triple — so the
+# input the architecture was starved of is now present, and the question is worth re-asking
+# on this data rather than inherited from the old store. The summary block above is
+# unchanged and remains the LightGBM input; this is an additional artifact, not a
+# replacement.
+#
+# ⚠️ **Positions are days since Aug 1, not day-of-year.** `ag_year` always returns
+# Aug 1 - Jul 31, so the window straddles the New Year and `doy` would wrap from 365 back to
+# 1 in the middle of every parcel's series — the sinusoidal position encoding would then
+# place mid-season observations adjacent to the window's first week. Days-since-window-start
+# is monotone across the window, lands in the same [0, 365) range the encoder expects, and
+# is *phase-aligned across parcels* precisely because every window starts on Aug 1.
+FN_PERDATE = "tensor_perdate.npz"
+T_MAX = 64
+
+
+def build_sequence_tensor(px: pd.DataFrame, parcels: pd.DataFrame,
+                          t_max: int = T_MAX) -> dict:
+    """Ag-year per-date medians -> ``X [N,T,C]`` + positions + mask for LTAE.
+
+    No pixel-set tensor: ``s2_perdate.parquet`` holds per-date band **medians** and
+    quantiles over a parcel's pixels, never the pixels themselves, so PSE-LTAE cannot be
+    built from this store at all and is not attempted.
+    """
+    d = add_indices(scale_sr_s2(restrict_to_ag_year(px, parcels)))
+    d = d.sort_values(["COD_PREDIO", "date"])
+    start = {str(c): pd.Timestamp(ag_year(imd)[0])
+             for c, imd in zip(parcels["COD_PREDIO"].astype(str),
+                               parcels["imagery_date"])}
+
+    cods = d["COD_PREDIO"].astype(str).unique()
+    n, c = len(cods), len(CHANNELS)
+    X = np.zeros((n, t_max, c), dtype=np.float32)
+    POS = np.zeros((n, t_max), dtype=np.int16)
+    MASK = np.zeros((n, t_max), dtype=bool)
+
+    for i, (cid, g) in enumerate(d.groupby(d["COD_PREDIO"].astype(str), sort=False)):
+        g = g.sort_values("date")
+        keep = _subsample_dates(g["date"].values, t_max)
+        g = g.iloc[keep]
+        tt = len(g)
+        X[i, :tt] = g[CHANNELS].values.astype(np.float32)
+        POS[i, :tt] = (g["date"] - start[cid]).dt.days.clip(0, 364).values
+        MASK[i, :tt] = True
+
+    return {"cod_predio": cods.astype(str), "channels": np.array(CHANNELS),
+            "X": np.nan_to_num(X), "doy": POS, "mask": MASK,
+            "pixmask": np.zeros((1, 1, 1), dtype=bool)}
+
+
+def assemble_tensor(px: pd.DataFrame | None = None,
+                    parcels: pd.DataFrame | None = None,
+                    out_dir: Path | None = None, t_max: int = T_MAX) -> dict:
+    """Write ``tensor_perdate.npz`` beside the summary block."""
+    out_dir = Path(out_dir) if out_dir else feat()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    if px is None:
+        px = pd.read_parquet(f_pixels())
+    if parcels is None:
+        import geopandas as gpd
+
+        from crop_classifier.allperu.label_sample import F_SAMPLE
+        from crop_classifier.allperu.label_sample import out_dir as sdir
+        parcels = gpd.read_parquet(sdir() / F_SAMPLE)
+
+    t = build_sequence_tensor(px, parcels, t_max)
+    np.savez_compressed(out_dir / FN_PERDATE, **t)
+    n_obs = t["mask"].sum(axis=1)
+    print(f"{FN_PERDATE}: {t['X'].shape[0]:,} parcels x {t_max} dates x "
+          f"{t['X'].shape[2]} channels "
+          f"(median {np.median(n_obs):.0f} real dates/parcel, "
+          f"min {n_obs.min()}, {(n_obs >= t_max).mean():.1%} at the cap)")
+    return t

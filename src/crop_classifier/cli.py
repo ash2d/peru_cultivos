@@ -1,4 +1,8 @@
-"""CLI entrypoints (plan.md §10). Run ``uv run python -m crop_classifier.cli --help``."""
+"""CLI entrypoints. Run ``uv run python -m crop_classifier.cli --help``.
+
+Command reference and cookbook: ``docs/PIPELINE.md`` §3 and §7. Commands whose estimand
+was abandoned live under ``allperu closed`` (``docs/RESULTS.md`` §9).
+"""
 
 from __future__ import annotations
 
@@ -14,11 +18,22 @@ perennial_app = typer.Typer(no_args_is_help=True,
                             help="3-class perennial/annual/pasture work (docs/RESULTS.md §2)")
 allperu_app = typer.Typer(no_args_is_help=True,
                           help="all-Peru extension: 14 linkable departments (docs/RESULTS.md §4)")
+# ⛔ Commands whose ESTIMAND was abandoned after a pre-registered gate failed. The code is
+# built, unit-tested and correct; it stays unrun (docs/RESULTS.md §9), and it stays in the
+# tree because "we tried this and measured why it does not work" is a result. It lives one
+# level down so that `allperu --help` lists the ~25 commands someone might actually want,
+# not 32 of which 7 are closed. Nothing about how they run has changed:
+#   allperu windows ...  ->  allperu closed windows ...
+closed_app = typer.Typer(
+    no_args_is_help=True,
+    help="⛔ closed routes — the estimand failed its gate; kept for reproduction only "
+         "(docs/RESULTS.md §5, §6.4, §7, §9)")
 app.add_typer(labels_app, name="labels")
 app.add_typer(splits_app, name="splits")
 app.add_typer(features_app, name="features")
 app.add_typer(perennial_app, name="perennial")
 app.add_typer(allperu_app, name="allperu")
+allperu_app.add_typer(closed_app, name="closed")
 
 
 @labels_app.command("build")
@@ -71,7 +86,7 @@ def perennial_labels(config: Path | None = None):
 def _years(spec: str) -> list[int]:
     """``"1996-2023"`` / ``"1999-2003,2019-2023"`` / ``"2023"`` -> year list.
 
-    Delegates to ``data.parse_year_spec`` so a two-window extraction (window_plan.md T4) is
+    Delegates to ``data.parse_year_spec`` so a two-window extraction (RESULTS.md §5, gate T4) is
     one command instead of a loop — this used to accept only a single ``lo-hi`` range, which
     is why recovering a stalled panel meant replaying every cached year.
     """
@@ -93,7 +108,7 @@ def perennial_panel(step: str = typer.Argument(
                     bundle_suffix: str = typer.Option(
                         "", help="infer: read <panel>/<year><suffix>/ instead of the "
                                  "audited bundle (e.g. '_qmap' for the quantile-aligned "
-                                 "sensitivity arm, temporal_ood_plan.md §2c)")):
+                                 "sensitivity arm, RESULTS.md §6)")):
     """Multi-year panel steps (§7). `extract` is a 20+ hour resumable job."""
     from crop_classifier.perennial import panel as P
     if step == "build":
@@ -227,7 +242,7 @@ def allperu_tenure(policy: str = typer.Option("any", help="any | mode — how to
               f"{tp.became_registered.mean():.1%} NO INSCRITO -> REGISTERED")
 
 
-@allperu_app.command("windows")
+@closed_app.command("windows")
 def allperu_windows(preds: Path = typer.Option(..., help="panel_predictions*.parquet"),
                     tag: str = "", tenure: Path | None = None,
                     min_years: int = 3, threshold: float = 0.5,
@@ -244,7 +259,7 @@ def allperu_windows(preds: Path = typer.Option(..., help="panel_predictions*.par
     raise typer.Exit(code=0 if v["pass"] else 1)
 
 
-@allperu_app.command("tenure-did")
+@closed_app.command("tenure-did")
 def allperu_tenure_did(
         preds: Path = typer.Option(..., help="panel_predictions*.parquet"),
         tag: str = typer.Option(..., help="names the CONFIGURATION, not the date"),
@@ -254,7 +269,7 @@ def allperu_tenure_did(
         control: str = typer.Option("no_inscrito", help="no_inscrito (N-D9) | any (pilot)"),
         no_r4: bool = typer.Option(False, "--no-r4",
                                    help="reproduce the pilot — NOT a valid specification")):
-    """Two-period tenure DiD + gates G1-G3 (tenure_did_plan.md). Exits 1 if G1 FAILS."""
+    """Two-period tenure DiD + gates G1-G3 (docs/RESULTS.md §7). Exits 1 if G1 FAILS."""
     from crop_classifier.allperu.tenure_did import print_verdict, run
     from crop_classifier.paths import proc
 
@@ -414,7 +429,7 @@ def allperu_lodyo(tag: str = typer.Option("nolat", help="LODO artifact tag to re
     print(lodo_by_cohort(tag=tag, min_parcels=min_parcels).to_string(index=False))
 
 
-@allperu_app.command("window-sample")
+@closed_app.command("window-sample")
 def allperu_window_sample(source: Path = typer.Option(..., help="FULL all-Peru workspace"),
                           tenure: Path = typer.Option(...),
                           at_risk_per_tenure: int = 5000, n_perennial: int = 1500,
@@ -437,7 +452,7 @@ def allperu_export_status():
     woody_noncrop_bound()
 
 
-@allperu_app.command("estimate")
+@closed_app.command("estimate")
 def allperu_estimate(preds: Path = typer.Option(...), tenure: Path = typer.Option(...),
                      run: Path = typer.Option(..., help="model run dir with preds_cv"),
                      tag: str = "nolat",
@@ -451,7 +466,7 @@ def allperu_estimate(preds: Path = typer.Option(...), tenure: Path = typer.Optio
                       default=float))
 
 
-@allperu_app.command("external")
+@closed_app.command("external")
 def allperu_external(preds: Path = typer.Option(...), siea: Path = typer.Option(
         ..., help="downloaded MIDAGRI/SIEA district-crop-year CSV (not redistributed)"),
         map: str | None = typer.Option(None, help="JSON dict renaming SIEA columns"),
@@ -549,7 +564,7 @@ def allperu_label_budget(out_dir: Path = typer.Option(Path("docs/figures"))):
     """How many labelled parcels does a campaign need? Learning curve on the existing store.
 
     Runs both draw protocols — whole 5 km regions vs stratified by class — because the gap
-    between them is worth ~8x the labelling budget. endpoint_labels_plan.md §3.
+    between them is worth ~8x the labelling budget. docs/s2_labelling/plan.md.
     """
     from crop_classifier.allperu.label_budget import build
     print(build(out_dir).round(3).to_string(index=False))
@@ -568,7 +583,10 @@ def allperu_s2_labels(
         chunk_size: int = typer.Option(25, help="extract: parcels per GEE request"),
         max_chunks: int | None = typer.Option(None, help="extract: stop after N chunks"),
         supp_depts: str = typer.Option("", help="pool: comma list to supplement"),
-        overwrite: bool = typer.Option(False, help="chips: re-render existing")):
+        overwrite: bool = typer.Option(False, help="chips: re-render existing"),
+        lang: str = typer.Option("en", help="html: interface + codebook language "
+                                            "(en|es). Non-English writes to "
+                                            "labels_s2/html_<lang>/")):
     """S2 endpoint-labelling campaign (docs/s2_labelling/plan.md).
 
     The steps run in the plan's §11 order, cheapest-that-can-kill-it first::
@@ -583,10 +601,184 @@ def allperu_s2_labels(
     from crop_classifier.allperu import s2_campaign as C
     C.run_step(step, source=source, csv_dir=csv_dir, workers=workers,
                chunk_size=chunk_size, max_chunks=max_chunks, overwrite=overwrite,
+               lang=lang,
                supp_depts=[d.strip() for d in supp_depts.split(",") if d.strip()])
 
 
-@allperu_app.command("oli")
+@allperu_app.command("s2-train")
+def allperu_s2_train(
+        step: str = typer.Argument(..., help="prep|fit|lodo|baseline|report"),
+        model: str = typer.Option("lightgbm", help="fit: lightgbm|ltae|rules"),
+        target: str = typer.Option("", help="label target: t5|t4|t3|t3w|t2|t2w "
+                                          "(default t4; `report` with no --target "
+                                          "tabulates every arm). t2/t2w are "
+                                          "PERENNIAL vs NON_PERENNIAL and are not "
+                                          "runnable with --model rules"),
+        pilot: bool = typer.Option(False, "--pilot",
+                                   help="fold the 120-parcel pilot into trainval "
+                                        "(NON-CANONICAL: the frozen split holds it out)"),
+        run: Path = typer.Option(
+            Path("runs/all_peru/lightgbm_nometa_nolat_aug_yleak10"),
+            help="baseline: the Landsat model run to transfer"),
+        model_kw: str = typer.Option(
+            "", help="fit: JSON of model hyper-parameters, e.g. "
+                     "'{\"batch_size\": 32, \"epochs\": 300}'. The registry defaults "
+                     "were tuned on 50k Landsat parcels; this campaign trains on ~200")):
+    """Train and compare models on the returned S2 endpoint labels (docs/s2_labelling/plan.md).
+
+    ⚠️ **One arm per process.** LightGBM and torch each bundle their own libomp and
+    co-loading them on macOS segfaults, so `fit --model ltae` must not share a process with
+    `fit --model lightgbm`. The steps are separate commands for that reason; drive them from
+    a shell loop, not a Python one.
+
+    ⚠️ The locked test set is **never** touched here. There is no `--eval-test`: at the
+    coverage reached so far it is 58 labelled parcels, and spending it buys a +/-13 pp
+    interval on the project's only endpoint accuracy number.
+    """
+    import json
+    import os
+
+    from crop_classifier.labelling import train_prep as P
+
+    if step == "prep":
+        for t in P.TARGETS:
+            for inc in (False, True):
+                P.build_workspace(t, include_pilot=inc)
+                print()
+        return
+
+    if step == "report":
+        P.report(target=target or None, include_pilot=pilot or None)
+        return
+
+    ws = P.ws_dir(target or "t4", pilot)
+    if not (ws / "modeling_parcels.parquet").exists():
+        raise SystemExit(f"{ws} not built - run `allperu s2-train prep` first")
+    os.environ["CC_PROC"] = str(ws)
+    os.environ["CC_FEAT"] = str(ws / "features")
+
+    if step in ("fit", "lodo") and model == "rules" and (target or "t4") in P.RULES_INCOMPATIBLE:
+        raise SystemExit(
+            f"--model rules cannot be run on --target {target}: the rule maps three "
+            f"semantic groups onto label ids and in a two-class space its fallback "
+            f"resolves PASTURE_FALLOW to PERENNIAL. It would return a meaningless number "
+            f"rather than an error. Use lightgbm or ltae.")
+
+    if step == "fit":
+        from crop_classifier.train import train as _train
+        os.environ["CC_RUNS"] = str(Path("runs/s2_labels") / ws.name)
+        kw = json.loads(model_kw) if model_kw else None
+        _train(model_name=model, run_name=model, eval_test=False, model_kw=kw)
+    elif step == "baseline":
+        out = P.landsat_baseline(run, target=target or "t4", include_pilot=pilot)
+        P.report_baseline(out, ws)
+    elif step == "lodo":
+        P.dept_transfer(target=target or "t4", model_name=model,
+                        model_kw=json.loads(model_kw) if model_kw else None)
+    else:
+        raise typer.BadParameter(f"unknown step {step!r}")
+
+
+@allperu_app.command("cenagro")
+def allperu_cenagro(
+        config: Path | None = typer.Option(
+            None, help="3-class lexicon to classify BOTH sides with "
+                       "(default config/perennial.yaml — Piura, which is the only "
+                       "department CENAGRO covers)")):
+    """CENAGRO 2012 as the 'before' observation instead of the PETT declaration.
+
+    Produces the paired **PETT declaration -> CENAGRO 2012** change on the same parcels, the
+    like-for-like version restricted to parcels with a crop recorded on both sides, the
+    area-weighted version, the same broken out by census link quality, and the handful of
+    parcels that also carry a 2019+ photo-interpreted label.
+
+    ⚠️ **Piura only**, and the census-to-parcel link is **farmer-level, not parcel-level** —
+    the census carries no parcel key at all. See the module docstring and `DATA.md` Chain B.
+    """
+    from crop_classifier.allperu import cenagro as C
+    C.build(config_path=config)
+
+
+@allperu_app.command("cenagro-extract")
+def allperu_cenagro_extract(
+        dept: str = typer.Option("all", help="department stem (e.g. Piura) or 'all'"),
+        overwrite: bool = typer.Option(False, help="rewrite files that already exist"),
+        verify: bool = typer.Option(False, help="run the post-extraction audit instead")):
+    """Slim the 25 OneDrive CENAGRO 2012 `.dta` files to `data/raw/Cenagro_IV/*.parquet`.
+
+    409 columns -> 76, ~18 GB -> ~250 MB, one file per department, still **long** (one row
+    per parcel x crop-order). Reads each `.dta` once, chunked, with an explicit `usecols`.
+
+    ``--verify`` re-reads the written Parquet and reports: rows in/out, the `P009_01`
+    non-blank rate (the farmer name is the only link to PETT), whether the column set is
+    identical across all 25 files, whether `P024_03` resolves against the crop table, and
+    the posesionario rate that tests what "sin posesionario" actually filtered.
+    """
+    from crop_classifier.allperu import cenagro_extract as E
+    if verify:
+        E.verify()
+        return
+    E.extract(None if dept == "all" else [dept], overwrite=overwrite)
+
+
+@allperu_app.command("cenagro-link")
+def allperu_cenagro_link(
+        dept: str = typer.Option("all", help="department stem or 'all' (the 14 linkable)")):
+    """Build the NATIONAL census⇄PETT crosswalk by farmer name (Chain B, 14 departments).
+
+    Writes `data/processed/cenagro/cenagro_pett_link.parquet`. ⚠️ The census carries no parcel
+    key, so the link is **farmer-level, not parcel-level**; every number built on it must be
+    reported by `link_confidence`. `DATA.md` §2 Chain B.
+    """
+    from crop_classifier.allperu import cenagro_link as L
+    L.build(None if dept == "all" else [dept])
+
+
+@allperu_app.command("cenagro-shift")
+def allperu_cenagro_shift(
+        dept: str = typer.Option("all", help="restrict to one department, or 'all'")):
+    """⭐ PETT → CENAGRO 2012 → photo-interpreted 2019+, nationally, split by tenure.
+
+    Perennial share of parcels and of **cadastral** area at each of the three observations,
+    with the tenure (INSCRITO / NO INSCRITO) split and the difference between them. Needs
+    `allperu cenagro-link` first.
+
+    ⚠️ Descriptive, not causal — title is not randomly assigned. ⚠️ The S2 shares are
+    design-weighted because the labelling campaign over-sampled PERENNIAL.
+    """
+    from crop_classifier.allperu import cenagro_shift as S
+    S.build(None if dept == "all" else [dept])
+
+
+@allperu_app.command("climate")
+def allperu_climate(
+        step: str = typer.Argument(..., help="normals|rainfall|both"),
+        years: str = typer.Option("1996-2024",
+                                  help="rainfall: CHIRPS calendar years to sample"),
+        parcels: Path | None = typer.Option(
+            None, help="parcel table to key on (default: the FULL national "
+                       "modeling_parcels.parquet, 726,808 parcels)")):
+    """Per-parcel mean temperature and rainfall (docs/DATA.md, climate section).
+
+    ``normals``  WorldClim 2.1, ~1 km, the 1970-2000 climatological normal -> annual mean
+                 temperature (degC) + annual rainfall (mm/year) + the monthly profile.
+                 **Time-invariant**: safe for a single-year classifier, not for a panel.
+    ``rainfall`` CHIRPS 2.0, ~5.5 km, one *actual* rainfall total per parcel per calendar
+                 year. Read remotely over Peru's bounding box; nothing global is stored.
+
+    ``normals`` needs the two WorldClim zips in ``data/raw/worldclim/`` (the error message
+    carries the exact curl commands). ``rainfall`` needs only a network connection.
+    """
+    from crop_classifier.allperu import climate as C
+    if step in ("normals", "both"):
+        C.build_normals(parcels_path=parcels)
+    if step in ("rainfall", "both"):
+        C.build_rainfall_annual(years=_years(years), parcels_path=parcels)
+    if step not in ("normals", "rainfall", "both"):
+        raise typer.BadParameter(f"unknown step {step!r}")
+
+
+@closed_app.command("oli")
 def allperu_oli(step: str = typer.Argument(
                     ..., help="probe|extract|assemble|verify|compare|split-half"),
                 years: str = "2015,2019",
@@ -630,7 +822,7 @@ def allperu_oli(step: str = typer.Argument(
         raise typer.BadParameter(f"unknown step {step!r}")
 
 
-@allperu_app.command("oli-refit")
+@closed_app.command("oli-refit")
 def allperu_oli_refit(years: str = "2015,2019,2022", max_days: int = 1):
     """Refit the OLI->ETM+ coefficients on same-day L7/OLI parcel pairs from THIS data.
 
@@ -675,7 +867,7 @@ def train(model: str = "lightgbm", folds: int | None = None,
               None, "--augment-feat",
               help="a degraded copy of the feature store (allperu.density) appended to "
                    "the TRAIN side only, so each parcel is seen at both its own and the "
-                   "endpoint observation density. temporal_ood_plan.md §1b")):
+                   "endpoint observation density. RESULTS.md §6")):
     """Spatial CV + final refit for one of: lightgbm | ltae | psetae (§8/§9)."""
     from crop_classifier.train import train as _train
     _train(model_name=model, n_folds=folds, eval_test=eval_test, run_name=run_name,

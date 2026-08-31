@@ -10,7 +10,7 @@ Modelling results are in [`RESULTS.md`](RESULTS.md); the code that reads all of 
 
 ## 1. Raw inventory — `data/raw/`
 
-The data is **national**. Three folders cover the whole country; read them through
+The data is **national**. Four folders cover the whole country; read the first three through
 `crop_classifier.allperu.sources`, which handles the four silent traps in §4.
 
 | folder | contents |
@@ -18,6 +18,7 @@ The data is **national**. Three folders cover the whole country; read them throu
 | `BD_SSET/` | 8 crop-registry workbooks, ~5.6 M rows |
 | `Grafica_Tabular/` | 15 bridge `.dta` files, ~1.87 M rows |
 | `QGIS/<DEPT>/` | 24 parcel shapefiles, ~2.9 M polygons |
+| `Cenagro_IV/` | the 2012 census, **all 25 departments**, slimmed to 76 columns (§1.5) |
 
 The older Piura-only files (`BD SSET(MOQUEGUA-PASCO-PIURA).xlsx`, `grafica_tabular_Piura.dta`,
 `qgis_stefany/`) are **byte-identical (sha256 verified)** to their members of the national
@@ -67,7 +68,9 @@ populated. The 2012-04-10 date is the *packaging* date, not a survey date.
 ⚠️ `qgis_stefany/PIURA.dta` (158,638 rows, latin1) is the shapefile's attribute table. It has
 **no `CodigoSSET`, so it cannot bridge anything.** Confirmed dead end.
 
-### 1.4 The 2012 agricultural census — `IV_CENAGRO_Piura.dta`
+### 1.4 The 2012 agricultural census, Piura — `IV_CENAGRO_Piura.dta`
+
+⚠️ **This is one department of 25.** The other 24 are in `Cenagro_IV/` — see §1.5.
 
 947,884 rows × 409 cols, 938 MB. Read with `encoding="latin1"` **and always an explicit
 `usecols`**. Long format: one row per parcel × crop.
@@ -85,6 +88,80 @@ Companions: `IV CENAGRO - Tabla_Cultivos_Totales.xlsx` (sheet `Permanente`, Preg
 `P024_03` → crop names, covering 100 % of census codes. `Base_Cenagro_PETT_Piura.dta` is a
 **prior name-based merge** (142,348 rows; `PETT==1` = 82,914 matched productors → 26,028
 predios) kept only as a comparison target — it carries **no geometry**.
+
+### 1.5 ⭐ The 2012 census, all 25 files — `data/raw/Cenagro_IV/`
+
+`IV_CENAGRO_Piura.dta` (§1.4) is **one department of twenty-five**. The full set lives on the
+UDEP OneDrive share `MARAVI MENESES CRISTIAN ADDERLY - Departamentos_IV_CENAGRO (sin
+posesionario)` as 25 `.dta` files, **409 columns each, 17.5 GB**. `data/` is gitignored, so
+`PIPELINE.md` §7 records how to regenerate; the extractor is
+`allperu/cenagro_extract.py`.
+
+```
+uv run python -m crop_classifier.cli allperu cenagro-extract            # all 25
+uv run python -m crop_classifier.cli allperu cenagro-extract --verify   # the audit below
+```
+
+**17,750,195 rows, 17.5 GB → 0.21 GB (85× smaller), 409 columns → 76, zero rows lost.**
+Output is **long** — one row per producer × parcel × crop-order — because each consumer
+aggregates differently. `_extract_audit.csv` beside the Parquet files carries the table below. (A stray
+`Cenagro_IV/Tacna.dta`, a 148 MB hand-copy from an earlier session, is superseded by
+`Tacna.parquet` and can be deleted.)
+
+⚠️ **The OneDrive files are `dataless` placeholders.** Every read streams over the network at
+~2.7 MB/s, so the first extraction of a 2 GB department takes ~9 minutes and `%CPU` sits at
+**0.0** the whole time — which looks exactly like a hang. Warm them first
+(`dd if=<file> of=/dev/null`, four in parallel); a warmed department then extracts in
+**5–15 s** instead of 200–500 s. Total wall clock ≈ 1 h either way, but it is download time,
+not compute.
+
+Per-department row counts, name coverage, crop-row share and posesionario rate:
+**[`cenagro_columns.md`](cenagro_columns.md)**, regenerable with
+`allperu cenagro-extract --verify` (the copy of record is `_extract_audit.csv` beside the
+Parquet files).
+
+**Linkable: 14 of 25** — Ancash, Arequipa, Ayacucho, Cajamarca, Huancavelica, Ica, La Libertad,
+Lambayeque, Lima, Moquegua, Pasco, Piura, Tacna, Tumbes (§3). The other 11 are extracted anyway
+— valid census data for a national descriptive, they just cannot reach a polygon or a PETT crop,
+because the cadastral bridge does not exist for them. Structural, not a to-do.
+
+⚠️ **The Piura file is not new data.** `Piura.dta` here extracts to **947,884 rows**, the exact
+row count of `data/raw/IV_CENAGRO_Piura.dta` (§1.4). It was extracted under the same scheme so
+that all 25 are consistent; `IV_CENAGRO_Piura.dta` is untouched and remains what §1.4 and
+notebook 02 read.
+
+#### The kept columns, the name columns, and what "sin posesionario" did not filter
+
+76 columns. A producer-level value is repeated on every one of that producer's rows, and a
+parcel-level value on every one of that parcel's crop rows — the file is **long**, so
+de-duplicate on `NPRIN` (or `NPRIN`+`NPARC`) before averaging anything.
+
+⭐ **Full column dictionary, with units: [`cenagro_columns.md`](cenagro_columns.md).** Four
+things in it bind any use of this data and are repeated here because getting them wrong is
+silent:
+
+* ⚠️ **The farmer name columns `P009_01/02/03` carry an empty variable label.** They are the
+  **only** link from the census to the rest of the project — no `COD_PREDIO`, no `CodigoSSET`,
+  no DNI. A `usecols` built from labels finds nothing; a column picked by position finds a
+  plausible string column that is not the name. **Identify them by value.** Coverage is
+  97.2–99.7 % of rows, 92.0–99.0 % of producers (worst: Madre de Dios).
+* ⚠️ **Derive tenure security from `P037_01_03` yourself.** Six derived registration variables
+  (`registrado`, `registrado_1/2`, `p_registrado`, `GP`, `GP_1`, `X_t`) ship with the source,
+  are absent from the INEI questionnaire, and match their apparent definitions on only 96–98 %
+  of producers. `GP` also runs the *opposite* direction to the raw code. Cross-check only.
+* ⚠️ **`P037_SS` is not the polygon area.** The census self-reported parcel surface is
+  **uncorrelated** with the cadastral polygon area (Pearson ~0.01). Weight areas by the
+  cadastral `area_ha`, never by `P037_SS`.
+* ⚠️ **"sin posesionario" is a folder name, not a row filter — nothing was removed.**
+  `P037_04_01 == 1` on 2.1–31.9 % of producers in **25 of 25** departments, 94,063 producers
+  hold land *only* as posesionario, and incomplete/refused enumerations survive too. So the 25
+  files stay **mutually comparable** — which is what makes any cross-department tenure
+  comparison valid. The geographic gradient is real (Callao 31.9 %, Tacna 25.4 %, Madre de Dios
+  17.8 %): a variable to model, not a nuisance to drop.
+
+**`P024_03` resolves 100 %** against `IV CENAGRO - Tabla_Cultivos_Totales.xlsx` in all 25
+departments. Codes are 1–4 characters and are **not** consistently zero-padded on either side;
+`crop_code_table()` canonicalises both to an integer.
 
 ---
 
@@ -109,7 +186,42 @@ IV_CENAGRO name (P009_01/02/03) ──normalised name──► SSET / bridge / p
 Recovers 45,942 productors to a polygon on its own; union with the prior `Base` merge = 91,636.
 ⚠️ **There is no parcel-level key**, so pinning the *exact* polygon is uncertain (~43 %
 `COD_PREDIO` agreement with `Base`, even at high confidence). Good for the person, district and
-crop; weak for the parcel. Not used in any current model.
+crop; weak for the parcel. Not used in any classifier.
+
+⭐ **It is used for one thing: a second *declared* observation.** `allperu cenagro`
+(`RESULTS.md` §8.5) crosses the PETT declaration with the 2012 census on the same parcel —
+**10,639 parcels with both, 8,669 with a crop recorded on both sides** — which is the project's
+only paired before/after with no satellite and no classifier in it. Three limits bind it:
+
+* **⭐ No longer Piura only.** With the 25-department extract (§1.5) and
+  `allperu/cenagro_link.py`, Chain B now runs on **all 14 linkable departments**:
+  **307,807 census producers linked, 95,941 parcels with both observations, 63,766 with a
+  crop on both sides** (`RESULTS.md` §8.6). `IV_CENAGRO_Piura.dta` was the only census
+  file until 2026-08-29.
+* ⚠️ **The matched subset is not a random sample.** Piura's is 23.3 % `PERENNIAL` against
+  its true 14.4 %; nationally the linked panel is **16.6 % against the population's
+  9.9 %**, with a larger median parcel (0.53 vs 0.43 ha). Matching needs a name on both
+  sides *and* a district agreement, and the parcels that satisfy that are the larger,
+  valley-floor, better-documented ones. Read the paired *change*, not the levels — and
+  for a national claim use `cenagro_shift.poststratify()`, which reweights on department
+  × declared class.
+* ⚠️ **The two instruments do not share a class space.** PETT records a land *state* and has an
+  explicit "EN DESCANSO"; census question 024 asks which **crop is grown**, so a fallow parcel
+  contributes no row and leaves the frame. Crossing them raw makes `PASTURE_FALLOW` appear to
+  collapse 17.9 % → 1.1 %, which is the instrument, not the land. Restrict to parcels with a
+  crop on both sides.
+* ⚠️ **The census vocabulary needs its own lexicon.** It uses fuller crop names than the
+  registry ("LIMON ACIDO", not "LIMON"). Audited, **4.09 % of census tokens fell through to
+  `crop_fallback: ANNUAL` — and 1,969 of those 2,448 were `VERGEL FRUTICOLA`, "fruit
+  orchard".** `config/perennial_cenagro.yaml` (additive over `perennial_allperu.yaml`) takes
+  that to 0.03 %. **The uncorrected headline was +2.4 pp; the corrected one is +12.5 pp.** Run
+  `cenagro.token_audit()` before trusting any figure built this way.
+  ⚠️ **The same trap fired again on the national vocabulary**, and the budget check passed
+  both times. `MELOCOTONERO` — the peach *tree*, where `MELOCOTON` and `DURAZNO` were
+  already PERENNIAL — was **45.8 % of a 1.35 % national tail at 18,371 instances**, with
+  `MEMBRILLERO` (quince tree) and `DACTYLIS` (a sown forage grass) behind it. Fixed in the
+  same config; tail now 0.54 %. **Print the tail sorted by frequency and read the top ten;
+  a budget check cannot see a concentrated error inside a small tail.**
 
 ---
 
@@ -318,3 +430,109 @@ sampling bug.
 
 ⚠️ **Esri returns a valid flat-grey image above the zoom it serves**, not an error. Derive zoom
 from the probed resolution (30 cm→z19, 60 cm→z18, 1.2 m→z17) and keep a placeholder detector.
+
+### 7.4 Climate covariates — per-parcel temperature and rainfall
+
+Built by `allperu climate normals|rainfall`, module `allperu/climate.py`. Two tables,
+keyed on `COD_PREDIO`, covering **all 726,808 parcels** in
+`all_peru_full/modeling_parcels.parquet` — which is a superset of every other parcel table
+in the project (the 56,419-parcel national sample, the 614,876-parcel S2 eligible universe
+and the 1,112 labelled parcels are all contained in it, verified, 0 outside).
+
+| file | source | resolution | time | rows × cols |
+|---|---|---|---|---|
+| `processed/climate/parcel_climate_normals.parquet` | WorldClim 2.1 | 30 arc-sec (~914 m, **85 ha**) | **static**, the 1970–2000 normal | 726,808 × 36 |
+| `processed/climate/parcel_rainfall_annual.parquet` | CHIRPS 2.0 | 0.05° (~5.5 km, ~3,000 ha) | **one value per calendar year**, 1996–2024 | 726,808 × 33 |
+
+**Sanity, from the built table** — mean annual temperature / rainfall by department, which is
+the fastest way to see the file is right: **Ica 19.5 °C / 10 mm/yr** (hyper-arid coastal
+desert), **Tumbes 25.4 °C / 266 mm** (equatorial coast), **Huancavelica 11.9 °C / 772 mm**
+(high sierra), **Pasco 21.2 °C / 1,669 mm** (Amazon-facing selva). Dry months (<50 mm) run from
+**12 of 12 in Ica to 1.3 in Pasco**.
+
+**Columns and their units.** Normals: `tmean_c` (annual mean temperature, °C),
+`precip_mm_yr` (annual rainfall total, mm/year), `tmean_c_warmest_month` /
+`tmean_c_coolest_month` / `t_range_c` (°C), `precip_mm_wettest_month` /
+`precip_mm_driest_month` (mm), `precip_seasonality_cv` (SD of monthly rainfall as a % of
+the monthly mean — WorldClim BIO15; high = one short wet season), `aridity_index_dm`
+(De Martonne, P/(T+10); <10 arid, >40 humid), `n_dry_months` (months under 50 mm), plus the
+twelve monthly `tmean_c_mMM` and `precip_mm_mMM`. Annual rainfall: `precip_mm_<year>` for
+1996–2024 (mm), plus `precip_mm_mean` and `precip_mm_cv` across those years.
+
+**Why a centroid sample and not a zonal mean over the polygon.** The largest parcel in the
+national table is **50 ha**; one WorldClim cell is **~86 ha** and one CHIRPS cell
+**~3,000 ha**. *No parcel is larger than one climate pixel*, so a polygon mean and a
+centroid sample return the same number, at a few hundred times the cost.
+`climate.build_normals` prints this check rather than assuming it — measured, **0 of
+726,808 parcels exceed a cell; the largest is 0.59 of one** — and `tests/test_climate.py` fails
+if it ever stops being true.
+
+⚠️ **`precip_seasonality_cv` is NaN for 1,275 Ica parcels, and that is correct.** They receive
+**exactly 0 mm/year** in the WorldClim normal, so the seasonality of their rainfall is 0/0 —
+genuinely undefined. It is left NaN rather than imputed, because filling it with 0 would assert
+"rain is evenly spread through the year", which is a claim about rain that does not fall. It is
+the **only** NaN in either table (`tmean_c`, `precip_mm_yr` and all 29 CHIRPS years are
+complete). LightGBM handles it natively; a torch model needs an explicit fill, and *what you
+fill it with is a modelling decision, not a cleanup step*.
+
+⚠️ **A masked cell returns NaN, not an error** — the fifth instance of this project's
+recurring failure shape. Climate rasters mask the ocean and Peru's cadastre runs to the
+shoreline, so a coastal centroid can land one cell seaward; the column would come back NaN
+and that parcel would silently vanish from any model using it. `_sample_points` falls back
+to the nearest valid cell within 3 cells and reports how many needed it. Measured: **0 of 726,808 unresolved**, for CHIRPS in every one of the 29 years and for
+WorldClim in all 24 monthly rasters.
+
+⚠️ **The normals are time-invariant and this project has measured what that costs.** A
+column with the same value in 1998 and 2023 cannot express change, so a model given one
+reads stability into a panel whether or not the land was stable (§4.4, §5 of `RESULTS.md`).
+Use the **normals for a single-year classifier** and **`parcel_rainfall_annual` for anything
+applied across years**. Either way evaluate on **LODO as well as CV**: a 1 km climate
+surface is a smooth function of location, so it is a proxy for `centroid_lat`, whose
+CV/LODO story is the one `CLAUDE.md` opens with.
+
+⚠️ **Year-resolved temperature does not exist in these tables.** CHIRPS is rainfall only,
+and no equally cheap public temperature product was available (GEE was in restricted mode;
+TerraClimate needs `netcdf4`, which is not a project dependency). Temperature is normals-only
+and therefore static.
+
+⭐ **The rainfall series validates itself against the project's own El Niño finding.**
+CHIRPS was extracted with no reference to any project result, yet 1998 against 1997 gives
+Tumbes **×6.24**, Piura **×3.36**, Lambayeque **×2.54** — while the southern sierra went
+*drier* (Tacna ×0.66, Moquegua ×0.72), the textbook ENSO dipole. The 2017 coastal El Niño
+repeats it (Tumbes ×2.45, Piura ×1.73 against 2016), and **2023 is the wettest year of the
+29 nationally** (806 mm against a 610 mm mean). This is independent corroboration of the
+El Niño mechanism `RESULTS.md` established from BSI, from a completely different instrument.
+
+⚠️⚠️ **The two rainfall sources disagree by 25× on the hyper-arid coast, and the 1 km one is
+right.** Mean annual rainfall per parcel, by department:
+
+| dept | WorldClim (1 km) | CHIRPS (5.5 km) | ratio |
+|---|---|---|---|
+| **ICA** | **10 mm/yr** | **252 mm/yr** | **×25.2** |
+| MOQUEGUA | 124 | 357 | ×2.9 |
+| AREQUIPA | 237 | 431 | ×1.8 |
+| TACNA | 135 | 242 | ×1.8 |
+| TUMBES | 266 | 451 | ×1.7 |
+| … | … | … | … |
+| CAJAMARCA | 899 | 862 | ×0.96 |
+| LAMBAYEQUE | 154 | 92 | ×0.60 |
+
+Parcel-level Pearson r = **0.88** (Spearman 0.87) — they agree on the broad pattern and
+disagree systematically where it matters. A CHIRPS cell is **~3,000 ha** and on Peru's coast a
+single cell spans both the desert floor and the western Andean slope, so mountain rainfall
+bleeds onto desert parcels. Ica genuinely receives a few mm a year; 252 mm is a resolution
+artefact, not a period difference.
+
+**So use them for different things:**
+* **the spatial *level* of rainfall → `parcel_climate_normals.precip_mm_yr`** (1 km);
+* **the year-to-year *anomaly* → CHIRPS as a ratio to its own mean**,
+  `precip_mm_<year> / precip_mm_mean`, which is scale-free and therefore immune to the bias
+  above. One line to compute; deliberately not stored as 29 more columns.
+* **Do not feed CHIRPS's absolute level to a model on coastal parcels.**
+
+**Provenance.** WorldClim 2.1 (Fick & Hijmans 2017), downloaded once to
+`data/raw/worldclim/` (`wc2.1_30s_tavg.zip` 4.3 GB, `wc2.1_30s_prec.zip` 1.0 GB); gitignored
+and not redistributed. CHIRPS 2.0 (Funk et al. 2015) is **never downloaded in bulk** — the
+annual GeoTIFFs are uncompressed and row-striped, so a `/vsicurl` windowed read over Peru's
+bounding box transfers ~320 of 2,000 rows per year. All 29 years take ~4 minutes and leave
+nothing on disk.

@@ -1,4 +1,4 @@
-"""Runner for the S2 endpoint-labelling campaign (s2_labelling_plan.md §11).
+"""Runner for the S2 endpoint-labelling campaign (docs/s2_labelling/plan.md).
 
 One function per step, in the plan's order — cheapest step that can kill the plan first.
 Every step reads what the previous one wrote from ``<CC_PROC>/labels_s2/`` and writes its
@@ -44,8 +44,14 @@ def chip_dir() -> Path:
     return p
 
 
-def html_dir() -> Path:
-    p = d() / "html"
+def html_dir(lang: str = "en") -> Path:
+    """``html/`` for English, ``html_<lang>/`` otherwise.
+
+    Separate directories rather than a suffix on each filename: the shard name is what the
+    labeller is asked for by name and what comes back in the CSV, and it must stay
+    ``shard01_A`` in every language so a returned file is unambiguous.
+    """
+    p = d() / ("html" if lang == "en" else f"html_{lang}")
     p.mkdir(parents=True, exist_ok=True)
     return p
 
@@ -196,13 +202,26 @@ def step_assemble() -> None:
         print(miss.to_string())
 
 
-def step_html() -> None:
+def item_key_path() -> Path:
+    """The item_id -> COD_PREDIO key, from whichever language set was built.
+
+    The key is language-independent (same shards, same item ids, same order), so ingest must
+    not require the English build to exist just because it is the default.
+    """
+    for cand in [html_dir("en") / "item_key.csv",
+                 *sorted(d().glob("html_*/item_key.csv"))]:
+        if cand.exists():
+            return cand
+    raise SystemExit("no item_key.csv found — run `s2-labels html` first")
+
+
+def step_html(lang: str = "en") -> None:
     from crop_classifier.features.s2_gee import f_pixels
     from crop_classifier.labelling import build_html as BH
 
     s = gpd.read_parquet(d() / LS.F_SAMPLE)
     px = pd.read_parquet(f_pixels())
-    BH.build(s, chip_dir(), px, html_dir())
+    BH.build(s, chip_dir(), px, html_dir(lang), lang=lang)
 
 
 def step_ingest(csv_dir: Path) -> None:
@@ -210,7 +229,7 @@ def step_ingest(csv_dir: Path) -> None:
     from crop_classifier.labelling.ingest import ingest
 
     s = gpd.read_parquet(d() / LS.F_SAMPLE)
-    key = pd.read_csv(html_dir() / "item_key.csv")
+    key = pd.read_csv(item_key_path())
     meta_f = feat() / FN_META
     meta = pd.read_parquet(meta_f) if meta_f.exists() else None
     ingest(Path(csv_dir), s, key, s2_meta=meta, out_dir=d())
@@ -237,7 +256,7 @@ STEPS = {
                                        k.get("workers", 4)),
     "harmonisation": lambda **k: step_harmonisation(),
     "assemble": lambda **k: step_assemble(),
-    "html": lambda **k: step_html(),
+    "html": lambda **k: step_html(k.get("lang", "en")),
     "ingest": lambda **k: step_ingest(k["csv_dir"]),
     "transitions": lambda **k: step_transitions(),
 }

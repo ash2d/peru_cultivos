@@ -32,8 +32,8 @@ from typing import Any
 
 import geopandas as gpd
 import pandas as pd
-import yaml
 
+from crop_classifier.config_loader import load_yaml_config
 from crop_classifier.labels import PIXEL_HA, crop_set_key
 from crop_classifier.paths import PROC_SHARED, proc
 
@@ -63,8 +63,7 @@ CANA_TOKENS = {"CAÑA DE AZUCAR", "CAÑA DEAZUCAR", "CAÑA DE AZCAR", "AZUCAR",
 
 
 def load_config(path: Path | None = None) -> dict[str, Any]:
-    with open(path or CONFIG_DIR / "perennial.yaml") as f:
-        return yaml.safe_load(f)
+    return load_yaml_config(path or CONFIG_DIR / "perennial.yaml")
 
 
 # ------------------------------------------------------------------------------------

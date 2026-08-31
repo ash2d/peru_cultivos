@@ -32,8 +32,8 @@ from typing import Any
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-import yaml
 
+from crop_classifier.config_loader import load_yaml_config
 from crop_classifier.paths import PROC_SHARED, proc
 
 CONFIG_DIR = Path(__file__).resolve().parent / "config"
@@ -47,8 +47,7 @@ PIXEL_HA = 0.09  # one 30 m Landsat pixel in hectares
 
 
 def load_config(path: Path | None = None) -> dict[str, Any]:
-    with open(path or CONFIG_DIR / "data.yaml") as f:
-        return yaml.safe_load(f)
+    return load_yaml_config(path or CONFIG_DIR / "data.yaml")
 
 
 def out_paths() -> tuple[Path, Path, Path]:

@@ -1,4 +1,4 @@
-"""Is ``PERENNIAL`` the same thing as *export*? (window_plan.md §6.4)
+"""Is ``PERENNIAL`` the same thing as *export*? (RESULTS.md §5)
 
 The 3-class label space proxies the research question — "has land shifted from domestic
 annual crops to export perennial crops?" — with a land-*state* classifier, because that is

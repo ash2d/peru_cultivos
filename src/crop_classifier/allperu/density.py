@@ -610,7 +610,7 @@ def write_aligned_panel_bundles(run_feature_names: list[str],
     training years' marginal removes any shift in the mean of a feature, whatever caused it.
     It is therefore a *sensitivity arm* — it answers "how much of the series survives if we
     assume no aggregate change in the features?" — and must never be the default panel
-    (temporal_ood_plan.md §2c).
+    (RESULTS.md §6).
 
     Writes ``<panel>/<year><suffix>/features_lightgbm.parquet`` so nothing existing moves.
     """

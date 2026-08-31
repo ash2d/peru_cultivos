@@ -8,8 +8,10 @@
 4. **[`docs/DATA.md`](docs/DATA.md)** — datasets, linkage chains, the four silent traps.
 
 Also: [`docs/LESSONS.md`](docs/LESSONS.md) (method findings worth reusing),
-[`docs/REPORT.md`](docs/REPORT.md) (the readable narrative),
-[`docs/s2_labelling/plan.md`](docs/s2_labelling/plan.md) (the only live work).
+[`docs/s2_labelling/plan.md`](docs/s2_labelling/plan.md) (the only live work),
+[`docs/cenagro_columns.md`](docs/cenagro_columns.md) (the 2012 census column dictionary).
+`reports/` holds the written-up narratives — [`REPORT.md`](reports/REPORT.md) is the current
+one; the PDF and the `.tex` are earlier snapshots, superseded and kept.
 
 **Do not put status updates or results in this file.** They go in `STATUS.md` / `RESULTS.md`.
 This file is orientation only and is auto-loaded into every context.
@@ -29,6 +31,39 @@ free (`allperu lodyo` re-scores existing LODO predictions).
 The same lesson has three independent instances: `frac_l7` manufactured *change*, statics
 manufacture *stability*, and `centroid_lat` manufactures *accuracy that does not leave the
 training departments*.
+
+## ⚠️ …and the same lesson caught an architecture, not just a feature
+
+`RESULTS.md` §4.3 records LTAE as a national negative result on the **Landsat** store.
+Re-asked on the Sentinel-2 store — median **47** clear dates per parcel-year against 13–24 —
+LTAE wins **cross-validation in 8 of 8 arms**. It then **loses leave-one-department-out in
+4 of 4 targets**, dropping 1.4–3.4× more than LightGBM when the department changes (§8.2).
+
+So the verdict is split, not reversed: **LTAE's extra CV skill is skill that does not leave the
+training departments** — the same thing `centroid_lat` does, produced by an architecture
+instead of a feature. Carry **LightGBM** forward on this store.
+
+Two things to inherit from it. **An architecture verdict is conditional on the store it was
+measured on** — when the input distribution moves for a reason you can name, re-ask. And **an
+OOD estimate over 4 units is 4 numbers**: the earlier reading of §8.2 had LTAE winning LODO,
+and what overturned it was going from **4** held-out departments to **14**, not new data or new
+code.
+
+---
+
+## ⚠️ Two traps that make a number look better than it is
+
+**macro-F1 is not comparable across label spaces.** Collapsing 4 classes to 2 raised it from
+0.672 to 0.715 — and raised the "always guess the largest class" floor from **0.171 to 0.467**.
+Normalised, the 2-class arm was the *worst* in the study. **Print the majority-class score
+beside every macro-F1**, and compare label spaces on the F1 of the class you actually care
+about (`RESULTS.md` §8.2c).
+
+**An unmapped-token catch-all is never uniformly distributed.** Mapping the 2012 census
+vocabulary onto the project's crop classes left 4.09 % of tokens falling to a blanket `ANNUAL`
+— **80 % of it the single token `VERGEL FRUTICOLA`, "fruit orchard"**. The headline moved from
++2.4 pp to +12.5 pp when it was fixed. The budget check passed either way. **Print the tail
+sorted by frequency and read the top ten** (§8.5).
 
 ---
 
@@ -127,7 +162,7 @@ src/crop_classifier/
   models/                  lazy registry: trees (LightGBM), ltae, psetae, torch_common
   perennial/               3-class strand: labels3, panel, diagnostics (the gate), rules, …
   allperu/                 national: sources, build_labels, sample, lodo, loyo, tenure_did, …
-  labelling/               chips, build_html, ingest  (the S2 campaign)
+  labelling/               chips, build_html, ingest, train_prep  (the S2 campaign)
   config/                  data.yaml, split*.yaml, perennial*.yaml
 ```
 
@@ -146,7 +181,7 @@ Paths inside them are relative to `notebooks/` (use `../data/raw/…`).
 | `01_explore_raw_datasets.ipynb` | the original forensic exploration (81 cells): characterises every file, establishes the polygon↔crop join, validates it against year-matched Landsat / Sentinel-2 / Esri imagery, and settles the **PETT provenance** of the polygons |
 | `02_merge_cenagro_sset_polygons.ipynb` | census↔PETT by farmer name (Chain B) |
 | `03_pett_crop_polygon.ipynb` | the Chain-A training build, since scripted into `src/` |
-| `04_inspect_parcel_basemaps.ipynb` | per-parcel inspector — enter a `COD_PREDIO`, get it and its neighbours on three basemaps, captioned by crop and year |
+| `04_inspect_parcel_basemaps.ipynb` | per-parcel inspector — enter a `COD_PREDIO`, get it and its neighbours on three basemaps, captioned by crop and year. Its large-parcel contact sheet is checked in as `docs/figures/big_parcels_grid.png` — the quickest way to see what the polygons actually look like without running anything |
 | `05_crop_label_cleaning.ipynb` | label-normalisation development |
 | `06_perennial_trends.ipynb` | 3-class exploration |
 

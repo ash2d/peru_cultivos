@@ -1,4 +1,4 @@
-"""Esri World Imagery chips for the labelling HTML (s2_labelling_plan.md §6).
+"""Esri World Imagery chips for the labelling HTML (docs/s2_labelling/plan.md).
 
 Two panels per parcel, no S2 true-colour composite — at 10 m it is worse than Esri and
 would only crowd the page:

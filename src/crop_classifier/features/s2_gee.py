@@ -1,4 +1,4 @@
-"""Sentinel-2 extraction for the endpoint-labelling campaign (s2_labelling_plan.md §5).
+"""Sentinel-2 extraction for the endpoint-labelling campaign (docs/s2_labelling/plan.md).
 
 Mirrors ``features/landsat_gee.py``'s structure — chunked, cached, resumable — and
 **reuses its ``_retry`` / ``_call_with_deadline`` verbatim**, because silent GEE hangs are

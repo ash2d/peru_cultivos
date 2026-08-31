@@ -10,7 +10,7 @@ Three traps, all of which fail quietly:
 1. **The sheet is not always called ``DATOS``.** ``BD SSET(AREQUIPA-AYACUCHO-CAJAMARCA).xlsx``
    splits 1.6 M rows across ``DATOS1``/``DATOS2`` (Excel's 1,048,576-row ceiling). Reading
    ``wb.sheetnames[0]`` alone silently loses a department; every ``DATOS*`` sheet is read.
-2. **A department's rows are not confined to "its" workbook** (``DATA_AUDIT.md`` §4.4), so
+2. **A department's rows are not confined to "its" workbook** (``docs/DATA.md`` §4.3), so
    every workbook is scanned and rows are routed by their own ``DEPARTAMENTO`` value.
 3. **Keys are zero-padded on the bridge side and not in BD SSET**, so everything goes
    through :func:`crop_classifier.allperu.build_labels.canon_key`.
@@ -206,7 +206,7 @@ def tenure_by_predio(depts: list[Dept] | None = None, policy: str = "any",
 
 
 # --------------------------------------------------------------------------------------
-# A SECOND, LATER tenure observation — the answer to window_plan.md §6.2
+# A SECOND, LATER tenure observation — the answer to RESULTS.md §7
 # --------------------------------------------------------------------------------------
 # The bridge .dta is not only a key table. It carries the cadastre's own titling-pipeline
 # status (`estado`, 20-26 distinct values) and the date the cadastre was cut (`fech_tran`,

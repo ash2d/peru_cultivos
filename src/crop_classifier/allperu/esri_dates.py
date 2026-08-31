@@ -75,7 +75,7 @@ def probe_frame(parcels: gpd.GeoDataFrame, workers: int = 8,
 
     The original :func:`main` hard-codes the at-risk pool and 4 departments; the S2
     labelling campaign needs the same probe over a national candidate pool of thousands
-    (s2_labelling_plan.md §4), so the loop lives here and ``main`` keeps its behaviour.
+    (docs/s2_labelling/plan.md), so the loop lives here and ``main`` keeps its behaviour.
 
     ``cache`` is a CSV appended chunk by chunk. ~2,500 probes are ~2,500 HTTPS round trips
     and a dropped connection halfway through should not cost the whole run, so anything

@@ -1,4 +1,4 @@
-"""Unit tests for label ingest (s2_labelling_plan.md §12).
+"""Unit tests for label ingest (docs/s2_labelling/plan.md).
 
 The three things that would corrupt the labelled table without raising anything:
 

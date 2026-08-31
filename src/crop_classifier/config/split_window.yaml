@@ -1,4 +1,4 @@
-# Spatial split policy for the WINDOW deliverable (docs/all_peru/window_plan.md §4).
+# Spatial split policy for the WINDOW deliverable (docs/RESULTS.md §5).
 #
 # Identical to split_allperu.yaml except for the two additions §4.4 asks for. It is a
 # separate file rather than an edit because split_allperu.yaml is what reproduces the
@@ -12,16 +12,14 @@
 #    label-year 1998 against trainval's 32.9 %. That interacts with the 1997-98 El Nino and
 #    with the year-label confound (1998: 0.4 % perennial; 2000: 33.8 %). Cost is one extra
 #    histogram per candidate; the achieved distance is written to splits_meta.json.
-metric_crs: 32718    # WGS84 / UTM 18S — one grid for the whole country
-block_km: 1.0
-region_km: 5.0
-buffer_m: 1500
-n_folds: 5
-test_frac: 0.20
-seed: 42
 
-balance_test_on: [year, label]
+# ⚠️ This file is a DIFF against its parent, resolved by `crop_classifier.config_loader`.
+# Read the parent for anything not listed below.
+
+extends: split_allperu.yaml
+
+# Keys this variant sets for itself; each REPLACES the parent's.
+balance_test_on:
+- year
+- label
 n_test_candidates: 200
-
-audit_max_dist_m: 5000
-audit_sample: 30000

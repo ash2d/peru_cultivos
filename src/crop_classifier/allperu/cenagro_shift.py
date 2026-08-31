@@ -1,0 +1,568 @@
+"""PETT declaration → CENAGRO 2012 → photo-interpreted 2019+, nationally, split by tenure.
+
+Three observations of the same parcels, from three instruments, none of which shares a method
+with the others:
+
+| # | observation | when | how |
+|---|---|---|---|
+| 1 | PETT declared crop | ~1996–2006 | the farmer told a titling clerk |
+| 2 | CENAGRO question 024 | 2012 | the farmer told a census enumerator |
+| 3 | photo-interpretation | 2019+ | a human read Sentinel-2 / Esri imagery |
+
+1→2 involves **no satellite and no classifier at all** — it is two declared observations of
+the same land, and it is the cleanest change measurement this project has. 2→3 and 1→3 add
+the imagery but shorten or lengthen the window.
+
+Each is reported as the **perennial share of parcels** and the **perennial share of cadastral
+area**, and each is split by **tenure at the PETT declaration** (`ESTADO en RRPP`:
+INSCRITO / NO INSCRITO) so the question "does secure title go with a bigger shift?" gets an
+answer on all three.
+
+⚠️ **This is descriptive, not causal.** Title is not randomly assigned: registered parcels
+differ in valley position, size, and market access. A tenure gap in the *change* is a fact
+about the two groups, not an effect of titling. The project's actual causal estimate is the
+v3 DiD (`RESULTS.md` §7), which is a bounded null.
+
+⚠️ **Three things will silently bias a number here** and each is handled explicitly:
+
+1. **The census cannot record fallow.** Question 024 asks which crop is grown, so a parcel
+   lying fallow contributes no crop row and leaves the frame — PASTURE_FALLOW appears to
+   collapse. The like-for-like comparison is therefore **conditional on a crop being recorded
+   on both sides**, and both versions are printed.
+2. **The S2 labelled sample deliberately over-samples PERENNIAL** (~3× by design, so the rare
+   class is learnable). Every S2 share here is computed with the design weight `weight`
+   (= N_h/n_h); the unweighted number is printed beside it to show how far off it is.
+3. **Area must be weighted by the cadastral polygon area**, never by the census self-reported
+   `P037_SS`, which is uncorrelated with it (Pearson ~0.01, `DATA.md` Chain B).
+
+⚠️ **The census link is farmer-level, not parcel-level** (`cenagro_link.py`). Everything 1→2
+is broken out by `link_confidence`, because if the answer moves with link quality then part of
+the answer is the link.
+"""
+
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+
+from crop_classifier.paths import ROOT
+
+CENAGRO_DIR = ROOT / "data" / "raw" / "Cenagro_IV"
+LINK = ROOT / "data" / "processed" / "cenagro" / "cenagro_pett_link.parquet"
+PETT = ROOT / "data" / "processed" / "all_peru_full" / "modeling_parcels.parquet"
+TENURE = ROOT / "data" / "processed" / "all_peru" / "tenure_by_predio.parquet"
+LABELS_S2 = ROOT / "data" / "processed" / "all_peru" / "labels_s2" / "labelled_parcels.parquet"
+CONFIG = ROOT / "src" / "crop_classifier" / "config" / "perennial_cenagro.yaml"
+OUT_DIR = ROOT / "data" / "processed" / "cenagro"
+
+CROP_SEP = " | "
+CLASSES = ("PERENNIAL", "ANNUAL", "PASTURE_FALLOW")
+
+# The photo-interpreted classes folded onto the declared label space. `WOODY_NON_CROP` has
+# **no** mapping on purpose: it is the codebook's hardest call, and folding it either way is
+# the decision, not a preprocessing step. Both readings are reported.
+S2_TO_DECLARED = {"PERENNIAL": "PERENNIAL", "ANNUAL": "ANNUAL",
+                  "OTHER": "PASTURE_FALLOW", "NON_AGRICULTURE": None,
+                  "WOODY_NON_CROP": None}
+
+
+# --------------------------------------------------------------------------------------
+def _lexicon():
+    from crop_classifier.perennial.labels3 import (
+        _stage_regex,
+        build_resolver,
+        load_config,
+    )
+    cfg = load_config(CONFIG)
+    return cfg, build_resolver(cfg), _stage_regex(cfg)
+
+
+def classify_crop_list(series: pd.Series) -> pd.Series:
+    """`"LIMON ACIDO | MELON"` -> `PERENNIAL`, via the project's own 3-class lexicon.
+
+    The census side is resolved by exactly the rules the PETT side is, so a measured change is
+    a change in the land and not a change of definition.
+    """
+    from crop_classifier.crop_normalization import normalize_label
+    from crop_classifier.perennial.labels3 import assign_group
+
+    cfg, resolver, stage_re = _lexicon()
+    cache: dict[str, str | None] = {}
+
+    def one(cell: object) -> str | None:
+        if not isinstance(cell, str) or not cell.strip():
+            return None
+        if cell in cache:
+            return cache[cell]
+        crops, cats = [], []
+        for piece in cell.split("|"):
+            for crop, cat in normalize_label(piece):
+                crops.append(crop)
+                cats.append(cat)
+        g = assign_group(crops, cats, cfg, resolver, stage_re)[0] if crops else None
+        cache[cell] = g
+        return g
+
+    return series.map(one)
+
+
+def crop_names() -> dict[int, str]:
+    from crop_classifier.allperu.cenagro_extract import crop_code_table
+    t = crop_code_table()
+    return dict(zip(t["code"].astype(int), t["TITULO"].astype(str).str.strip()))
+
+
+def census_producer_crops(depts: list[str]) -> pd.DataFrame:
+    """One row per census producer: every crop it declared in 2012, and their sown area."""
+    code2crop = crop_names()
+    out = []
+    for d in depts:
+        c = pd.read_parquet(CENAGRO_DIR / f"{d}.parquet",
+                            columns=["NPRIN", "P024_03", "P025", "P029_02"])
+        code = pd.to_numeric(c["P024_03"], errors="coerce").astype("Int64")
+        c = c[code.notna()].copy()
+        c["crop"] = code[code.notna()].astype(int).map(code2crop)
+        g = c.groupby("NPRIN").agg(
+            cen_crops_all=("crop", lambda s: CROP_SEP.join(sorted({x for x in s if x}))),
+            cen_sown_ha=("P025", "sum"),
+            cen_n_crop_rows=("crop", "size"),
+            cen_any_export=("P029_02", lambda s: float((s == 1).any())))
+        g["dept"] = d
+        out.append(g.reset_index())
+    return pd.concat(out, ignore_index=True)
+
+
+def token_audit(depts: list[str]) -> pd.DataFrame:
+    """Every distinct census crop token nationally, what it resolved to, and how.
+
+    ⚠️ **Run this before trusting any number below.** The row that matters is
+    ``source == "crop_fallback"``: a token the lexicon has no entry for, assigned `ANNUAL`
+    because annuals dominate the unlisted tail. A large fallback share does not raise — it
+    just quietly moves the answer. The Piura audit found 4.09 % falling through, **80 % of it
+    the single token `VERGEL FRUTICOLA` ("fruit orchard")**, which moved the headline from
+    +2.4 pp to +12.5 pp once fixed. The national vocabulary is larger, so re-ask.
+    """
+    from collections import Counter
+
+    from crop_classifier.crop_normalization import normalize_label
+    from crop_classifier.perennial.labels3 import resolve_token
+
+    cfg, resolver, stage_re = _lexicon()
+    code2crop = crop_names()
+    tok: Counter = Counter()
+    for d in depts:
+        c = pd.read_parquet(CENAGRO_DIR / f"{d}.parquet", columns=["P024_03"])
+        code = pd.to_numeric(c["P024_03"], errors="coerce").astype("Int64").dropna()
+        for name, n in code.astype(int).map(code2crop).value_counts().items():
+            for crop, cat in normalize_label(str(name)):
+                tok[(crop,) + resolve_token(crop, cat, cfg, resolver, stage_re)] += n
+    d_ = pd.DataFrame([{"token": k[0], "group": k[1], "source": k[2], "n_instances": v}
+                       for k, v in tok.items()]).sort_values("n_instances", ascending=False)
+    total = d_["n_instances"].sum()
+    fb = d_.loc[d_["source"] == "crop_fallback", "n_instances"].sum()
+    budget = cfg.get("max_unassigned_frac", 0.02)
+    print(f"national census lexicon: {len(d_):,} distinct tokens over {total:,} "
+          f"crop-row instances\n  unmapped -> {cfg['crop_fallback']}: {fb:,} "
+          f"({fb / total:.2%}, budget {budget:.0%}) "
+          f"{'OK' if fb / total <= budget else '⚠️ OVER BUDGET'}")
+    top = d_[d_["source"] == "crop_fallback"].head(10)
+    if len(top):
+        print("  ⚠️ the unmapped tail, sorted by frequency — read the top ten:")
+        for _, r in top.iterrows():
+            print(f"     {r.token[:44]:<44} {r.n_instances:>9,} "
+                  f"({r.n_instances / max(fb, 1):.1%} of the tail)")
+    return d_
+
+
+# --------------------------------------------------------------------------------------
+def _share_row(before: pd.Series, after: pd.Series, cls: str,
+               w: pd.Series | None = None) -> dict:
+    """One class's before/after share and the paired change, weighted or not.
+
+    The CI is McNemar's: the information in a *paired* difference is carried by the
+    discordant pairs, not by the two marginal counts, so a binomial SE on each margin would
+    overstate it.
+    """
+    if w is None:
+        w = pd.Series(1.0, index=before.index)
+    tot = float(w.sum())
+    b = float(w[before == cls].sum()) / tot
+    a = float(w[after == cls].sum()) / tot
+    b_only = (before == cls) & (after != cls)
+    a_only = (before != cls) & (after == cls)
+    # effective discordant count under weighting (Kish): (Σw)² / Σw²
+    wd = w[b_only | a_only]
+    n_eff = (float(w.sum()) ** 2 / float((w ** 2).sum())) if (w ** 2).sum() else 0.0
+    p_disc = float(wd.sum()) / tot if tot else 0.0
+    se = np.sqrt(p_disc / n_eff) if n_eff else 0.0
+    return {"class": cls,
+            "before_pct": round(100 * b, 1), "after_pct": round(100 * a, 1),
+            "change_pp": round(100 * (a - b), 1),
+            "ci95_pp": round(100 * 1.96 * se, 1),
+            "ratio": round(a / b, 2) if b else np.nan,
+            "n_left": int(b_only.sum()), "n_joined": int(a_only.sum())}
+
+
+def share_table(df: pd.DataFrame, before: str, after: str,
+                classes: tuple[str, ...] = CLASSES,
+                weight: str | None = None) -> pd.DataFrame:
+    w = df[weight] if weight else None
+    out = pd.DataFrame([_share_row(df[before], df[after], c, w) for c in classes])
+    out.attrs["n"] = len(df)
+    return out
+
+
+def perennial_change(df: pd.DataFrame, before: str, after: str,
+                     weight: str | None = None) -> dict:
+    """Just the PERENNIAL row, as a dict — the unit of every tenure comparison below."""
+    w = df[weight] if weight else None
+    r = _share_row(df[before], df[after], "PERENNIAL", w)
+    r["n"] = len(df)
+    return r
+
+
+def by_tenure(df: pd.DataFrame, before: str, after: str, weight: str | None = None,
+              label: str = "") -> pd.DataFrame:
+    """PERENNIAL change for INSCRITO vs NO INSCRITO, and the difference between them.
+
+    The **difference** row is the number the question asks for. Its CI treats the two groups
+    as independent (they are disjoint sets of parcels), so the variances add.
+    """
+    rows = []
+    for t in ["INSCRITO", "NO INSCRITO"]:
+        sub = df[df["tenure"] == t]
+        if not len(sub):
+            continue
+        r = perennial_change(sub, before, after, weight)
+        r["tenure"] = t
+        rows.append(r)
+    if len(rows) == 2:
+        i, n = rows[0], rows[1]
+        se = np.sqrt((i["ci95_pp"] / 1.96) ** 2 + (n["ci95_pp"] / 1.96) ** 2)
+        rows.append({"tenure": "difference (INSCRITO − NO INSCRITO)",
+                     "before_pct": round(i["before_pct"] - n["before_pct"], 1),
+                     "after_pct": round(i["after_pct"] - n["after_pct"], 1),
+                     "change_pp": round(i["change_pp"] - n["change_pp"], 1),
+                     "ci95_pp": round(1.96 * se, 1),
+                     "n": i["n"] + n["n"]})
+    out = pd.DataFrame(rows)
+    out.insert(0, "comparison", label)
+    cols = ["comparison", "tenure", "n", "before_pct", "after_pct", "change_pp", "ci95_pp"]
+    return out[[c for c in cols if c in out.columns]]
+
+
+def area_shares(df: pd.DataFrame, before: str, after: str, area: str = "area_ha",
+                weight: str | None = None) -> pd.DataFrame:
+    """The same comparison weighted by **cadastral** polygon area, in hectares."""
+    w = df[area] * (df[weight] if weight else 1.0)
+    tot = float(w.sum())
+    rows = []
+    for c in CLASSES:
+        b = float(w[df[before] == c].sum()) / tot
+        a = float(w[df[after] == c].sum()) / tot
+        rows.append({"class": c, "before_pct_of_area": round(100 * b, 1),
+                     "after_pct_of_area": round(100 * a, 1),
+                     "change_pp": round(100 * (a - b), 1)})
+    out = pd.DataFrame(rows)
+    out.attrs["total_ha"] = tot
+    return out
+
+
+# --------------------------------------------------------------------------------------
+def build_panel(depts: list[str] | None = None) -> pd.DataFrame:
+    """One row per parcel: PETT declared class, CENAGRO 2012 class, tenure, area, S2 label.
+
+    The census side is collapsed **onto the parcel** by class priority (PERENNIAL first),
+    because the link is farmer-level: one producer can be matched to a parcel that another
+    producer is also matched to, and a parcel with any perennial recorded on it is perennial
+    under the project's own `group_priority`.
+    """
+    link = pd.read_parquet(LINK)
+    if depts:
+        link = link[link["dept"].isin(depts)]
+    depts = sorted(link["dept"].unique())
+
+    cen = census_producer_crops(depts)
+    cen["cen_class"] = classify_crop_list(cen["cen_crops_all"])
+
+    j = link.merge(cen.drop(columns="dept"), on="NPRIN", how="inner")
+    j = j[j["cen_class"].notna()]
+    prio = {"PERENNIAL": 0, "ANNUAL": 1, "PASTURE_FALLOW": 2}
+    conf = {"high": 0, "medium": 1, "low": 2}
+    j["_p"] = j["cen_class"].map(prio)
+    j["_c"] = j["link_confidence"].map(conf)
+    parcel = (j.sort_values(["_c", "_p"])
+              .groupby("COD_PREDIO", as_index=False)
+              .agg(cen_class=("cen_class", "first"),
+                   link_confidence=("link_confidence", "first"),
+                   cen_sown_ha=("cen_sown_ha", "sum"),
+                   cen_any_export=("cen_any_export", "max"),
+                   n_producers=("NPRIN", "nunique")))
+
+    pett = pd.read_parquet(PETT, columns=["COD_PREDIO", "dept", "label", "year", "area_ha"])
+    pett["COD_PREDIO"] = pett["COD_PREDIO"].astype(str)
+    pett = pett.rename(columns={"label": "pett_class", "year": "pett_year"})
+    parcel["COD_PREDIO"] = parcel["COD_PREDIO"].astype(str)
+    df = parcel.merge(pett, on="COD_PREDIO", how="inner")
+
+    ten = pd.read_parquet(TENURE, columns=["COD_PREDIO", "tenure", "frac_inscrito"])
+    ten["COD_PREDIO"] = ten["COD_PREDIO"].astype(str)
+    df = df.merge(ten, on="COD_PREDIO", how="left")
+
+    # ⚠️ a "before" observation must precede the "after" one. A handful of PETT declarations
+    # post-date the 2012 census; for those the comparison would run backwards.
+    late = int((df["pett_year"] >= 2012).sum())
+    if late:
+        print(f"  dropped {late} parcels whose PETT declaration is 2012 or later — the "
+              f"'before' must precede the census")
+        df = df[df["pett_year"] < 2012]
+    return df
+
+
+def s2_panel() -> pd.DataFrame:
+    """The photo-interpreted parcels, with their design weight and tenure.
+
+    ⚠️ `weight` is **not optional**. The campaign drew a stratified sample that deliberately
+    over-samples PERENNIAL so the rare class is learnable; the unweighted perennial share of
+    this table is roughly three times the population's.
+    """
+    s2 = pd.read_parquet(LABELS_S2, columns=["COD_PREDIO", "label", "dept", "declared_class",
+                                             "stratum", "weight", "usable", "area_ha"])
+    s2 = s2[s2["usable"]].copy()
+    s2["COD_PREDIO"] = s2["COD_PREDIO"].astype(str)
+    s2["s2_class"] = s2["label"].map(S2_TO_DECLARED)
+    # the alternative reading: WOODY_NON_CROP counted as perennial canopy
+    s2["s2_class_woody_perennial"] = s2["s2_class"].where(
+        s2["label"] != "WOODY_NON_CROP", "PERENNIAL")
+    ten = pd.read_parquet(TENURE, columns=["COD_PREDIO", "tenure"])
+    ten["COD_PREDIO"] = ten["COD_PREDIO"].astype(str)
+    return s2.merge(ten, on="COD_PREDIO", how="left")
+
+
+# --------------------------------------------------------------------------------------
+def poststratify(df: pd.DataFrame) -> pd.DataFrame:
+    """Add `ps_weight`, reweighting the name-linked panel to the national PETT population.
+
+    ⚠️ **The name link is not a random sample of parcels.** Matching needs a name on both
+    sides and a district agreement, and the parcels that satisfy that are systematically the
+    larger, valley-floor, better-documented ones — the linked panel is **16.6 % PERENNIAL
+    against the population's 9.9 %**. Left alone that inflates every *level* reported here and
+    can tilt the change, because the perennial→perennial cell is over-represented.
+
+    The fix is the same one the S2 campaign uses: post-stratify on **department × declared
+    class**, the two variables the selection runs on, so each cell is restored to its national
+    count. What it cannot fix is selection *within* a cell — a linked ANNUAL parcel in Piura
+    may still differ from an unlinked one. The reweighted headline is therefore a check on the
+    unweighted one, not a replacement for it: if the two agree, the composition was not
+    driving the answer.
+    """
+    pop = pd.read_parquet(PETT, columns=["COD_PREDIO", "dept", "label"])
+    pop = (pop.groupby(["dept", "label"]).size()
+           .rename("N_pop").reset_index()
+           .rename(columns={"label": "pett_class"}))
+    got = (df.groupby(["dept", "pett_class"]).size().rename("n_link").reset_index())
+    w = pop.merge(got, on=["dept", "pett_class"], how="right")
+    w["ps_weight"] = w["N_pop"] / w["n_link"]
+    return df.merge(w[["dept", "pett_class", "ps_weight"]], on=["dept", "pett_class"],
+                    how="left")
+
+
+def build(depts: list[str] | None = None, save: bool = True) -> dict[str, pd.DataFrame]:
+    """The whole comparison. Prints every table with its units; returns them."""
+    out: dict[str, pd.DataFrame] = {}
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    df = build_panel(depts)
+    dl = sorted(df["dept"].unique())
+    print(f"=== 0. the panel ===\nparcels with BOTH a PETT declaration and a CENAGRO 2012 "
+          f"observation: **{len(df):,}** across {len(dl)} departments")
+    print(f"  PETT declaration years {df.pett_year.min():.0f}-{df.pett_year.max():.0f} "
+          f"(median {df.pett_year.median():.0f}); cadastral area "
+          f"{df.area_ha.sum():,.0f} ha")
+    print(f"  link confidence: {df.link_confidence.value_counts().to_dict()}")
+    print(f"  tenure at declaration: {df.tenure.value_counts(dropna=False).to_dict()}")
+
+    print("\n--- the census lexicon audit (run this before trusting anything below) ---")
+    out["token_audit"] = token_audit(dl)
+
+    # ---- 1. PETT -> CENAGRO, all matched parcels ------------------------------------
+    t1 = share_table(df, "pett_class", "cen_class")
+    out["pett_to_cenagro"] = t1
+    print(f"\n=== 1. PETT declaration -> CENAGRO 2012, same parcel, n={len(df):,} ===")
+    print("shares of parcels, %; change in percentage points, paired (McNemar) CI")
+    print(t1.to_string(index=False))
+
+    # ---- 1b. the comparison that is actually like-for-like ---------------------------
+    crop = df[df.pett_class.isin(["PERENNIAL", "ANNUAL"])
+              & df.cen_class.isin(["PERENNIAL", "ANNUAL"])].copy()
+    out["panel_crop_only"] = crop
+    t1b = share_table(crop, "pett_class", "cen_class", classes=("PERENNIAL", "ANNUAL"))
+    out["pett_to_cenagro_crop_only"] = t1b
+    print(f"\n=== 1b. ⭐ like-for-like: a CROP recorded on BOTH sides, n={len(crop):,} ===")
+    print("PASTURE_FALLOW dropped from BOTH sides. The census cannot record fallow — a parcel"
+          "\nwith no crop contributes no row — so the collapse above is an instrument "
+          "difference,\nnot land change.")
+    print(t1b.to_string(index=False))
+
+    t1c = area_shares(crop, "pett_class", "cen_class")
+    out["pett_to_cenagro_area"] = t1c
+    print(f"\nthe same weighted by CADASTRAL area ({t1c.attrs['total_ha']:,.0f} ha):")
+    print(t1c.to_string(index=False))
+
+    print("\ngross parcel flows (counts):")
+    print(pd.crosstab(crop.pett_class, crop.cen_class,
+                      rownames=["PETT ~1999"], colnames=["CENAGRO 2012"]).to_string())
+
+    # ---- 2. ⭐ the tenure split -------------------------------------------------------
+    print("\n=== 2. ⭐ PERENNIAL change by tenure at the PETT declaration ===")
+    print("⚠️ descriptive. Title is not randomly assigned; a gap here is a fact about the two"
+          "\ngroups, not an effect of titling (RESULTS.md §7 is the causal estimate).")
+    t2 = pd.concat([
+        by_tenure(df, "pett_class", "cen_class", label="1→2 all parcels"),
+        by_tenure(crop, "pett_class", "cen_class", label="1→2 crop-on-both-sides"),
+    ], ignore_index=True)
+    out["tenure_split_parcels"] = t2
+    print("\nshare of PARCELS that are PERENNIAL, %:")
+    print(t2.to_string(index=False))
+
+    rows = []
+    for t in ["INSCRITO", "NO INSCRITO"]:
+        sub = crop[crop.tenure == t]
+        a = area_shares(sub, "pett_class", "cen_class")
+        r = a[a["class"] == "PERENNIAL"].iloc[0].to_dict()
+        r.update({"tenure": t, "n": len(sub), "total_ha": round(a.attrs["total_ha"])})
+        rows.append(r)
+    t2b = pd.DataFrame(rows)[["tenure", "n", "total_ha", "before_pct_of_area",
+                              "after_pct_of_area", "change_pp"]]
+    out["tenure_split_area"] = t2b
+    print("\nshare of cadastral AREA that is PERENNIAL, % (crop-on-both-sides):")
+    print(t2b.to_string(index=False))
+
+    # ---- 3. does the answer move with link quality? ----------------------------------
+    rows = []
+    for lc in ["high", "medium", "low"]:
+        sub = crop[crop.link_confidence == lc]
+        if len(sub) < 200:
+            continue
+        r = perennial_change(sub, "pett_class", "cen_class")
+        r["link_confidence"] = lc
+        rows.append(r)
+    t3 = pd.DataFrame(rows)[["link_confidence", "n", "before_pct", "after_pct",
+                             "change_pp", "ci95_pp"]]
+    out["by_link_confidence"] = t3
+    print("\n=== 3. ⚠️ the same by census link quality ===")
+    print("if the answer moves with link quality, part of the answer is the link")
+    print(t3.to_string(index=False))
+
+    # ---- 4. per department -----------------------------------------------------------
+    rows = []
+    for d in dl:
+        sub = crop[crop.dept == d]
+        if len(sub) < 100:
+            continue
+        r = perennial_change(sub, "pett_class", "cen_class")
+        r["dept"] = d
+        ti = by_tenure(sub, "pett_class", "cen_class")
+        diff = ti.loc[ti.tenure.str.startswith("difference"), "change_pp"]
+        r["tenure_diff_pp"] = float(diff.iloc[0]) if len(diff) else np.nan
+        rows.append(r)
+    t4 = pd.DataFrame(rows)[["dept", "n", "before_pct", "after_pct", "change_pp",
+                             "ci95_pp", "tenure_diff_pp"]]
+    out["by_dept"] = t4
+    print("\n=== 4. per department (crop-on-both-sides) ===")
+    print(t4.to_string(index=False))
+
+    # ---- 4b. ⭐ does the answer survive reweighting to the national population? -------
+    ps = poststratify(crop)
+    print("\n=== 4b. ⭐ reweighted to the national PETT population "
+          "(department × declared class) ===")
+    print("⚠️ the linked panel is 16.6 % PERENNIAL against the population's 9.9 % — the name\n"
+          "link over-selects perennial parcels. If the reweighted change matches the raw one,\n"
+          "composition was not driving the answer.")
+    raw = perennial_change(crop, "pett_class", "cen_class")
+    pw = perennial_change(ps, "pett_class", "cen_class", weight="ps_weight")
+    t4b = pd.DataFrame([{**raw, "estimator": "raw (linked panel)"},
+                        {**pw, "estimator": "post-stratified to national"}])
+    t4b = t4b[["estimator", "n", "before_pct", "after_pct", "change_pp", "ci95_pp"]]
+    out["poststratified"] = t4b
+    print(t4b.to_string(index=False))
+    t4c = by_tenure(ps, "pett_class", "cen_class", weight="ps_weight",
+                    label="1→2 post-stratified")
+    out["poststratified_tenure"] = t4c
+    print("\nand its tenure split:")
+    print(t4c.to_string(index=False))
+    a_ps = area_shares(ps, "pett_class", "cen_class", weight="ps_weight")
+    out["poststratified_area"] = a_ps
+    print(f"\nand by cadastral area ({a_ps.attrs['total_ha']:,.0f} weighted ha):")
+    print(a_ps.to_string(index=False))
+
+    # ---- 5. the photo-interpreted endpoint -------------------------------------------
+    out.update(_s2_section(df))
+
+    if save:
+        for k, v in out.items():
+            if isinstance(v, pd.DataFrame) and len(v):
+                v.to_csv(OUT_DIR / f"national_{k}.csv", index=False)
+        df.to_parquet(OUT_DIR / "national_panel.parquet", index=False)
+        print(f"\nwrote {len(out)} tables + national_panel.parquet to {OUT_DIR}")
+    return out
+
+
+# --------------------------------------------------------------------------------------
+def _s2_section(cen_panel: pd.DataFrame) -> dict[str, pd.DataFrame]:
+    """PETT → photo-interpreted 2019+, and CENAGRO 2012 → photo-interpreted 2019+.
+
+    ⚠️ Every share is **design-weighted**. The campaign over-sampled PERENNIAL on purpose;
+    the unweighted number is printed beside the weighted one so the size of that scaling is
+    visible rather than assumed.
+    """
+    out: dict[str, pd.DataFrame] = {}
+    s2 = s2_panel()
+    print("\n=== 5. PETT declaration -> photo-interpreted 2019+ ===")
+    print(f"usable human labels: {len(s2):,} parcels; tenure known for "
+          f"{int(s2.tenure.notna().sum()):,}")
+    print(f"raw label mix: {s2.label.value_counts().to_dict()}")
+
+    # the weight is doing real work — show how much
+    mix = pd.DataFrame({
+        "unweighted_pct": (100 * s2.label.value_counts(normalize=True)).round(1),
+        "design_weighted_pct": (100 * s2.groupby("label")["weight"].sum()
+                                / s2["weight"].sum()).round(1)}).fillna(0.0)
+    out["s2_label_mix"] = mix.reset_index(names="label")
+    print("\n⚠️ what the design weight does to the label mix (the sample over-samples "
+          "PERENNIAL):")
+    print(mix.to_string())
+
+    for name, col in [("WOODY_NON_CROP excluded", "s2_class"),
+                      ("WOODY_NON_CROP read as PERENNIAL",
+                       "s2_class_woody_perennial")]:
+        d = s2[s2[col].notna() & s2["declared_class"].notna()].copy()
+        crop = d[d.declared_class.isin(["PERENNIAL", "ANNUAL"])
+                 & d[col].isin(["PERENNIAL", "ANNUAL"])].copy()
+        uw = perennial_change(crop, "declared_class", col)
+        wt = perennial_change(crop, "declared_class", col, weight="weight")
+        print(f"\n--- {name} — crop-on-both-sides, n={len(crop):,} ---")
+        print(f"  unweighted     : {uw['before_pct']:>5.1f} % -> {uw['after_pct']:>5.1f} % "
+              f"({uw['change_pp']:+.1f} pp)")
+        print(f"  design-weighted: {wt['before_pct']:>5.1f} % -> {wt['after_pct']:>5.1f} % "
+              f"({wt['change_pp']:+.1f} pp ± {wt['ci95_pp']:.1f})  ⭐ the estimate")
+        t = by_tenure(crop, "declared_class", col, weight="weight",
+                      label=f"1→3 {name}")
+        out[f"s2_tenure_{'excl' if col == 's2_class' else 'woody'}"] = t
+        print("  by tenure (design-weighted, PERENNIAL share of parcels, %):")
+        print(t.to_string(index=False))
+
+    # ---- the three-way overlap -------------------------------------------------------
+    both = cen_panel[["COD_PREDIO", "cen_class", "tenure"]].merge(
+        s2[["COD_PREDIO", "s2_class", "s2_class_woody_perennial", "weight",
+            "declared_class"]], on="COD_PREDIO", how="inner")
+    out["three_way"] = both
+    print(f"\n=== 6. parcels with ALL THREE observations "
+          f"(PETT + CENAGRO 2012 + a 2019+ human label): **{len(both)}** ===")
+    if len(both):
+        print(pd.crosstab(both.cen_class, both.s2_class.fillna("(unmapped)")).to_string())
+    if len(both) < 100:
+        print("⚠️ too few to estimate a 2012→2019 change from. This is not a fixable sample"
+              "\nsize: the labelling campaign drew from the PETT population, not from the"
+              "\nname-linked census subset, so the overlap is incidental.")
+    return out

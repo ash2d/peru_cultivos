@@ -1,6 +1,6 @@
 """OLI -> ETM+ radiometric harmonisation (plan decision D7).
 
-The mission-mixing audit (``docs/LANDSAT_MISSION_AUDIT.md``) found L5/L7 mixing
+The mission-mixing audit (``docs/DATA.md`` §7.1) found L5/L7 mixing
 radiometrically harmless. **That finding does not extend to L8/L9.** OLI has different
 band centres and spectral response functions from TM/ETM+, so training on 1998 TM data and
 predicting 2020 OLI data without correction injects a sensor step directly into the

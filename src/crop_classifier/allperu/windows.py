@@ -26,7 +26,7 @@ This module is that pivot, made reproducible. Four ideas, in the order they are 
 Everything here is diagnostic: it reports whether the window estimand is stable enough to
 carry the deliverable (:func:`run_diagnostic`, task T3) and whether classifier error is
 non-differential with respect to tenure (:func:`tenure_error_test`, task T1). Neither
-produces a trend, an annual series, or a per-parcel conversion date — see window_plan.md §7.
+produces a trend, an annual series, or a per-parcel conversion date — see RESULTS.md §5.
 
 Run with::
 
@@ -64,7 +64,7 @@ THRESHOLD = 0.5        # the calibrated operating point; probabilities are tempe
 
 PROB_COL = "prob_PERENNIAL"
 
-# T3 acceptance criteria (window_plan.md §5, T3).
+# T3 acceptance criteria (RESULTS.md §5, gate T3).
 W1_MAX_MULTI_CHANGE = 0.10      # P(>=2 window-state changes) on the selected model
 W2_MAX_SLOPE_PER_DECADE = 0.01  # |slope| of the PETT-PERENNIAL control, share/decade
 W3_MAX_ASYMMETRY = 0.01         # |up - down| adjacent-window disagreement
@@ -451,7 +451,7 @@ def tenure_error_test(preds_cv: pd.DataFrame, parcels: pd.DataFrame,
     ⚠️ This tests error at the *label year* (~1999, TM/ETM+) while the estimand sits in
     2019-2023. There is no endpoint ground truth anywhere in the project, so non-differential
     error at the endpoint is **assumed, not verified** — state it wherever the contrast is
-    reported (window_plan.md §5 T1).
+    reported (RESULTS.md §5, gate T1).
     """
     import statsmodels.api as sm
     import statsmodels.formula.api as smf
@@ -572,7 +572,8 @@ def tenure_error_test(preds_cv: pd.DataFrame, parcels: pd.DataFrame,
                    logit_tenure_p=float(logit.pvalues["insc"]))
     out["pass_accuracy"] = bool(out["lpm_tenure_p"] > 0.05)
     out["pass_sensitivity"] = bool(np.isnan(max_dsens) or max_dsens < 0.05)
-    # The false-positive leg is not in window_plan.md's original criterion; it is added here
+    # The false-positive leg is not in the window plan's original criterion
+    # (RESULTS.md §5); it is added here
     # because it is the leg the estimand actually rests on (see above). Criterion: the
     # conditional gap must be small against the ~2 pp differential the design is powered for.
     out["pass_false_positive"] = bool(out["at_risk_fp_gap_conditional_p"] > 0.05

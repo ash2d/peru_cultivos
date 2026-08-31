@@ -1,4 +1,4 @@
-"""T6 — external validation against MIDAGRI/SIEA district statistics (window_plan.md §5, §6.1).
+"""T6 — external validation against MIDAGRI/SIEA district statistics (RESULTS.md §5).
 
 Everything else in this project is internal: the classifier is checked against the same PETT
 declarations it was trained on. That cannot detect a *systematic* error shared by training and

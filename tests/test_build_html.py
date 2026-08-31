@@ -1,4 +1,4 @@
-"""Unit tests for the labelling HTML (s2_labelling_plan.md §12).
+"""Unit tests for the labelling HTML (docs/s2_labelling/plan.md).
 
 **The blindness assertion is the important one and it asserts on the raw string.** It is
 not enough that the declared class is un-rendered: if it is anywhere in the embedded JSON
@@ -18,11 +18,15 @@ import pytest
 from PIL import Image
 
 from crop_classifier.labelling.build_html import (
+    CODEBOOK_HTML,
     FORBIDDEN_FIELDS,
     ITEM_FIELDS,
     ITEMS_CLOSE,
     ITEMS_OPEN,
+    LABEL_DISPLAY,
     LABELS,
+    LANGS,
+    UI,
     build,
     build_items,
     render_html,
@@ -262,6 +266,69 @@ class TestBuild:
         other = html.split("3 OTHER")[1].split("</li>")[0]
         for gone in ("riverbed", "built-up", "water"):
             assert gone not in other, f"OTHER still claims {gone!r}"
+
+
+class TestSpanish:
+    """The delivered set is Spanish; English stays as the reference build."""
+
+    def test_every_language_defines_every_string_and_every_label(self):
+        """A missing key renders as `undefined` on the page, never as an error."""
+        keys = set(UI["en"])
+        for lang in LANGS:
+            assert set(UI[lang]) == keys, f"{lang} UI keys differ"
+            assert set(LABEL_DISPLAY[lang]) == set(LABELS)
+            assert lang in CODEBOOK_HTML
+
+    def test_stored_label_values_stay_english_in_every_language(self, campaign):
+        """Translating the *value* would make ingest match nothing and report no error.
+
+        Only the display name is localised; the CSV and `ingest.LABELS` keep the canonical
+        constants.
+        """
+        sample, chips, px, out = campaign
+        build(sample, chips, px, out, lang="es")
+        html = next(out.glob("*.html")).read_text()
+        assert "'5':'UNSURE'" in html and "'6':'NON_AGRICULTURE'" in html
+        assert "'label'" not in html.split("const KEYS=")[1][:200]
+
+    def test_spanish_page_is_spanish(self, campaign):
+        sample, chips, px, out = campaign
+        build(sample, chips, px, out, lang="es")
+        html = next(out.glob("*.html")).read_text()
+        assert '<html lang="es">' in html
+        assert "Etiquetado de parcelas" in html and "Descargar CSV" in html
+        assert "PERENNE" in html and "NO AGR\u00cdCOLA" in html
+        # the English interface must not leak through half-translated
+        for stray in ("Download CSV", "your name", "Codebook &mdash; pick one"):
+            assert stray not in html, f"untranslated: {stray!r}"
+
+    def test_spanish_carries_the_same_decision_rules(self, campaign):
+        """A shorter codebook is fine; a codebook missing a rule is not."""
+        sample, chips, px, out = campaign
+        build(sample, chips, px, out, lang="es")
+        # whitespace-normalised: the source wraps these phrases across lines
+        html = " ".join(next(out.glob("*.html")).read_text().split())
+        assert "sembrar este suelo" in html          # the 3-vs-6 separating question
+        assert "&gt;50 %" in html                    # the majority rule
+        assert "Nunca ANUAL por defecto" in html     # young plantings
+        assert "borde no coincide" in html           # boundary mismatch
+
+    def test_both_codebooks_end_by_asking_for_the_csv(self):
+        """The last thing a labeller reads has to be what to do with the file."""
+        assert "Download CSV" in CODEBOOK_HTML["en"].split("When you finish")[1]
+        assert "Descargar CSV" in CODEBOOK_HTML["es"].split("Al terminar")[1]
+
+    def test_the_codebook_got_shorter(self):
+        """It is read mid-task on a parcel that is already confusing."""
+        for lang in LANGS:
+            assert len(CODEBOOK_HTML[lang]) < 5200
+
+    def test_an_unknown_language_is_refused_not_silently_english(self, campaign):
+        sample, chips, px, out = campaign
+        with pytest.raises(ValueError):
+            build(sample, chips, px, out, lang="fr")
+        with pytest.raises(ValueError):
+            render_html([], "shard01", "A", lang="fr")
 
 
     def test_the_two_labellers_of_the_overlap_see_different_orders(self, campaign):

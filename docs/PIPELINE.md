@@ -31,6 +31,11 @@ modeling_parcels.parquet
         │     tensor_perdate.npz          LTAE      X[N,64,11] + doy + mask
         │     tensor_pixelset.npz         PSE-LTAE  X[N,64,8,11] + pixmask
         │
+        │  (the S2 campaign forks here: features/s2_assemble.py writes the same two
+        │   product shapes off s2_perdate.parquet — summaries + tensor_perdate.npz —
+        │   over the agricultural year, with positions in days since Aug 1, and no
+        │   pixel-set tensor, which that store cannot support)
+        │
         ▼  train.py ──────────── spatial CV → final refit → (optional) locked test
         ▼
 evaluate.py (metrics/confusion/reliability)     infer.py (predict + abstain)
@@ -53,9 +58,13 @@ them wrong silently reads or writes the wrong store.
 | all-Peru population | `data/processed/all_peru_full` | — | — |
 | tenure DiD | `data/processed/all_peru_did` | `…/features` | `runs/all_peru` |
 | S2 labelling | `data/processed/all_peru` | `data/processed/all_peru/features_s2` | `runs/all_peru` |
+| S2 **training** | set by `s2-train` → `…/labels_s2/ws_<target>[_pilot]` | `…/ws_<target>/features` | `runs/s2_labels/ws_<target>` |
 
 ⚠️ `CC_FEAT` exists because the Piura pixel store is **no longer implicitly shared** with the
 national one.
+
+The S2 **training** row is the only one you never set by hand: `allperu s2-train` sets all three
+per arm, so the four label targets cannot contaminate one another's tables.
 
 ---
 
@@ -108,16 +117,70 @@ abandoned — the code is built and unit-tested, and it stays unrun (`RESULTS.md
 | `allperu year-leak` | which features identify the label year? |
 | `allperu export-status` | how much of `PERENNIAL` is really export; woody non-crop bound |
 | `allperu esri-dates` / `label-budget` | imagery-date probe; campaign learning curve |
+| **`allperu climate <step>`** | per-parcel mean temperature + rainfall — `normals` (WorldClim, static) / `rainfall` (CHIRPS, per year) / `both`. `DATA.md` §7.4 |
+| **`allperu cenagro-extract [--dept D] [--overwrite] [--verify]`** | slim the 25 OneDrive CENAGRO 2012 `.dta` files (409 cols, ~18 GB) to `data/raw/Cenagro_IV/<Dept>.parquet` (76 cols, ~0.3 GB). `--verify` runs the audit. `DATA.md` §1.5 |
+| **`allperu cenagro-link`** | the NATIONAL census⇄PETT crosswalk by farmer name, 14 depts → `cenagro_pett_link.parquet`. ⚠️ farmer-level, not parcel-level |
+| **`allperu cenagro-shift`** ⭐ | PETT → CENAGRO 2012 → photo-interpreted 2019+, nationally, split by tenure. Perennial share of parcels and of **cadastral** area. `RESULTS.md` §8.6 |
+| **`allperu cenagro`** | CENAGRO 2012 as the 'before' instead of the PETT declaration — paired change, area-weighted, by link quality. ⚠️ **Piura only**, farmer-level link. `RESULTS.md` §8.5 |
 | **`allperu s2-labels <step>`** ⭐ | the live campaign — steps below |
-| ⛔ `allperu windows` | the 5-year window diagnostic (T3) — pivot closed |
-| ⛔ `allperu window-sample` | stratified window sample — pivot closed |
-| ⛔ `allperu estimate` | the window-estimand tenure contrast — refuses to run unless T1–T3 passed |
-| ⛔ `allperu external` | SIEA rank comparison |
-| ⛔ `allperu oli` / `oli-refit` | OLI harmonisation — closed twice, `RESULTS.md` §6.4 |
-| ⛔ `allperu tenure-did` | the **v2** DiD; superseded by `tenure-did2` |
+| **`allperu s2-train <step>`** ⭐ | train/compare models on the returned labels — steps below |
+| ⛔ **`allperu closed <cmd>`** | the seven abandoned-estimand commands, one level down — see below |
+
+⛔ **`allperu closed`** holds every command whose *estimand* failed a pre-registered gate.
+The code is built, unit-tested and correct; it stays unrun (`RESULTS.md` §9) because "we
+tried this and measured why it does not work" is a result. It is a sub-group so that
+`allperu --help` lists the ~25 commands someone might want rather than 32 of which 7 are
+closed. **Nothing about how they run changed** — `allperu windows …` is now
+`allperu closed windows …`.
+
+| command | what it does | why closed |
+|---|---|---|
+| `closed windows` | the 5-year window diagnostic (T3) | pivot closed, `RESULTS.md` §5 |
+| `closed window-sample` | stratified window sample | same |
+| `closed estimate` | the window-estimand tenure contrast — refuses to run unless T1–T3 passed | same |
+| `closed external` | SIEA rank comparison | same |
+| `closed oli` / `oli-refit` | OLI harmonisation | closed twice, §6.4 |
+| `closed tenure-did` | the **v2** DiD | superseded by `tenure-did2`, §7.3 |
 
 `allperu s2-labels` steps: `universe | pool | probe | draw | split | chips | extract |
-harmonisation | html | ingest | transitions`.
+harmonisation | html | ingest | transitions`. **`html` takes `--lang en|es`**; anything but
+English writes to `labels_s2/html_<lang>/`, and the delivered set is `html_es/`. Only the
+interface and codebook are translated — the label values written to the CSV stay the canonical
+English constants, because `ingest.py` compares against them.
+
+`allperu s2-train` steps: `prep | fit | lodo | baseline | report`, with
+`--target t5|t4|t3|t3w|t2|t2w`, `--model lightgbm|ltae|rules`, `--pilot`, `--model-kw '{…}'`.
+
+⚠️ **`t2`/`t2w` are the two-class collapse (`PERENNIAL` vs `NON_PERENNIAL`) and `--model rules`
+is refused on them** — the rule maps three semantic names onto label ids and in a two-class
+space its `PASTURE_FALLOW` fallback resolves to `PERENNIAL`. It would return a number, not an
+error. ⛔ **And `t2` should not be adopted**: normalised against its own (much higher) majority
+floor it is the lowest-skill arm in the study, and it gains +0.004 `PERENNIAL` F1 over `t3w`.
+Take a binary output by summing probabilities from a multi-class model instead. `RESULTS.md`
+§8.2c.
+
+* `prep` turns `labelled_parcels.parquet` into one `CC_PROC` workspace per label target under
+  `labels_s2/ws_<target>[_pilot]/`, each with its own `modeling_parcels.parquet`,
+  `label_map.json` and a `features/` directory symlinked to the S2 store. `train.py`,
+  `evaluate.py` and the model registry then run against it **unmodified**.
+* `fit` is spatial CV + final refit. **There is deliberately no `--eval-test`** — the S2 locked
+  test is unspent.
+* `lodo` holds out whole departments (default: those with ≥35 usable labels — **all 14**, as
+  of the 2026-08-28 return). Required, not optional: every CV number on this data is the kind
+  of number `centroid_lat` fooled, and the CV→LODO drop here is **−0.13 to −0.20 macro-F1**.
+  The locked test is excluded from **both** sides, and `--pilot` is the default for it.
+* `report` tabulates every fitted arm. Richer tables — per-class precision/recall, pooled
+  out-of-fold confusion, paired per-fold tests, per-department LODO — are in
+  `labelling/report_s2.py`, which also never reads the locked test.
+* `baseline` scores the saved Landsat primary on the labelled parcels' **S2** features. ⚠️ A
+  cross-sensor **lower bound**, not a measurement — `RESULTS.md` §8.3.
+* `--pilot` folds the held-out 120-parcel pilot into trainval. **Non-canonical**: the frozen
+  split holds it out. Frozen fold assignments are preserved and a pilot parcel inherits its
+  region's fold, so no 5 km region is ever split across folds.
+
+⚠️ **One arm per process.** `fit --model ltae` must not share a process with anything that
+imports LightGBM (§6, libomp). The steps are separate commands for exactly that reason — drive
+them from a shell loop, never a Python one.
 
 ---
 
@@ -201,6 +264,17 @@ Sentinel-2 equivalents for the endpoint campaign. ⚠️ NDVI is formed **per pi
 (`S2_NDVI_BAND`) before reduction, because a quantile of a ratio is not the ratio of the
 quantiles; percentile columns are named `NDVI_px_*` so they cannot collide with `add_indices`.
 
+`assemble()` writes the LightGBM summary block over each parcel's **agricultural year
+(Aug 1 – Jul 31)**; `assemble_tensor()` writes `tensor_perdate.npz` for LTAE.
+⚠️ **The sequence tensor's positions are days since Aug 1, not day-of-year.** The window
+straddles the New Year, so `doy` would run 365 → 1 mid-series and the sinusoidal encoder would
+place midwinter next to the first week of August. Nothing raises; the model just learns worse.
+Pinned by `tests/test_s2_train.py`. There is **no** pixel-set tensor and there cannot be —
+`s2_perdate.parquet` holds per-date medians and quantiles, never the pixels, so PSE-LTAE is not
+buildable from this store.
+`assemble()` also asserts that no `centroid_*`, `frac_l7`, `mission` or `doy` column reaches the
+store, so the two settled negative results cannot be silently re-admitted.
+
 ### `data.py`
 The single source of truth for "who trains on what": `fold_split(df, k)`, `final_split(df)`,
 `make_dataset(kind, …)`. Channel normalisation is fit on the **train subset only** and stored
@@ -259,20 +333,100 @@ maps names to modules without importing them — `get_model("lightgbm")` never t
 * `loyo.py` — leave-one-year-out, and `lodo_by_cohort` (LODYO).
 * `tenure.py`, `tenure_did.py`, `did_sample.py` — the DiD. `amplification_factor` derives M from
   window midpoints **in code**; `write_registration` refuses to overwrite.
+* `cenagro_extract.py` — the 25-department CENAGRO slim-down (`DATA.md` §1.5). Reads each
+  `.dta` **once**, chunked, with an explicit `usecols`, and writes one Parquet per
+  department; the output stays **long** (one row per parcel × crop-order) because each
+  consumer aggregates differently. The Parquet schema is **declared, not inferred** — a
+  chunked write needs one schema for the whole file and pandas will hand chunk 1 an object
+  column and chunk 2 a float one. `verify()` is the acceptance check and reports rows
+  in/out, the `P009_01` non-blank rate, whether the column set is identical across all 25,
+  whether `P024_03` resolves against the crop table, and the posesionario rate that tests
+  what the source folder's "sin posesionario" actually filtered (answer: nothing).
+* `cenagro_link.py` — the national Chain-B name link. Three routes (full / token-set /
+  paterno|materno|1º), matched **within department**, scored by district agreement then
+  candidate uniqueness then route strictness. ⚠️ **A name key that pulls more than
+  `MAX_CANDIDATES` (25) distinct parcels is dropped, not resolved** — at that multiplicity
+  the match carries no information, and keeping it would load the sample with whichever
+  departments have the most repeated surnames. Validated against notebook 02's independent
+  Piura crosswalk: the `high` tier agrees on 95.5 % of shared producers.
+* `cenagro_shift.py` — the three-observation comparison (`RESULTS.md` §8.6–8.7). Carries
+  `poststratify()`, which reweights the linked panel to the national population on
+  department × declared class — **not optional**, the link over-selects perennial parcels
+  16.6 % vs 9.9 %. Every S2 share is design-weighted; `token_audit()` prints the unmapped
+  tail sorted by frequency, which is how `MELOCOTONERO` was caught.
+* `cenagro.py` — CENAGRO 2012 as the "before" observation. Classifies **both** sides with the
+  same lexicon machinery, because otherwise part of the measured change is a change of
+  definition; `token_audit()` reports the unmapped share and **must be run before trusting a
+  number** — 4.09 % of census tokens fell to `ANNUAL` and 80 % of that was one token,
+  `VERGEL FRUTICOLA` ("fruit orchard"), which moved the headline by 10 pp.
+  ⚠️ Piura only, and the census↔parcel link is **farmer-level**.
+* `climate.py` — per-parcel mean temperature + rainfall (`DATA.md` §7.4). Samples at the parcel
+  **centroid**, which is exact here because no parcel (max 50 ha) is larger than one climate
+  pixel (WorldClim ~86 ha, CHIRPS ~3,000 ha); `build_normals` prints that check rather than
+  assuming it. ⚠️ **A masked cell returns NaN, not an error** — climate rasters mask the ocean
+  and the cadastre runs to the shoreline, so `_sample_points` falls back to the nearest valid
+  cell and reports the count. CHIRPS is read **remotely** with a `/vsicurl` window over Peru;
+  nothing global is stored.
 
 ### `labelling/`
 `chips.py` (Esri chip rendering — zoom derived from probed resolution, with a placeholder
 detector), `build_html.py` (self-contained labelling shards; **blindness is asserted on the raw
 HTML string**), `ingest.py` (CSV → `labelled_parcels.parquet`, κ over parcels both labellers
-*called*).
+*called*), `train_prep.py` (`labelled_parcels.parquet` → a trainable `CC_PROC` workspace per
+label target, plus LODO and the transferred Landsat baseline), `report_s2.py` (the readable
+results: pooled out-of-fold per-class tables, confusion in parcel counts, paired per-fold
+tests, per-department LODO — **none of which reads the locked test**).
+
+`item_centroid.py` is a small operator tool, not part of any pipeline: give it an `item_id`
+from a labelling shard and it returns that parcel's lat/lon, which is what you need to open the
+parcel in an external viewer when a label looks wrong. Run it directly
+(`uv run python -m crop_classifier.labelling.item_centroid <item_id>`); it is deliberately not a
+CLI command because it answers a question during labelling, not a step in a run.
+
+`ingest.py` stores the annotator's label **verbatim** over six values and takes no modelling
+decision; `train_prep.TARGETS` takes them, one workspace per reading, so an arm is a file on
+disk rather than a flag. ⚠️ `train_prep` sets `quality_ok = True` on every row: it is a
+*Landsat* extraction-quality flag, NA throughout this campaign, and `load_parcels` filters on
+`== True` — forwarding it untouched trains on **zero rows and reports an empty dataset, not an
+error**. The S2 equivalents (`no_s2_observations`, `sub_pixel_parcel`) are applied by `ingest`
+upstream.
 
 ### `config/`
+
+⭐ **Configs are diffs, not copies.** `crop_classifier/config_loader.py` resolves three keys:
+
+* **`extends: <file>`** — load that file first (relative, recursive), then let this file's own
+  top-level keys **replace** the parent's.
+* **`add: {key: [...]}`** — **append** to the parent's list under `key`, deduped, order
+  preserved. This is the additive-only discipline: a derived lexicon may add tokens and may not
+  reassign one, because otherwise part of a measured "change in the land" is a change of
+  definition (`RESULTS.md` §8.5). `tests/test_config_loader.py` **checks** it, and
+  `labels3.build_resolver` raises anyway if a token ends up in two groups.
+* **`drop: [key, ...]`** — delete an inherited key. Needed only where a variant genuinely
+  renames a group (`perennial_binary.yaml` has `non_perennial` where the base has `annual`).
+
+The chain, pinned by `EXPECTED_CHAIN` in that test so a silently-repointed parent is a failure:
+
+```
+data.yaml                       split.yaml ──► split_b3000.yaml
+perennial.yaml                  split_allperu.yaml ─┬─► split_window.yaml ──► split_window_b3000.yaml
+  ├─► perennial_4c.yaml                             └─► split_s2labels.yaml
+  ├─► perennial_binary.yaml
+  └─► perennial_allperu.yaml ──► perennial_cenagro.yaml
+```
+
+⚠️ **It was 2,050 lines of copy-forward before this.** `perennial_cenagro.yaml` was
+`perennial_allperu.yaml` pasted whole, which was `perennial.yaml` pasted whole — 559 lines with
+two "Original header follows" markers in it, of which ~30 tokens were the actual content. You
+cannot see an additive-only claim in a full copy; you have to diff it.
+
 | file | contents |
 |---|---|
 | `data.yaml` | label policy: categories, the intercrop `merge` map, `min_class_parcels`, area/year gates, `min_valid_obs` |
 | `split.yaml` / `split_allperu.yaml` | `block_km`, `region_km`, `buffer_m`, `n_folds`, `test_frac`, seed, `metric_crs` |
 | `perennial*.yaml` | the 3-class lexicon. The national one is **additive only** and adds sierra/selva tokens, `stage_words` (`MAIZ EN FLORACION`) and `word_match` — without them 19.2 % of national records fell to a blanket `ANNUAL` guess; final 1.92 %, under the 2 % budget the build enforces |
-| `split_s2labels.yaml` | the frozen S2 labelling split |
+| `split_s2labels.yaml` | the frozen S2 labelling split — also read by `train_prep` for `buffer_m`/`seed` when the pilot is folded in |
+| `perennial_cenagro.yaml` | the 3-class lexicon for the **census** vocabulary — `perennial_allperu.yaml` **plus tokens only**. ⚠️ census side only; running it over PETT would change labels of record |
 
 ---
 
@@ -288,6 +442,28 @@ HTML string**), `ingest.py` (CSV → `labelled_parcels.parquet`, κ over parcels
 | `features/features_lightgbm.parquet` | assemble | summary features |
 | `features/tensor_perdate.npz`, `tensor_pixelset.npz` | assemble | LTAE / PSE-LTAE tensors |
 | `runs/<name>/` | train | `model.bin`, `cv_metrics.json`, `label_map.json`, predictions, curves, report bundle |
+| `climate/parcel_climate_normals.parquet` | `allperu climate normals` | 726,808 parcels × 34: `tmean_c` (°C), `precip_mm_yr` (mm/yr), monthly profile, seasonality. **Static** (1970–2000 normal) |
+| `climate/parcel_rainfall_annual.parquet` | `allperu climate rainfall` | 726,808 parcels × 33: `precip_mm_<year>` (mm) for 1996–2024. **Year-resolved** — the one safe across years |
+| `cenagro/*.csv` | `allperu cenagro` | PETT→CENAGRO 2012 paired change: raw, like-for-like, area-weighted, by link quality, plus the token audit |
+| `labels_s2/skill_by_target.csv` | `report_s2.skill_table` | every target's macro-F1 **against its own majority floor**, plus `PERENNIAL` F1 — the only cross-target-comparable columns |
+
+⚠️ The **only** NaN in either climate table is `precip_seasonality_cv` for 1,275 Ica parcels
+that receive exactly 0 mm/year — 0/0, left undefined rather than imputed. `DATA.md` §7.4.
+
+**The S2 campaign, under `all_peru/labels_s2/`:**
+
+| file | producer | contents |
+|---|---|---|
+| `labelled/*.csv` | the annotator | one row per labelling; `item_id`, `label`, `boundary_mismatch`, `seconds_spent` |
+| `labelled_parcels.parquet` | `s2-labels ingest` | one row per parcel, label **verbatim**, `exclude_reason`, `usable` |
+| `kappa_report.json`, `stratum_counts.csv` | `s2-labels ingest` | κ + G1/G2/G3 readings; per (dept × declared × observed) counts |
+| `ws_<target>[_pilot]/` | `s2-train prep` | a full `CC_PROC` workspace: `modeling_parcels.parquet`, `label_map.json`, `features/` symlinks |
+| `ws_*/lodo_<model>.csv` | `s2-train lodo` | per-department held-out metrics |
+| `ws_*/landsat_baseline*.{parquet,json}` | `s2-train baseline` | the transferred Landsat read + its caveat, recorded in the file |
+| `model_comparison.csv` | `s2-train report` | every arm: CV mean/sd/min/max fold, LODO mean/sd |
+| `declared_to_observed_transitions.csv` | `s2-labels transitions` | weighted declared (1996–2006) → observed (2019+) shares + 95 % CIs, **no classifier in it** |
+| `features_s2/tensor_perdate.npz` | `s2_assemble.assemble_tensor` | LTAE input; **positions are days since Aug 1** |
+| `runs/s2_labels/ws_<target>[_pilot]/<model>/` | `s2-train fit` | the usual run bundle, per arm |
 
 `data/` and `runs/` are gitignored; everything regenerates from the raw data + GEE.
 
@@ -362,13 +538,53 @@ uv run python -m crop_classifier.cli allperu tenure-did2         # placebo, then
 # ── the live S2 labelling campaign — see docs/s2_labelling/plan.md ───────────
 export CC_PROC=data/processed/all_peru CC_FEAT=data/processed/all_peru/features_s2
 
+uv run python -m crop_classifier.cli allperu s2-labels html --lang es   # -> html_es/
 uv run python -m crop_classifier.cli allperu s2-labels ingest --csv-dir <returned CSVs>
 uv run python -m crop_classifier.cli allperu s2-labels transitions
 ```
 
 ```bash
+# ── regenerate the slimmed CENAGRO 2012 department files ─────────────────────
+# data/ is gitignored, so this is the ONLY record of how data/raw/Cenagro_IV/ is made.
+# Source: the OneDrive share "Departamentos_IV_CENAGRO (sin posesionario)", 25 .dta files,
+# ~18 GB, path hard-coded as SRC_DIR in allperu/cenagro_extract.py — another user needs
+# their own OneDrive mount and must edit it. Make sure the files are downloaded, not
+# placeholders: OneDrive Files-On-Demand streams them and the read then runs at network
+# speed. ~50 min for all 25.
+
+uv run python -m crop_classifier.cli allperu cenagro-extract               # all 25
+uv run python -m crop_classifier.cli allperu cenagro-extract --dept Piura --overwrite
+uv run python -m crop_classifier.cli allperu cenagro-extract --verify      # the audit
+```
+
+```bash
+# ── the national PETT → CENAGRO 2012 → 2019+ comparison (RESULTS.md §8.6) ────
+# needs data/raw/Cenagro_IV/ (see the block above) and the national PETT build.
+uv run python -m crop_classifier.cli allperu cenagro-link    # ~6 min, 14 departments
+uv run python -m crop_classifier.cli allperu cenagro-shift   # ~3 min
+# -> data/processed/cenagro/national_*.csv + national_panel.parquet
+```
+
+```bash
 # ── figures and tests ────────────────────────────────────────────────────────
 uv run python -m crop_classifier.perennial.report_figures     # → docs/figures/
+uv run python -m crop_classifier.allperu.report_figures       # → docs/figures/
 uv run pytest -q
 uv run ruff check .
 ```
+
+Both read only persisted artefacts under `data/processed/` — no satellite calls, no training.
+
+**Every committed figure and who makes it.** `docs/figures/` is checked in, so a file in it that
+no doc cites is weight with no reader; `tests/test_docs.py` fails on one. 24 of 37 had
+accumulated that way and were removed on 2026-08-31.
+
+| figure | generator |
+|---|---|
+| `profiles_12class_ndvi.png`, `profiles_3class.png`, `elnino_signature.png`, `elnino_mechanism.png`, `elnino_signature_collapse.csv`, `flicker_vs_statics.png` | `perennial.report_figures` |
+| `window_control_drift.png`, `did_result.png` | `allperu.report_figures` |
+| `per_class_f1.png`, `pooled_cv_metrics.png` | `perennial compare` |
+| `panel_budget.csv` | `perennial panel probe` (its default `--out`) |
+| `l7_coverage.csv` | ⚠️ **no generator in the tree** — a one-off probe, kept because §7.1's archive-limit numbers are read off it |
+| `big_parcels_grid.png` | `notebooks/04_inspect_parcel_basemaps.ipynb` |
+| `data_overview_flowchart.svg`, `validation_gates_flowchart.svg` | hand-drawn; **no generator, do not delete** |

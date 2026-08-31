@@ -1,4 +1,4 @@
-"""Figures for the summary report (docs/REPORT.md).
+"""Figures for the summary report (reports/REPORT.md).
 
 Two questions these exist to answer, both of which are prior to any model:
 
@@ -384,12 +384,19 @@ def fig_flicker_vs_statics(path: Path, rows: list[dict]) -> None:
 
 def elnino_signature_collapse(features=("NDVI_p25", "NDVI_amp", "BSI_max")
                               ) -> pd.DataFrame:
-    """Class contrast on the discriminating features, 1998 imagery vs normal imagery.
+    """Class separation on the discriminating features, 1998 imagery vs normal imagery.
 
-    This is the *mechanism* behind the §6.3 confound test. A perennial parcel is identified
-    by a **contrast** with its annual neighbours — a higher NDVI floor and a flatter season.
-    The question is what the El Nino did to that contrast, so the quantity is the
-    PERENNIAL-minus-ANNUAL gap within each cohort, in pooled-SD units, on the same regions.
+    This is the *mechanism* behind the §6.3 confound test. The model has no absolute
+    definition of "perennial": it learns thresholds (a higher NDVI floor, a flatter season)
+    that work only while the two classes sit far apart on those features. So the quantity is
+    the PERENNIAL-minus-ANNUAL gap within each cohort, in pooled-SD units, on the same
+    regions, and the question is what the El Nino did to it.
+
+    ⚠️ This is a **between-class separation measured across parcels after the fact**, not
+    anything the model computes per parcel — no model in this project uses a neighbour
+    feature. Earlier wording here said "contrast with its annual neighbours", which read as
+    though adjacent parcels were an input; they are not. Regions are restricted to those
+    present in both cohorts so that place is held roughly fixed.
     """
     from crop_classifier.data import FN_LGBM
 
@@ -420,7 +427,7 @@ def elnino_signature_collapse(features=("NDVI_p25", "NDVI_amp", "BSI_max")
 
 
 def fig_elnino_mechanism(path: Path) -> pd.DataFrame:
-    """Why PERENNIAL recall goes to zero on 1998 imagery: the contrast collapses."""
+    """Why PERENNIAL recall goes to zero on 1998 imagery: the class separation collapses."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -457,8 +464,8 @@ def fig_elnino_mechanism(path: Path) -> pd.DataFrame:
         for sp in ("top", "right"):
             ax.spines[sp].set_visible(False)
     axes[0].legend(fontsize=8.5, frameon=False, loc="lower left")
-    fig.suptitle("Why PERENNIAL recall collapses on 1998 imagery: the contrast that "
-                 "identifies a perennial disappears\n"
+    fig.suptitle("Why PERENNIAL recall collapses on 1998 imagery: the class separation "
+                 "that identifies a perennial disappears\n"
                  "Same regions, same held-out parcels. Dot = class median, bar = "
                  "inter-quartile range. NDVI floor and seasonal swing both stop "
                  "separating the classes; only BSI survives.", fontsize=9.5)

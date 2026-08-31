@@ -15,7 +15,7 @@ campaign is the live work. See [`docs/STATUS.md`](docs/STATUS.md).
 ```bash
 uv sync                              # Python 3.11, deps from uv.lock
 uv run earthengine authenticate      # required for any GEE extraction
-uv run pytest -q                     # 411 tests
+uv run pytest -q
 uv run python -m crop_classifier.cli --help
 ```
 
@@ -32,8 +32,9 @@ local-only.
 | [`docs/LESSONS.md`](docs/LESSONS.md) | method findings that generalise beyond this project |
 | [`docs/DATA.md`](docs/DATA.md) | raw datasets, linkage chains, the four silent traps |
 | [`docs/PIPELINE.md`](docs/PIPELINE.md) | module reference, CLI table, cookbook |
-| [`docs/REPORT.md`](docs/REPORT.md) | the readable narrative, with figures |
+| [`docs/cenagro_columns.md`](docs/cenagro_columns.md) | the 2012 census extract, column by column |
 | [`docs/s2_labelling/`](docs/s2_labelling/) | the live labelling campaign + frozen codebook |
+| [`reports/`](reports/REPORT.md) | the written-up narratives — [`REPORT.md`](reports/REPORT.md) is current, with figures; `REPORT.pdf` and `project_report.tex` are earlier snapshots, superseded and kept |
 
-**Start with [`docs/REPORT.md`](docs/REPORT.md)** if you want to understand the project, or
+**Start with [`reports/REPORT.md`](reports/REPORT.md)** if you want to understand the project, or
 [`docs/STATUS.md`](docs/STATUS.md) if you want to work on it.

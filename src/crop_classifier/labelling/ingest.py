@@ -1,4 +1,4 @@
-"""Ingest returned label CSVs (s2_labelling_plan.md §9).
+"""Ingest returned label CSVs (docs/s2_labelling/plan.md).
 
 Reads the CSVs the labelling HTML downloads, joins ``item_id`` -> ``COD_PREDIO``, computes
 **Cohen's kappa on the double-labelled overlap** (over the called parcels, over all six

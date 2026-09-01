@@ -21,10 +21,14 @@ second visit. Satellite imagery exists every year from 1996.
 
 * **A single-year 3-class land-state classifier** (`PERENNIAL` / `ANNUAL` / `PASTURE_FALLOW`).
   Piura locked test **0.681 macro-F1**; national CV **0.628**, and 3× steadier across folds.
-* ⭐ **The S2 endpoint classifier, verified on 2019+ imagery** — the project's first accuracy
-  measured in the period the research question is about. 865 photo-interpreted parcels,
-  LightGBM, **0.672 macro-F1 on spatially-blocked CV and 0.539 held out of a whole department**
-  (4-class), **0.747 / 0.697** on the 3-class reading. `RESULTS.md` §8.2.
+* ⭐ **The S2 endpoint classifier, verified on 2019+ imagery, and now on a locked test** — the
+  project's first accuracy measured in the period the research question is about. 865
+  photo-interpreted parcels, LightGBM with `--climate temp`, 3-class (`t3w`): **0.762 CV,
+  0.724 held out of a whole department (14 depts, SD 0.112), and 🔓 0.774 macro-F1 / 0.789
+  accuracy / `PERENNIAL` F1 0.780 on the 161-parcel locked test** (`RESULTS.md` §8.2, §8.8b,
+  §8.9). The 4-class reading is 0.695 CV / 0.568 LODO. **The test agrees with CV**, so the
+  cross-validated estimate was not inflated — but it is an in-department number; 0.724 remains
+  the expectation for an unseen department.
 * ⭐ **The declared → observed transition matrix**, with no classifier in it: of parcels
   declared `ANNUAL` in 1996–2006, **2.9 % [0, 5.9] read as perennial in 2019+**; **57.9 %**
   read as farmable ground not currently cropped. ⚠️ National average — **it is not a Piura
@@ -86,11 +90,15 @@ been fitted. Numbers: `RESULTS.md` §8.1–8.2b.
    substitute (the Landsat booster scored on S2 features) is a **cross-sensor lower bound**, for
    exactly the reason §6.4 closed the OLI route. Either (a) extract genuine Landsat features for
    these parcels, or (b) let G4 become the S2 model's own held-out number against a stated floor.
-4. **Decide whether to spend the locked test.** 201 parcels, **161 now labelled**, still
-   **UNSPENT** — `allperu s2-train` exposes no `--eval-test` and nothing in §8 reads it. Spending
-   it buys the project's only clean held-out endpoint number at roughly ±7 pp; it can be spent
-   **once**, on **one** pre-declared arm. Do G1 first, so the number is not inheriting an
-   unmeasured noise floor.
+4. **~~Decide whether to spend the locked test.~~** ✅ **DONE 2026-09-01 (§8.9).** Spent once, on
+   the arm §8.8b had already selected — LightGBM / `t3w`+pilot / `--climate temp`:
+   **0.789 accuracy, 0.774 macro-F1 [95 % CI 0.697–0.845], `PERENNIAL` F1 0.780** on 161 parcels
+   across 14 departments, against a CV estimate of 0.762. The `both` arm was scored alongside it
+   (0.764) and is indistinguishable — 8 disagreements in 161, McNemar p = 1.000.
+   ⛔ **It is now spent. Score nothing else on it.**
+   ⚠️ Read 0.774 as the **in-department** number: every department is on both sides of the split,
+   so it tracks CV, not LODO. The out-of-department expectation stays **0.724 ± 0.112**.
+   ⚠️ It was spent **before** G1, so it inherits an unmeasured annotator-noise floor.
 5. **⭐ The CENAGRO route is open and has now gone national.** A paired before/after with
    **no classifier in it**, and the only such thing the project has. `allperu cenagro` is the
    Piura-only version (§8.5); `allperu cenagro-extract` → `cenagro-link` → `cenagro-shift` runs
@@ -100,12 +108,22 @@ been fitted. Numbers: `RESULTS.md` §8.1–8.2b.
    optional. ⚠️ **Before extending it, run `cenagro_shift.token_audit()`** — an unmapped census
    crop-token tail passed its budget check **twice** while one token in it moved the headline by
    10 pp (Piura) and 0.6 pp (national).
-6. **Climate covariates are built and ready to add** (`DATA.md` §7.4): per-parcel mean
-   temperature and rainfall for all 726,808 national parcels. Not yet in any model. **Use
-   `parcel_rainfall_annual` (year-resolved) for anything across years and the normals only for a
-   single-year model** — the normals are time-invariant, which is the family §4.4/§5 measured
-   manufacturing stability. Evaluate on LODO as well as CV: a 1 km climate surface is a smooth
-   function of location, hence a `centroid_lat` proxy.
+6. **✅ A climate covariate is IN — `--climate temp`, and it is the first feature that helps
+   LODO** (§8.8, amended by §8.8b). WorldClim normals as extra inputs on the endpoint arm, three
+   model classes × four feature sets + a lat/lon control, run on **both** ends of the `t4`/`t3w`
+   codebook bracket. **LightGBM `temp`: LODO 0.539 → 0.568 (`t4`) and 0.697 → 0.724 (`t3w`),
+   `PERENNIAL` LODO F1 +0.057 / +0.058** — the same gain at both ends, against a raw-coordinate
+   control that buys +0.014 / +0.002.
+   ⚠️ **`--climate both` was the §8.8 recommendation and is NOT.** Its `t4` case rested on
+   12/14 departments at p = 0.004; on `t3w` that is **7/14 at p = 0.345**, and the column that
+   costs it the replication is `precip_mm_yr`, worth **−0.001** LODO there. Honest effect size
+   for `temp`: **+0.027 LODO at 9/14 departments, p = 0.17.**
+   ⚠️ **Adopt for LightGBM only.** LTAE gains the same amount as the coordinate control at
+   *both* targets, so for LTAE it is department memorisation by another route (§8.2 again).
+   ⛔ **Normals must not enter the panel** — time-invariant, the §4.4/§5 family; use
+   `parcel_rainfall_annual` across years. And climate alone recovers the department at 0.676
+   accuracy (prior 0.091), so the memorisation channel is open, merely outweighed.
+   `allperu s2-train {prep,fit,lodo,report} --target {t4,t3w} --climate {none,temp,rain,both,latlon}`.
 
 ---
 
@@ -122,8 +140,10 @@ What follows is only what is **true of this project right now**, and would be wr
 from a general rule:
 
 * **The national locked test is UNSPENT.** Keep it that way until an estimand passes its gate.
-* **The S2 locked test is UNSPENT** — 201 parcels, 161 labelled. `allperu s2-train` deliberately
-  exposes no `--eval-test`. It can be spent **once**, on **one** pre-declared arm.
+* 🔓 ⚠️ **The S2 locked test is SPENT** (2026-09-01, §8.9) — 201 parcels, 161 usable, scored
+  once on the two arms §8.8b had already selected (`temp` 0.774, `both` 0.764). It is no longer
+  a clean held-out set: `allperu s2-train fit --eval-test` is the flag that spends it and it
+  **must not be used again**. Any future model change is a CV/LODO decision.
 * ⚠️ **The Piura locked test is SPENT TWICE** (2026-08-05). It is no longer a clean held-out
   estimate for any selection.
 * ⚠️ **The 12-class locked test is spent** (macro-F1 0.427).

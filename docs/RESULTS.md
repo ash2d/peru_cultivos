@@ -25,6 +25,9 @@ that generalise beyond Peru, see [`LESSONS.md`](LESSONS.md).
 | 6 | Temporal OOD fixes | make 2019–23 predictable | ⛔ FAILED; 4 routes closed | `allperu/density.py`, `oli_*.py` |
 | 7 | Tenure DiD (v3) | does title cause conversion? | ⚖️ **COMPLETE — bounded null** | `allperu/tenure_did.py` |
 | 8 | S2 endpoint labelling | validated 2020+ labels | 🔴 **LIVE** — 1,012/1,112 labelled, G2/G3-dept pass | `labelling/`, `features/s2_*` |
+| 8.8 | Climate covariates | does temp + rainfall help? | ✅ **YES, and on LODO** — LightGBM LODO 0.539 → 0.568 (`t4`), 0.697 → 0.724 (`t3w`) | `allperu/climate.py`, `labelling/climate_arms.py` |
+| 8.8b | …read across the `t4`/`t3w` bracket | is that gain the WOODY boundary? | ✅ **NO** — but adopt `temp`, not `both`: `rain` does not replicate | `labelling/climate_arms.py` |
+| 8.9 | 🔓 **The S2 locked test, SPENT** | does the CV estimate hold on held-out data? | ✅ **YES** — 0.789 acc / **0.774 macro-F1** / `PERENNIAL` F1 0.780, n=161 | `train.py --eval-test` |
 
 **The one result to know before doing any modelling:** `centroid_lat` is worth **+0.047
 macro-F1 on spatial CV, +0.047 on leave-one-year-out, and −0.060 on
@@ -625,7 +628,9 @@ first paired two-declaration comparison: on 8,669 Piura parcels, perennial decla
 **28.2 % → 40.7 % of parcels (+12.5 pp) and 51.4 % → 66.0 % of cadastral area (+14.6 pp)**
 between ~1999 and 2012, with conversion concentrated on the larger parcels. §8.5.
 
-⚠️ **The locked test (201 parcels, 161 labelled) is UNSPENT** and nothing in §8 reads it.
+🔓 **The locked test (201 parcels, 161 usable) was SPENT on 2026-09-01** — once, on the two
+arms §8.8b had already selected. **§8.9** is the only section that reads it; everything else
+in §8 is CV/LODO and was measured before it.
 
 Everything measured in this document is measured in ~1997–2006. **Not one number is measured in
 2019–2023, which is the only period the research question is about.** Hand-labelling recent
@@ -694,7 +699,7 @@ and is not re-drawn.
 |---|---|---|
 | **train** | 4 of the 5 spatially-blocked folds, plus the 120-parcel pilot pool where `+pilot` is used | ~510 per fold (`t4`) |
 | **validation** | the held-out 5th fold, rotated 5× so every trainval parcel is predicted exactly once out-of-fold. Folds are whole 5 km regions and a **3 km dead-zone** is stripped from each train side, so no training parcel sits within 3 km of a validation parcel | ~170 per fold (`t4`) |
-| **test (locked)** | 201 parcels in 150 distinct regions, every department on both sides. 161 now labelled | **UNSPENT — read by nothing in this section** |
+| **test (locked)** | 201 parcels in 150 distinct regions, every department on both sides. 161 usable | **SPENT 2026-09-01 in §8.9 — read by nothing in *this* section** |
 
 **The metric.** *Macro-F1*: the F1 score computed per class and averaged with equal weight, so
 a rare class counts as much as a common one. On `t4`, always guessing the largest class
@@ -1160,6 +1165,39 @@ department × declared class restores the national cell counts; the change **ris
 +8.4 to +9.9 pp, so composition was damping it, not manufacturing it. What reweighting cannot
 fix is selection *within* a cell.
 
+![perennial share over the three observations, by tenure](figures/perennial_over_time_by_tenure.png)
+
+*`docs/figures/perennial_over_time_by_tenure.png`. The drawing code is
+`docs/figures/perennial_over_time_by_tenure.py` — **self-contained, matplotlib only**, runnable
+as `python docs/figures/perennial_over_time_by_tenure.py`. `allperu cenagro-shift --figure`
+recomputes the numbers from the data, **checks them against the ones baked into that script**
+and prints a paste-ready block if they have drifted, so the reproduction and the pipeline
+figure cannot diverge silently.*
+
+*⚠️ **The three points are three instruments, not one series.** The solid legs are the census
+panel; the 2025 points are 214 / 364 photo-interpreted parcels from a different frame with a
+different restriction, so each imagery reading is drawn from **its own baseline** rather than
+continued off the census line — connecting them would invent a trend neither instrument
+measured.*
+
+Levels with 95 % intervals, in percent (Wilson on **Kish's effective n**, not the row count —
+the design weights are uneven enough that the imagery arm's n_eff is 27.6 and 38.6 against a
+nominal 82 and 132; and Wilson rather than Wald because at that precision a symmetric interval
+runs below zero and draws an impossible share):
+
+| arm | tenure | ~2001 | after |
+|---|---|---|---|
+| census panel (n=63,766) | INSCRITO | 15.1 [14.7, 15.4] | **24.2 [23.8, 24.7]** |
+| census panel | NO INSCRITO | 19.2 [18.7, 19.7] | **30.5 [29.9, 31.1]** |
+| imagery, WOODY excluded (n=214) | INSCRITO | 10.5 [3.6, 27.1] | 13.9 [5.4, 31.1] |
+| imagery, WOODY excluded | NO INSCRITO | 13.9 [6.3, 28.1] | 18.2 [9.1, 33.0] |
+| imagery, **WOODY as perennial** (n=364) | INSCRITO | 20.7 [11.0, 35.4] | 39.6 [26.1, 54.9] |
+| imagery, **WOODY as perennial** | NO INSCRITO | 21.5 [12.2, 35.2] | 27.2 [16.6, 41.3] |
+
+The two imagery readings' 2025 intervals **overlap each other and both census endpoints**. The
+`WOODY_NON_CROP` decision moves the INSCRITO endpoint from 13.9 % to 39.6 % — 26 pp, against a
+census effect of ~10 pp — which is why §8.7 says that arm should not be quoted on tenure.
+
 #### ⭐ The tenure split — the answer is no, and slightly the other way
 
 | tenure at declaration | n | PERENNIAL ~1999 | 2012 | change |
@@ -1277,6 +1315,430 @@ One thing in it is worth recording: of 98 parcels the census called PERENNIAL, *
 photo-interpreted `WOODY_NON_CROP` or `NON_AGRICULTURE`** — nearly half of declared perennial
 reads as woody non-crop from the air. That is the §8.2c boundary problem quantified against a
 declared source rather than against another label.
+
+### 8.8 ⭐ Climate covariates — the first added feature that helps CV *and* LODO
+
+**Question:** does giving the endpoint classifier the parcel's mean temperature and mean annual
+rainfall improve it, and does the improvement survive leaving a department out?
+
+**Setup.** Target **`t4`** (`ANNUAL` / `OTHER` / `PERENNIAL` / `WOODY_NON_CROP`), trainval +
+pilot, **704 parcels**, the locked test untouched. Covariates are the WorldClim 2.1 1970–2000
+normals sampled at the parcel centroid (`allperu.climate`): `tmean_c` (°C) and
+`precip_mm_yr` (mm/yr). Every arm reuses the **same** `modeling_parcels.parquet` by symlink, so
+the folds, the 3 km dead-zones and the seeds are identical across arms by construction.
+Three model classes × four feature sets, each with 5-fold spatially-blocked CV and
+leave-one-department-out over **all 14** departments. Driver:
+`allperu s2-train {prep,fit,lodo,report} --climate {none,temp,rain,both,latlon}`.
+
+⭐ The **`latlon` control** is what makes the table readable: centroid latitude + longitude in
+place of the two climate columns — same count, same time-invariance, same smoothness over
+space, no agro-climatic content. A climate gain that `latlon` also buys is geography.
+
+**Majority-class macro-F1 floor 0.171** (4 classes); `skill = (F1 − floor)/(1 − floor)`.
+`d_*` are against that model class's own `none` arm.
+
+| model | arm | CV macro-F1 | CV acc | LODO macro-F1 (14 depts) | LODO acc | CV−LODO | CV skill | LODO skill | PERENNIAL F1 (CV) | ΔCV | ΔLODO |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| LightGBM | none | 0.672 ± 0.064 | 0.724 | 0.539 ± 0.123 | 0.722 | 0.133 | 0.604 | 0.444 | 0.471 | — | — |
+| LightGBM | temp | 0.695 ± 0.055 | 0.744 | 0.568 ± 0.130 | 0.754 | 0.127 | 0.632 | 0.479 | 0.564 | +0.023 | +0.029 |
+| LightGBM | rain | 0.691 ± 0.065 | 0.740 | 0.561 ± 0.110 | 0.738 | 0.130 | 0.628 | 0.471 | 0.536 | +0.020 | +0.023 |
+| **LightGBM** | **both** | **0.701 ± 0.059** | **0.750** | **0.577 ± 0.114** | **0.753** | **0.124** | **0.639** | **0.490** | **0.574** | **+0.029** | **+0.038** |
+| LightGBM | *latlon (control)* | 0.696 ± 0.062 | 0.744 | 0.553 ± 0.128 | 0.725 | 0.143 | 0.633 | 0.461 | 0.546 | +0.024 | +0.014 |
+| LTAE | none | 0.708 ± 0.060 | 0.741 | 0.515 ± 0.077 | 0.674 | 0.193 | 0.648 | 0.416 | 0.592 | — | — |
+| LTAE | temp | 0.732 ± 0.055 | 0.771 | 0.555 ± 0.111 | 0.724 | 0.177 | 0.677 | 0.464 | 0.613 | +0.024 | +0.040 |
+| LTAE | rain | 0.712 ± 0.073 | 0.744 | 0.538 ± 0.105 | 0.707 | 0.174 | 0.653 | 0.443 | 0.617 | +0.004 | +0.023 |
+| LTAE | both | 0.716 ± 0.055 | 0.751 | 0.543 ± 0.088 | 0.706 | 0.174 | 0.658 | 0.448 | 0.594 | +0.008 | +0.027 |
+| LTAE | *latlon (control)* | 0.708 ± 0.066 | 0.747 | 0.553 ± 0.088 | 0.709 | 0.156 | 0.648 | 0.461 | 0.577 | −0.000 | +0.037 |
+| rules | none | 0.392 ± 0.018 | 0.488 | 0.360 ± 0.122 | 0.492 | 0.032 | 0.267 | 0.229 | 0.244 | — | — |
+| rules | temp | 0.434 ± 0.028 | 0.566 | 0.377 ± 0.128 | 0.539 | 0.057 | 0.318 | 0.249 | 0.358 | +0.042 | +0.017 |
+| rules | rain | 0.442 ± 0.026 | 0.558 | 0.397 ± 0.127 | 0.552 | 0.045 | 0.328 | 0.273 | 0.349 | +0.050 | +0.037 |
+| rules | both | 0.432 ± 0.028 | 0.563 | 0.389 ± 0.132 | 0.556 | 0.043 | 0.315 | 0.263 | 0.371 | +0.040 | +0.028 |
+| rules | *latlon (control)* | 0.396 ± 0.020 | 0.497 | 0.340 ± 0.126 | 0.462 | 0.057 | 0.272 | 0.204 | 0.263 | +0.004 | **−0.021** |
+
+The `none` rows **reproduce §8.2 exactly** (LightGBM 0.6717 / 0.5387, LTAE 0.7084 / 0.5154,
+rules 0.3923 / 0.3605) — the statics plumbing added for this experiment is a verified no-op
+where no statics file exists.
+
+#### What it says
+
+⭐ **1. Climate is the first feature this project has added that improves the out-of-department
+number.** Every one of the nine climate arms is positive on **both** axes. That is the opposite
+of `centroid_lat` (+0.047 CV, **−0.060** LODO, §4.2) and of LTAE-vs-LightGBM (§8.2), and it is
+why the arm is worth adopting rather than merely reporting.
+
+**2. …and it is not just geography, for LightGBM and for the rule.** Against the `latlon`
+control:
+
+| | LightGBM | LTAE | rules |
+|---|---:|---:|---:|
+| ΔLODO from climate (`both`) | **+0.038** | +0.027 | +0.028 |
+| ΔLODO from lat/lon (control) | +0.014 | +0.037 | **−0.021** |
+
+LightGBM gets **2.7× more** out-of-department gain from climate than from raw coordinates, and
+the rule gets a gain from climate where coordinates make it **worse**. ⚠️ **LTAE is the
+exception**: its LODO gain from climate (+0.027 to +0.040) is *matched* by the coordinate
+control (+0.037), so what the attention model extracts from a climate input is not
+distinguishable from location. That is §8.2's verdict on LTAE arriving a second way.
+
+**3. The gain is concentrated in `PERENNIAL`, the class the research question turns on.**
+Out-of-fold per-class F1, LightGBM: `PERENNIAL` **0.471 → 0.574** (+0.103) while `ANNUAL`,
+`OTHER` and `WOODY_NON_CROP` move by −0.011, +0.028 and +0.006. Held out of a department the
+same class goes 0.456 → 0.510. Perennials are the class whose viability is *physically* set by
+temperature and water, so this is the mechanism the covariate was supposed to have.
+
+**4. Temperature outruns rainfall for the two statistical models, and the reverse for the rule.**
+LightGBM/LTAE: `temp` alone recovers most of `both` (ΔLODO +0.029 / +0.040 against +0.038 /
++0.027). The rule prefers `rain` (+0.037 against +0.017), which is the arm whose two strata are
+most nearly a coast/highland split. `both` is the best LightGBM arm on every column but is
+**worse than `temp` alone** for LTAE — at 704 parcels the second covariate is not free.
+
+**5. Consistency, because a mean over 14 departments is 14 numbers.** Paired per-department
+Wilcoxon on the LODO deltas:
+
+| model | arm | folds improved | depts improved | paired p |
+|---|---|---|---|---:|
+| LightGBM | both | 5/5 | **12/14** | **0.004** |
+| LightGBM | temp | 4/5 | 11/14 | 0.055 |
+| LightGBM | rain | 5/5 | 8/14 | 0.217 |
+| LTAE | temp | 4/5 | 10/14 | 0.078 |
+| rules | rain | 5/5 | 10/14 | 0.030 |
+
+Only **LightGBM + `both`** is consistent on both axes at once. The per-department range is wide
+either way (−0.030 to +0.114 for that arm), so this is a real but modest effect, not a step
+change.
+
+**6. Gain rank, which is not contribution.** `tmean_c` enters LightGBM's gain ranking at
+**#2–3 of 138–139** features (7–8 % of total gain) and `precip_mm_yr` at #3–4 (4–6 %). This
+project has twice measured that gain ≠ contribution (dropping 29.8 % of gain cost 0.007
+macro-F1, `LESSONS.md`), so read it only as "the booster looked at the column"; ΔLODO above is
+what it was worth.
+
+#### ⚠️ Caveats that bind
+
+* **Climate does carry department identity.** A random forest on `(tmean_c, precip_mm_yr)`
+  alone recovers the department at **0.676** 5-fold accuracy against a 0.091 prior — 86 % of
+  what `centroid_lat` alone achieves (0.790). The memorisation channel is fully open; what the
+  table shows is that on this store the agro-climatic content **outweighs** it for LightGBM.
+  It does not show that the channel is absent, and it will not stay outweighed on a store with
+  different department coverage.
+* **The normals are time-invariant, and that is safe *here only*.** A single-epoch endpoint
+  classifier has no trend for a constant to manufacture. ⛔ **Do not carry these columns into
+  the panel** — that is the exact family §4.4/§5 measured manufacturing stability. Across years
+  use `parcel_rainfall_annual` (CHIRPS, year-resolved).
+* **1970–2000 normals against 2019+ imagery.** The normals precede the labelled imagery by two
+  decades. They are being used as "what climate is this parcel in", not "what was the weather
+  that year", and the argument only holds for the first reading.
+* **The rule's climate arm buys its gain with parameters.** Climate enters `RuleModel` as a
+  median split of the *training* set with its own three thresholds either side — 6 fitted
+  thresholds for one covariate and 12 for two, against 3 in the `none` arm. An improvement there
+  is not the same kind of evidence as LightGBM's, and the thinnest `both` stratum is ~70 rows.
+* **The rule cannot score above ~0.75 on `t4` at all.** Its label space has three semantic
+  groups, so `WOODY_NON_CROP` is never predicted and its F1 is **0.000 in every arm**. Its
+  numbers here are a floor exercise, not a competitor.
+* **~~One target.~~** ✅ **Resolved by §8.8b**, which re-ran all five arms on `t3w`. The verdict changed: adopt `temp`, not `both`. The other four targets were not re-run.
+* **All of it inherits the unmeasured label noise floor** — one annotator, G1 still not
+  measured (`s2_labelling/plan.md` §2.1).
+
+#### Verdict
+
+⚠️ **SUPERSEDED BY §8.8b — adopt `--climate temp`, not `both`.** On `t4` alone, `both` reads
++0.029 CV, **+0.038 LODO**, +0.103 `PERENNIAL` F1, 12 of 14 departments improved, paired
+p = 0.004, and 2.7× the coordinate control. **That consistency does not replicate on `t3w`**
+(7/14, p = 0.345), and the column that costs it the replication is `precip_mm_yr`, worth
+**−0.001** LODO there. `temp` alone holds its gain across the bracket (+0.029 / +0.027).
+The rest of the verdict stands. **Do not adopt it for LTAE** — the gain is there but the control matches it, so it is
+department memorisation by another route, and §8.2 already says carry LightGBM forward. The
+rule stays what it is: a control.
+
+⚠️ This is a **CV/LODO** result on 704 trainval parcels. 🔓 The locked test was subsequently
+spent on exactly this recommendation — **§8.9**, which confirms it at 0.774 macro-F1.
+
+### 8.8b ⭐ The same climate arms on `t3w` — the gain survives the bracket, the *rainfall* half does not
+
+**Why this run exists.** §8.8 was one target. §8.2c established that folding
+`WOODY_NON_CROP` into `PERENNIAL` moves `PERENNIAL` F1 by **+0.190** — more than anything else
+in the study — so `t4` and `t3w` are not two candidate models to choose between, they are a
+**bracket** on the codebook decision, and a feature verdict should be read across both ends of
+it. There was also a specific live caveat to kill or confirm: above **700 mm/yr**, of the 87
+usable declared-perennial parcels, **1 (1.1 %) was called `PERENNIAL` and 65.5 % `WOODY_NON_CROP`**
+(against 28.8 % / 21.2 % below 700 mm), and the declared crops there are **coffee and cacao** in
+Pasco, Ayacucho and Cajamarca. So rainfall could have been buying §8.8's gain by learning the
+annotator's own rainfall-aligned boundary. `t3w` deletes that boundary, so it is the test.
+
+**Setup, identical to §8.8** except the target: `t3w` (`ANNUAL` / `OTHER` /
+`PERENNIAL`+`WOODY_NON_CROP`), trainval + pilot, **704 parcels**, same frozen folds, same 3 km
+dead-zones, same seeds, all five arms symlinked off the same `modeling_parcels.parquet`. Locked
+test untouched. `rules` was run after all — it costs 6 s per arm.
+
+✅ **The regression gate passed before any delta was read.** All three `none` arms replay §8.2
+bit-for-bit — LightGBM CV **0.7472** / LODO **0.6974**, LTAE **0.8043** / **0.6326**, `rules`
+**0.6747** / **0.5952** — and the per-department LODO maximum absolute difference against the
+artefacts already on disk is **0.0000** for all three.
+
+⚠️ **Majority-class macro-F1 floor 0.228** on `t3w` against **0.171** on `t4`
+(the largest class is 51.8 % in both, but three classes divide instead of four). **Raw macro-F1
+is not comparable between the two tables below.** `skill = (F1 − floor)/(1 − floor)`.
+
+| model | arm | CV macro-F1 | CV acc | LODO macro-F1 (14 depts) | LODO acc | CV−LODO | CV skill | LODO skill | PERENNIAL F1 (CV) | PERENNIAL F1 (LODO) | ΔCV | ΔLODO |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| LightGBM | none | 0.747 ± 0.040 | 0.769 | 0.697 ± 0.121 | 0.750 | 0.050 | 0.673 | 0.608 | 0.768 | 0.720 | — | — |
+| **LightGBM** | **temp** | **0.762 ± 0.038** | **0.783** | **0.724 ± 0.111** | **0.789** | **0.037** | **0.691** | **0.643** | **0.789** | **0.777** | **+0.014** | **+0.027** |
+| LightGBM | rain | 0.768 ± 0.050 | 0.785 | 0.696 ± 0.134 | 0.765 | 0.072 | 0.699 | 0.607 | 0.772 | 0.720 | +0.021 | **−0.001** |
+| LightGBM | both | 0.764 ± 0.043 | 0.780 | 0.717 ± 0.113 | 0.777 | 0.047 | 0.695 | 0.634 | 0.783 | 0.761 | +0.017 | +0.020 |
+| LightGBM | *latlon (control)* | 0.757 ± 0.052 | 0.774 | 0.700 ± 0.112 | 0.758 | 0.058 | 0.686 | 0.611 | 0.771 | 0.733 | +0.010 | **+0.002** |
+| LTAE | none | 0.804 ± 0.040 | 0.816 | 0.633 ± 0.115 | 0.696 | 0.172 | 0.747 | 0.524 | 0.806 | 0.645 | — | — |
+| LTAE | temp | 0.813 ± 0.041 | 0.820 | 0.687 ± 0.063 | 0.748 | 0.126 | 0.758 | 0.595 | 0.805 | 0.712 | +0.009 | +0.054 |
+| LTAE | rain | 0.791 ± 0.049 | 0.802 | 0.678 ± 0.081 | 0.736 | 0.113 | 0.729 | 0.583 | 0.793 | 0.682 | −0.013 | +0.045 |
+| LTAE | both | 0.797 ± 0.041 | 0.807 | 0.678 ± 0.083 | 0.734 | 0.120 | 0.738 | 0.583 | 0.805 | 0.693 | −0.007 | +0.045 |
+| LTAE | *latlon (control)* | 0.786 ± 0.052 | 0.796 | 0.667 ± 0.070 | 0.728 | 0.120 | 0.724 | 0.569 | 0.797 | 0.679 | −0.018 | **+0.034** |
+| rules | none | 0.675 ± 0.040 | 0.700 | 0.595 ± 0.137 | 0.685 | 0.080 | 0.579 | 0.476 | 0.629 | 0.626 | — | — |
+| rules | temp | 0.703 ± 0.025 | 0.727 | 0.648 ± 0.131 | 0.738 | 0.055 | 0.615 | 0.544 | 0.744 | 0.739 | +0.028 | +0.053 |
+| rules | rain | 0.717 ± 0.038 | 0.740 | **0.678 ± 0.130** | 0.737 | 0.039 | 0.634 | 0.584 | 0.731 | 0.725 | +0.043 | **+0.083** |
+| rules | both | 0.723 ± 0.031 | 0.749 | 0.668 ± 0.139 | 0.728 | 0.056 | 0.642 | 0.570 | 0.749 | 0.727 | +0.048 | +0.072 |
+| rules | *latlon (control)* | 0.665 ± 0.038 | 0.689 | 0.571 ± 0.116 | 0.660 | 0.094 | 0.567 | 0.445 | 0.639 | 0.609 | −0.009 | **−0.024** |
+
+#### The two readings side by side
+
+Because the floor moves, the comparable columns are **skill** and **`PERENNIAL` F1**:
+
+| | | LODO skill `t4` | LODO skill `t3w` | PERENNIAL F1 (LODO) `t4` | PERENNIAL F1 (LODO) `t3w` |
+|---|---|---:|---:|---:|---:|
+| LightGBM | none | 0.444 | 0.608 | 0.456 | 0.720 |
+| LightGBM | temp | 0.479 | **0.643** | 0.513 | **0.777** |
+| LightGBM | both | **0.490** | 0.634 | 0.510 | 0.761 |
+| LightGBM | *latlon* | 0.460 | 0.611 | 0.397 | 0.733 |
+| LTAE | none | 0.416 | 0.524 | 0.402 | 0.645 |
+| LTAE | temp | 0.464 | 0.595 | 0.514 | 0.712 |
+| LTAE | *latlon* | 0.461 | 0.569 | 0.395 | 0.679 |
+
+**ΔLODO macro-F1, every arm, both ends of the bracket:**
+
+| model | arm | ΔLODO `t4` | ΔLODO `t3w` | replicates? |
+|---|---|---:|---:|---|
+| LightGBM | temp | +0.029 | +0.027 | ✅ yes, unchanged |
+| LightGBM | rain | +0.023 | **−0.001** | ⛔ **no** |
+| LightGBM | both | **+0.038** | +0.020 | ⚠️ halved |
+| LTAE | temp | +0.040 | +0.054 | ✅ grows |
+| LTAE | rain | +0.023 | +0.045 | ✅ grows |
+| LTAE | both | +0.027 | +0.045 | ✅ grows |
+| rules | rain | +0.037 | **+0.083** | ✅ grows |
+| rules | both | +0.028 | +0.072 | ✅ grows |
+
+#### ⭐ Against the `latlon` control — which way `t3w` falls
+
+Read against `none` alone, every climate arm at `t3w` except LightGBM/`rain` is positive on both
+axes. Read against the control, paired over the **same 14 departments**
+(`climate_arms_{t4,t3w}_vs_control.csv`):
+
+| model | target | ΔLODO climate (`both`) | ΔLODO control | ratio | arm − control, paired | depts beating control | paired p |
+|---|---|---:|---:|---:|---:|---:|---:|
+| LightGBM | `t4` | +0.038 | +0.014 | **2.8×** | +0.024 | 8/14 | 0.117 |
+| **LightGBM** | **`t3w`** | +0.020 | **+0.002** | **9.0×** | +0.018 | 8/14 | 0.345 |
+| LightGBM | `t3w` (`temp`) | +0.027 | +0.002 | **13.5×** | **+0.025** | **10/14** | 0.116 |
+| LTAE | `t4` | +0.027 | +0.037 | 0.7× | **−0.010** | 5/14 | 0.326 |
+| LTAE | `t3w` | +0.045 | +0.034 | 1.3× | +0.011 | 7/14 | 0.530 |
+| rules | `t4` | +0.028 | −0.021 | — | +0.049 | 9/14 | 0.035 |
+| rules | `t3w` | +0.072 | **−0.024** | — | **+0.096** | 11/14 | 0.030 |
+
+⭐ **`t3w` falls the same way `t4` did, and slightly harder.** For **LightGBM** the coordinate
+control buys essentially **nothing** out of department at `t3w` (+0.002) while climate buys
++0.020 to +0.027 — a wider margin over the control than `t4`'s 2.7×, even though the absolute
+gain is smaller. For **LTAE** the control still matches the climate arm (1.3×, paired
+difference +0.011 at p = 0.53), so §8.8's "do not adopt for LTAE" is **confirmed at the second
+target**: what the attention model extracts from a climate column is not distinguishable from
+where the parcel is. For the **rule**, coordinates make it *worse* at both targets while climate
+helps at both, and `t3w` is the strongest version of that (+0.096 over control, 11/14, p = 0.030).
+
+⚠️ **But the paired-against-control test is not significant for LightGBM at either target**
+(p = 0.117 and 0.116–0.345). §8.8's p = 0.004 was measured **against `none`**, not against the
+control, and it is the against-`none` comparison that fails to replicate (below). The sign is
+consistent across two targets and three model classes; the significance is not there.
+
+#### ⚠️ …and §8.8's consistency headline does NOT replicate
+
+This is the finding that most changes §8.8:
+
+| model | arm | `t4` depts improved | `t4` paired p | `t3w` depts improved | `t3w` paired p |
+|---|---|---:|---:|---:|---:|
+| **LightGBM** | **both** | **12/14** | **0.004** | **7/14** | **0.345** |
+| LightGBM | temp | 11/14 | 0.055 | 9/14 | 0.173 |
+| LightGBM | rain | 8/14 | 0.217 | 8/14 | 0.583 |
+| LTAE | temp | 10/14 | 0.078 | 8/14 | 0.023 |
+| rules | rain | 10/14 | 0.030 | 11/14 | 0.020 |
+
+**LightGBM + `both` — the single arm §8.8 adopted, on the strength of 12/14 and p = 0.004 —
+comes back 7/14 at p = 0.345 when `WOODY_NON_CROP` is folded in.** The mean gain is still
+positive (+0.020) but it is no longer consistent across departments. The arm that holds its
+shape across the bracket is **`temp`** (11/14 → 9/14, +0.029 → +0.027).
+
+#### ⭐ The caveat, tested directly: the gain is NOT the annotator's WOODY boundary
+
+The bracket answers this two ways, and both say the same thing.
+
+**1. `PERENNIAL` F1 out of department gains almost exactly as much at both ends.** The
+LightGBM `temp` gain on the class the research question turns on is **+0.057** at `t4`
+(0.456 → 0.513) and **+0.058** at `t3w` (0.720 → 0.777). If the gain had been
+the model learning the rainfall-aligned `PERENNIAL`/`WOODY` split, deleting that split would
+have deleted the gain. It does not move.
+
+**2. Measured on `t4`'s own LODO predictions, the PERENNIAL-vs-WOODY sub-problem is where
+`temp` helps and where `rain` does not** (`climate_arms_t4_woody_boundary.csv`; 223 parcels truly
+`PERENNIAL` or `WOODY_NON_CROP`, "sub-problem accuracy" = fraction of those the model assigns to
+the right one of the two):
+
+| model | arm | P/W sub-problem acc | Δ | Δ PERENNIAL F1 | Δ WOODY F1 | Δ mean F1 of the *other* two classes |
+|---|---|---:|---:|---:|---:|---:|
+| LightGBM | none | 0.605 | — | — | — | — |
+| LightGBM | temp | 0.659 | **+0.054** | +0.057 | +0.031 | +0.023 |
+| LightGBM | rain | 0.587 | **−0.018** | **0.000** | −0.011 | +0.028 |
+| LightGBM | both | 0.641 | +0.036 | +0.053 | +0.014 | +0.035 |
+| LightGBM | *latlon* | 0.587 | −0.018 | −0.059 | +0.019 | −0.003 |
+| LTAE | temp | 0.632 | +0.081 | +0.112 | +0.044 | +0.044 |
+| LTAE | rain | 0.583 | +0.031 | +0.092 | −0.003 | +0.035 |
+
+⭐ **Rainfall never bought the boundary.** Its whole `t4` gain sat in `ANNUAL`/`OTHER`
+(+0.028) while the `PERENNIAL`/`WOODY` sub-problem got **worse** (−0.018) and `PERENNIAL` F1
+moved **exactly 0.000**. So the caveat's mechanism — "rainfall is learning the annotator's
+700 mm rule" — is **not what happened**, and `t3w` is not where a boundary artefact went to die.
+
+**What actually happened to `both` is that the rainfall column does not replicate.** Its `t4`
+gain was never consistent to begin with (8/14, p = 0.217), and at `t3w` it is **−0.001**
+(8/14, p = 0.583). `both` halves from +0.038 to +0.020 because it carries `rain`; `temp` alone
+is unchanged. Temperature, by contrast, improves the boundary **and** the other classes
+**and** keeps its out-of-department gain when the boundary is deleted — which is what a real
+agro-climatic covariate should look like, since it is temperature and not rainfall that sets
+where a tree crop can stand.
+
+⚠️ The rainfall-aligned annotator boundary described above **is still real** and still
+uncontrolled — 1 of 87 declared-perennial parcels above 700 mm called `PERENNIAL` is a striking
+number, and G1 has never measured whether a second annotator would draw it the same way. What
+`t3w` establishes is only that **§8.8's measured gain does not depend on it.**
+
+#### What `t3w` says about the models
+
+* **LightGBM still wins LODO at every arm** (0.724 against LTAE's 0.687 at `temp`), and LTAE's
+  CV−LODO drop is still 3.4× LightGBM's at `none` (0.172 vs 0.050). §8.2's verdict is untouched.
+* **Climate narrows LTAE's transfer gap without closing it.** LTAE's drop falls 0.172 → 0.126
+  and its LODO SD halves (0.115 → 0.063) — but the control does the same thing (0.120, SD 0.070),
+  which is the whole point of having one.
+* **`t3w` is the higher-skill reading even after normalising**: best LODO skill 0.643 against
+  `t4`'s 0.490, and `PERENNIAL` LODO F1 0.777 against 0.513. That is §8.2c's finding again —
+  the codebook decision dominates every modelling choice measured here, climate included.
+
+#### Verdict — §8.8 revised
+
+⚠️ **§8.8's verdict is amended, not overturned.** Adopt **`--climate temp` for LightGBM**, not
+`--climate both`. `temp` is the only arm that is positive on both axes at **both** ends of the
+bracket, above the coordinate control at both (+0.015 / +0.025), positive on `PERENNIAL` F1 at
+both (+0.057 / +0.058), and the only one whose out-of-department gain is the same size after the
+codebook decision is changed. `both` earns a higher `t4` number on a consistency result
+(12/14, p = 0.004) that **does not replicate** (7/14, p = 0.345), and the column that costs it
+the replication is `precip_mm_yr`, which is worth **−0.001** out of department at `t3w`.
+
+**Unchanged from §8.8:** do **not** adopt climate for LTAE — the control matches it at both
+targets. Do **not** carry these time-invariant normals into the panel (§4.4/§5). The rule stays
+a control. And the headline claim survives: **climate is still the first added feature in this
+project that improves the out-of-department number**, now at two targets rather than one —
+but the honest effect size is **+0.027 LODO macro-F1 at 9/14 departments, p = 0.17**, not
+§8.8's +0.038 at 12/14, p = 0.004.
+
+⚠️ Still **CV/LODO on 704 trainval parcels**, one annotator, G1 unmeasured. Nothing in *this*
+section touched the locked test; 🔓 **§8.9** then spent it on this section's recommendation.
+
+**Full tables**, all written by `allperu s2-train report --target {t4,t3w} --pilot --climate both`:
+`labels_s2/climate_arms_t3w{,_consistency,_per_class,_lodo_per_class,_vs_control,_gain}.csv`,
+the same six for `t4`, `labels_s2/climate_arms_t4_woody_boundary.csv` (empty at `t3w` by
+construction) and `labels_s2/climate_arms_bracket_t4_t3w.csv`. The four analyses new in this
+section — `lodo_per_class`, `control_paired`, `woody_boundary`, `bracket` — are functions in
+`labelling/climate_arms.py`, not one-off scripts.
+
+---
+
+### 8.9 🔓 The locked test, SPENT — `t3w` + `temp`, and it holds
+
+⚠️ **The locked test is no longer unspent.** On 2026-09-01 it was scored, once, on the two
+configurations §8.8b had already selected on CV/LODO: LightGBM / `t3w`+pilot / `--climate temp`
+and the same with `--climate both`. Nothing else has been or should be scored on it. Every
+number elsewhere in §8 remains a CV/LODO number and was produced before this section existed.
+
+**What was held out.** 161 usable parcels of the 201 drawn (184 labelled, 23 excluded), in 150
+distinct 5 km regions across **all 14 departments**. The split was frozen in
+`config/split_s2labels.yaml` **before any labelling**. The refit trains on **633** parcels —
+the 704 trainval+pilot minus the **71** that sit inside the 3 km dead-zone around a test
+parcel — so no training parcel is within 3 km of a scored one.
+
+⚠️ **Majority-class macro-F1 floor on the test split is 0.219** (largest class `OTHER`,
+79/161 = 49.1 %), against 0.228 on trainval. `skill = (F1 − floor)/(1 − floor)`.
+
+| arm | macro-F1 | 95 % CI (bootstrap) | **skill** | accuracy | balanced acc | weighted-F1 | κ |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| **`temp`** ⭐ | **0.774** | [0.697, 0.845] | **0.711** | **0.789** | 0.751 | 0.787 | 0.647 |
+| `both` | 0.764 | [0.688, 0.834] | 0.698 | 0.783 | 0.743 | 0.781 | 0.637 |
+
+**Per class, `temp`:**
+
+| class | precision | recall | **F1** | n |
+|---|---:|---:|---:|---:|
+| `ANNUAL` | **0.938** | 0.600 | 0.732 | 25 |
+| `OTHER` | 0.810 | 0.810 | 0.810 | 79 |
+| **`PERENNIAL`** | 0.727 | **0.842** | **0.780** | 57 |
+
+**Confusion, `temp`** (rows = human label):
+
+| ↓ truth / model → | ANNUAL | OTHER | PERENNIAL |
+|---|---:|---:|---:|
+| **ANNUAL** | **15** | 7 | 3 |
+| **OTHER** | 0 | **64** | 15 |
+| **PERENNIAL** | 1 | 8 | **48** |
+
+#### What it says
+
+⭐ **1. The CV number was honest.** Test macro-F1 **0.774** against CV **0.762** — the held-out
+set scores *slightly above* cross-validation, so the 5-fold estimate was not inflated by the
+fold structure. `PERENNIAL` F1 is **0.780** on the test against **0.789** out-of-fold: the
+class the research question turns on reproduces to within 0.01 on data the model has never
+seen in any form.
+
+⚠️ **2. Read 0.774 as the in-department number, not the transfer number.** The test holds out
+5 km regions, and every one of the 14 departments appears on **both** sides of the split — so
+it is a CV-regime estimate, and it tracks CV (0.762), not LODO (0.724). It is **not** evidence
+about a new department. The out-of-department expectation stays **0.724 ± 0.112**, and §4.2's
+central lesson is exactly that these two numbers are different questions.
+
+**3. `temp` and `both` are indistinguishable here, which is the expected outcome.** They
+disagree on **8 of 161** parcels; `temp` is right on 4 of those and `both` on 3 (McNemar exact
+p = 1.000). A 161-parcel test cannot separate a 0.010 difference and was never going to — the
+choice between them was made on LODO consistency (§8.8b: 9/14 vs 7/14 departments), which is
+the axis that had the resolution to decide it. The test confirms the selected arm performs as
+advertised; it does not re-adjudicate the selection.
+
+**4. The residual error is the `OTHER` ↔ `PERENNIAL` boundary**, 15 + 8 = 23 of the 34 errors.
+`ANNUAL` is again nearly clean against `PERENNIAL` (3 + 1 = 4 parcels confused in either
+direction) — the same shape §8.2 found out-of-fold, now on held-out data. `ANNUAL`'s recall is
+the weak spot (0.600 at precision 0.938): the model under-calls annual cropland rather than
+over-calling it, on 25 parcels.
+
+⚠️ **5. The interval is wide and that is structural.** ±7 pp at 95 %. 161 parcels over 14
+departments is what the campaign budgeted; per-department accuracy ranges 0.57–1.00 on
+handfuls of parcels each and **should not be read per department at all**.
+
+⚠️ **6. The label-noise floor underneath all of this is still unmeasured.** One annotator, G1
+never run (`s2_labelling/plan.md` §2.1). A 0.774 against labels of unknown reliability is not
+0.774 against ground truth.
+
+#### Verdict
+
+✅ **The `t3w` + `--climate temp` LightGBM endpoint classifier is confirmed on held-out data:
+0.789 accuracy, 0.774 macro-F1, `PERENNIAL` F1 0.780, n = 161 across 14 departments.** It is
+the project's first accuracy measured on data locked away before labelling began, and it
+agrees with the cross-validated estimate. Carry it forward as the model of record for the
+endpoint reading.
+
+⛔ **The test is now spent. Do not score another configuration on it.** Any future model
+change is a CV/LODO decision, and if it is ever scored here the number must be reported as a
+second look, not as a fresh confirmation.
+
+---
 
 ---
 

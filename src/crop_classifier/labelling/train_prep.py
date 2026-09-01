@@ -369,7 +369,8 @@ def report(target: str | None = None, include_pilot: bool | None = None
 # ---------------------------------------------------------------------------------
 def dept_transfer(target: str = "t4", model_name: str = "lightgbm",
                   model_kw: dict | None = None, min_labels: int = 35,
-                  include_pilot: bool = True) -> pd.DataFrame:
+                  include_pilot: bool = True, ws: Path | None = None,
+                  tag: str = "") -> pd.DataFrame:
     """Hold out a whole **department**, train on the rest, score the held-out one.
 
     This is the only out-of-distribution axis this campaign has. Cross-validation here
@@ -388,7 +389,9 @@ def dept_transfer(target: str = "t4", model_name: str = "lightgbm",
     """
     import os
 
-    ws = ws_dir(target, include_pilot)
+    # `ws` overrides the workspace so a feature-set variant (labelling.climate_arms) can
+    # reuse this procedure unchanged; `tag` names its output file.
+    ws = Path(ws) if ws is not None else ws_dir(target, include_pilot)
     os.environ["CC_PROC"] = str(ws)
     os.environ["CC_FEAT"] = str(ws / "features")
 
@@ -424,7 +427,7 @@ def dept_transfer(target: str = "t4", model_name: str = "lightgbm",
         rng = np.random.default_rng(0)
         va = rng.random(len(tr_idx)) < 0.15
         val_ds = make_dataset(model.input_kind, parcels, tr_idx[va], normalizer=norm)
-        fit_dir = ws / f"lodo_{model_name}_{dpt}"
+        fit_dir = ws / f"lodo_{model_name}{tag}_{dpt}"
         fit_dir.mkdir(parents=True, exist_ok=True)
         model.fit(train_ds, val_ds, class_weights(train_ds.y, len(classes)), fit_dir)
         prob = model.predict_proba(test_ds)
@@ -439,10 +442,11 @@ def dept_transfer(target: str = "t4", model_name: str = "lightgbm",
 
     out = pd.DataFrame(rows)[["dept", "n", "n_train", "macro_f1", "accuracy",
                               "balanced_accuracy", "weighted_f1", "cohen_kappa"]]
-    out.to_csv(ws / f"lodo_{model_name}.csv", index=False)
+    stem = f"lodo_{model_name}{tag}"
+    out.to_csv(ws / f"{stem}.csv", index=False)
     pd.concat(preds, ignore_index=True).to_parquet(
-        ws / f"lodo_{model_name}_preds.parquet", index=False)
+        ws / f"{stem}_preds.parquet", index=False)
     print(f"\nLODO mean macro-F1 {out.macro_f1.mean():.3f} "
           f"± {out.macro_f1.std():.3f} over {len(out)} departments")
-    print(f"wrote {ws / f'lodo_{model_name}.csv'}")
+    print(f"wrote {ws / f'{stem}.csv'}")
     return out

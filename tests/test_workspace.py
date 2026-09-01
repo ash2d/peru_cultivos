@@ -136,3 +136,42 @@ def test_the_repo_config_parses_and_every_workspace_resolves(monkeypatch):
     for name in W.names():
         ws = W.resolve(name)
         assert ws.proc.is_absolute() and ws.feat.is_absolute() and ws.runs.is_absolute()
+
+
+# ── the portability guard ────────────────────────────────────────────────────────────────
+# Two absolute paths to one laptop shipped in `src/` for months: a OneDrive mount and a
+# Google Cloud project id. Neither failed on the machine that wrote them, and both would
+# have failed on a collaborator's first run, inside someone else's library rather than at a
+# line naming the file to edit. A grep is the only thing that notices.
+
+_MACHINE_SPECIFIC = (
+    "/Users/",
+    "/home/",
+    "C:\\\\Users",
+    "OneDrive-SharedLibraries",
+)
+
+
+def test_no_source_file_hardcodes_a_path_to_one_machine():
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parents[1]
+    hits = []
+    for path in sorted(root.glob("src/**/*.py")):
+        for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if any(m in line for m in _MACHINE_SPECIFIC):
+                hits.append(f"{path.relative_to(root)}:{i}: {line.strip()}")
+    assert not hits, (
+        "source files contain machine-specific absolute paths; move them to "
+        "workspaces.yaml:\n  " + "\n  ".join(hits)
+    )
+
+
+def test_importing_the_gee_module_does_not_require_a_configured_project(monkeypatch):
+    """Resolution must happen in ``init_ee``, not at import. The test suite imports this
+    module constantly and must not need Earth Engine configured to do it."""
+    monkeypatch.delenv("GEE_PROJECT", raising=False)
+    import importlib
+    lg = importlib.import_module("crop_classifier.features.landsat_gee")
+    assert not hasattr(lg, "GEE_PROJECT")
+    import inspect
+    assert inspect.signature(lg.init_ee).parameters["project"].default is None

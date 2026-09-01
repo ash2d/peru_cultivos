@@ -108,6 +108,33 @@ uniformly distributed, so its *concentration* matters far more than its size. **
 unmapped tokens sorted by frequency and read the top ten by hand**; the budget check alone would
 have passed this.
 
+### ⭐ Score a new covariate against a same-shaped control, not against nothing
+
+Adding mean temperature and rainfall to the S2 endpoint classifier raised cross-validation
+**and** leave-one-department-out (`RESULTS.md` §8.8). That is the right shape for a real
+covariate, and it is not enough on its own: a 1 km climate surface is a smooth function of
+location, and location is this project's canonical memorisation feature. So the arm was run a
+fourth time with **centroid latitude + longitude in place of the two climate columns** — same
+count, same time-invariance, same smoothness, no agro-climatic content.
+
+The control is what produced the finding. LightGBM got **+0.038** LODO from climate against
+**+0.014** from coordinates: 2.7×, so most of it is content. LTAE got **+0.027** from climate
+against **+0.037** from coordinates: the gain is real and it is *geography*. The rule got
+**+0.028** from climate and **−0.021** from coordinates. **Three model classes, one covariate,
+three different answers to "is this signal or memorisation" — and none of them is visible
+without the control.**
+
+The general form: when a proposed feature is a smooth function of something the model must not
+memorise, the comparison that decides is not *feature vs nothing*, it is *feature vs a
+same-shaped surrogate carrying only the thing you are worried about*. Build the surrogate in the
+same run, with the same folds, and put it in the table labelled as a control so nobody later
+reads it as a proposal.
+
+Corollary, learned in the same table: **verify the "nothing" arm reproduces its recorded
+numbers.** Plumbing statics into the dataset and the network touched code every arm shares. The
+no-climate arms coming back at 0.6717 / 0.5387, 0.7084 / 0.5154 and 0.3923 / 0.3605 — the
+figures already in §8.2 — is what licensed reading the deltas as deltas.
+
 ### A quantity measured inside one department is not a quantity
 
 "Piura is one of the hardest departments" was a property of `centroid_lat`, not of Piura —

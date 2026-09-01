@@ -1,0 +1,35 @@
+\contentsline {section}{\numberline {1}Summary of results}{3}{section.1}%
+\contentsline {section}{\numberline {2}Data}{4}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Sources}{4}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Linkage}{4}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Coverage, and why its limits are permanent}{4}{subsection.2.3}%
+\contentsline {section}{\numberline {3}Classification}{5}{section.3}%
+\contentsline {subsection}{\numberline {3.1}The three models}{5}{subsection.3.1}%
+\contentsline {subsubsection}{\numberline {3.1.1}F1 score}{5}{subsubsection.3.1.1}%
+\contentsline {subsection}{\numberline {3.2}Twelve crops: not separable}{5}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Three land states: separable}{7}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}National extension}{7}{subsection.3.4}%
+\contentsline {section}{\numberline {4}Evaluation}{8}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Four tests rather than one}{8}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Latitude resembles information and is not}{8}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}The same pattern in a model architecture}{8}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}A trap in the headline metric}{9}{subsection.4.4}%
+\contentsline {section}{\numberline {5}Why a year-by-year history is not available}{9}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Predicted histories are dominated by noise}{10}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}The 1998 El Niño makes the baseline years unusable}{10}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Aggregation and correction do not repair it}{11}{subsection.5.3}%
+\contentsline {section}{\numberline {6}Direct measurement of the change}{11}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Photo-interpretation of recent imagery}{11}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}What the labels show without a classifier}{12}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}The 2012 census as the earlier observation}{13}{subsection.6.3}%
+\contentsline {subsection}{\numberline {6.4}The three measurements together}{13}{subsection.6.4}%
+\contentsline {section}{\numberline {7}The effect of legal title}{14}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Design}{14}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Result: a tight null}{14}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}The census reaches the same conclusion independently}{15}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.4}What would change this answer}{16}{subsection.7.4}%
+\contentsline {section}{\numberline {8}Climate covariates}{16}{section.8}%
+\contentsline {section}{\numberline {9}Limitations}{17}{section.9}%
+\contentsline {section}{\numberline {10}Conclusions}{18}{section.10}%
+\contentsline {section}{\numberline {A}Work built, tested and deliberately unrun}{18}{appendix.A}%
+\contentsline {section}{\numberline {B}Software}{18}{appendix.B}%

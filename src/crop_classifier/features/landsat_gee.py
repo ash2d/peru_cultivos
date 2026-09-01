@@ -35,7 +35,10 @@ import pandas as pd
 
 from crop_classifier.paths import feat, proc
 
-GEE_PROJECT = "peru-crop-classifier"
+# The Earth Engine project id lives in workspaces.yaml, resolved at call time by
+# `init_ee`. It used to be hard-coded here, which meant a second user's first extraction
+# failed inside Google's client rather than at a line telling them what to edit — Earth
+# Engine bills a *project*, so there is no shared default that could ever be right.
 
 L5 = "LANDSAT/LT05/C02/T1_L2"
 L7 = "LANDSAT/LE07/C02/T1_L2"
@@ -66,13 +69,19 @@ _OLI_BANDS = {"SR_B2": "B", "SR_B3": "G", "SR_B4": "R", "SR_B5": "NIR",
 _ee = None  # module-level handle set by init_ee
 
 
-def init_ee(project: str = GEE_PROJECT):
-    """Initialise Earth Engine once; a 120 s socket timeout stops any call hanging."""
+def init_ee(project: str | None = None):
+    """Initialise Earth Engine once; a 120 s socket timeout stops any call hanging.
+
+    ``project`` defaults to ``gee_project`` in ``workspaces.yaml`` (or the ``GEE_PROJECT``
+    environment variable). Resolved here rather than as a module default so that importing
+    this module never requires a configured project — the tests import it constantly.
+    """
     global _ee
     if _ee is None:
+        from crop_classifier.workspace import gee_project
         socket.setdefaulttimeout(120)
         import ee
-        ee.Initialize(project=project)
+        ee.Initialize(project=project or gee_project())
         _ee = ee
     return _ee
 

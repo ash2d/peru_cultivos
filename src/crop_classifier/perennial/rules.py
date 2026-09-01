@@ -57,7 +57,9 @@ class RuleModel:
 
     def __init__(self, features: tuple[str, ...] = DEFAULT_FEATURES,
                  grid_steps: int = 25, seed: int = 42,
-                 softness: float = 0.05, **kw):
+                 softness: float = 0.05,
+                 climate_features: tuple[str, ...] = (),
+                 min_stratum: int = 60, **kw):
         self.features = tuple(features)
         self.grid_steps = grid_steps
         self.seed = seed
@@ -67,6 +69,11 @@ class RuleModel:
         self._n_classes = 0
         self.fallback_class = 0            # training-majority class for NaN rows
         self.n_nan_rows = 0
+        # climate stratification (see `_strata` for what it does and why)
+        self.climate_features = tuple(climate_features)
+        self.min_stratum = min_stratum
+        self.climate_cuts: dict[str, float] = {}
+        self.strata_thresholds: dict[str, dict[str, float]] = {}
 
     # -- registry plumbing -------------------------------------------------------------
     def set_n_classes(self, n: int) -> None:
@@ -99,6 +106,36 @@ class RuleModel:
         return (idx.get("PERENNIAL", 2), idx.get("ANNUAL", 0),
                 idx.get("PASTURE_FALLOW", 1))
 
+    # -- climate stratification ----------------------------------------------------------
+    def _strata(self, ds) -> np.ndarray:
+        """Stratum id per row from the climate columns, using the fitted median cuts.
+
+        A rule model cannot take a covariate the way a booster does — there is no
+        coefficient to give it. What climate *can* do inside a depth-2 phenology rule is
+        move the thresholds: 'high NDVI all year' means something different in a 1,600 mm
+        valley and on the 20 mm coastal desert, so the rule is fitted **separately either
+        side of the training median** of each climate column. One column gives 2 strata,
+        two columns give a 2x2 = 4.
+
+        ⚠️ This is the one place in this comparison where the extra input also multiplies
+        the number of fitted parameters — 3 thresholds per stratum instead of 3 in total —
+        so an improvement here is not the same kind of evidence as an improvement in
+        LightGBM, and a *loss* here can be plain overfitting on ~140 rows per cell.
+        ``min_stratum`` sends any thinner cell back to the global thresholds.
+        """
+        if not self.climate_features:
+            return np.zeros(len(ds.y) if hasattr(ds, "y") else len(ds.X), dtype=int)
+        X = ds.X
+        missing = [f for f in self.climate_features if f not in X.columns]
+        if missing:
+            raise KeyError(f"climate features missing from the feature store: {missing}")
+        sid = np.zeros(len(X), dtype=int)
+        for b, f in enumerate(self.climate_features):
+            v = X[f].to_numpy(dtype=float)
+            sid |= (np.nan_to_num(v, nan=self.climate_cuts[f]) > self.climate_cuts[f]
+                    ).astype(int) << b
+        return sid
+
     # -- the rule ----------------------------------------------------------------------
     def _apply(self, level, amp, peak, t_hi, t_amp, t_peak) -> np.ndarray:
         per, ann, pas = self._class_ids()
@@ -128,27 +165,59 @@ class RuleModel:
                                q(peak, self.grid_steps))
         yo, lo, ao, po = y[ok], level[ok], amp[ok], peak[ok]
         n_cls = max(self._n_classes, int(yo.max()) + 1)
-        best = (-1.0, float(np.median(g_hi)), float(np.median(g_amp)),
-                float(np.nanmax(g_peak)))
-        for t_hi in g_hi:
-            for t_amp in g_amp:
-                for t_peak in g_peak:
-                    pred = self._apply(lo, ao, po, t_hi, t_amp, t_peak)
-                    f1 = _macro_f1(yo, pred, n_cls)
-                    if f1 > best[0]:
-                        best = (f1, float(t_hi), float(t_amp), float(t_peak))
+
+        def search(sel: np.ndarray) -> tuple[float, float, float, float]:
+            yy, ll, aa, pp = yo[sel], lo[sel], ao[sel], po[sel]
+            best = (-1.0, float(np.median(g_hi)), float(np.median(g_amp)),
+                    float(np.nanmax(g_peak)))
+            for t_hi in g_hi:
+                for t_amp in g_amp:
+                    for t_peak in g_peak:
+                        f1 = _macro_f1(yy, self._apply(ll, aa, pp, t_hi, t_amp, t_peak),
+                                       n_cls)
+                        if f1 > best[0]:
+                            best = (f1, float(t_hi), float(t_amp), float(t_peak))
+            return best
+
+        best = search(np.ones(len(yo), dtype=bool))
         self.thresholds = {"NDVI_level_hi": best[1], "NDVI_amp_max": best[2],
                            "NDVI_peak_min": best[3], "train_macro_f1": best[0]}
         print(f"  rules: t_level>={best[1]:.3f}, t_amp<={best[2]:.3f}, "
               f"t_peak>={best[3]:.3f}  (train macro-F1 {best[0]:.3f}, "
               f"{self.n_nan_rows:,} NaN rows -> class {self.fallback_class})")
 
+        # --- one threshold set per climate stratum, fitted on train only ---
+        self.climate_cuts, self.strata_thresholds = {}, {}
+        if self.climate_features:
+            for f in self.climate_features:
+                self.climate_cuts[f] = float(np.nanmedian(
+                    train_ds.X[f].to_numpy(dtype=float)[ok]))
+            sid = self._strata(train_ds)[ok]
+            for k in np.unique(sid):
+                sel = sid == k
+                if int(sel.sum()) < self.min_stratum:
+                    print(f"  rules[clim stratum {k}]: n={int(sel.sum())} "
+                          f"< min_stratum {self.min_stratum} -> global thresholds")
+                    continue
+                b = search(sel)
+                self.strata_thresholds[str(int(k))] = {
+                    "NDVI_level_hi": b[1], "NDVI_amp_max": b[2],
+                    "NDVI_peak_min": b[3], "train_macro_f1": b[0], "n": int(sel.sum())}
+                print(f"  rules[clim stratum {k}]: n={int(sel.sum())} "
+                      f"t_level>={b[1]:.3f}, t_amp<={b[2]:.3f}, t_peak>={b[3]:.3f} "
+                      f"(train macro-F1 {b[0]:.3f})")
+            cuts = {k: round(v, 1) for k, v in self.climate_cuts.items()}
+            print(f"  rules: climate cuts {cuts}")
+
         if run_dir is not None:
             run_dir = Path(run_dir)
             with open(run_dir / "thresholds.json", "w") as f:
                 json.dump({**self.thresholds, "features": list(self.features),
                            "n_nan_rows": self.n_nan_rows,
-                           "fallback_class": self.fallback_class}, f, indent=2)
+                           "fallback_class": self.fallback_class,
+                           "climate_features": list(self.climate_features),
+                           "climate_cuts": self.climate_cuts,
+                           "strata_thresholds": self.strata_thresholds}, f, indent=2)
             try:
                 self._boundary_png(lo, ao, yo, run_dir / "rule_boundary.png")
             except Exception as e:  # plotting must never fail a training run
@@ -157,11 +226,19 @@ class RuleModel:
 
     def predict_proba(self, ds) -> np.ndarray:
         level, amp, peak, nan = self._columns(ds)
-        t_hi = self.thresholds["NDVI_level_hi"]
-        t_amp = self.thresholds["NDVI_amp_max"]
-        t_peak = self.thresholds["NDVI_peak_min"]
-        per, ann, pas = self._class_ids()
         n = len(level)
+        # per-row thresholds: the global set, overridden inside any climate stratum that
+        # was thick enough to fit its own
+        t_hi = np.full(n, self.thresholds["NDVI_level_hi"], dtype=float)
+        t_amp = np.full(n, self.thresholds["NDVI_amp_max"], dtype=float)
+        t_peak = np.full(n, self.thresholds["NDVI_peak_min"], dtype=float)
+        if self.climate_features and self.strata_thresholds:
+            sid = self._strata(ds)
+            for k, th in self.strata_thresholds.items():
+                m = sid == int(k)
+                t_hi[m], t_amp[m], t_peak[m] = (th["NDVI_level_hi"], th["NDVI_amp_max"],
+                                                th["NDVI_peak_min"])
+        per, ann, pas = self._class_ids()
         s = self.softness
 
         # soft membership of each rule branch; each is in (0,1) and calibratable
@@ -191,14 +268,20 @@ class RuleModel:
                        "n_classes": self._n_classes, "softness": self.softness,
                        "class_names": self.class_names,
                        "fallback_class": self.fallback_class,
-                       "n_nan_rows": self.n_nan_rows}, f, indent=2)
+                       "n_nan_rows": self.n_nan_rows,
+                       "climate_features": list(self.climate_features),
+                       "climate_cuts": self.climate_cuts,
+                       "strata_thresholds": self.strata_thresholds}, f, indent=2)
 
     @classmethod
     def load(cls, path: Path) -> RuleModel:
         with open(path) as f:
             s = json.load(f)
-        m = cls(features=tuple(s["features"]), softness=s["softness"])
+        m = cls(features=tuple(s["features"]), softness=s["softness"],
+                climate_features=tuple(s.get("climate_features", ())))
         m.thresholds = s["thresholds"]
+        m.climate_cuts = s.get("climate_cuts", {})
+        m.strata_thresholds = s.get("strata_thresholds", {})
         m._n_classes = s["n_classes"]
         m.class_names = s.get("class_names")
         m.fallback_class = s.get("fallback_class", 0)

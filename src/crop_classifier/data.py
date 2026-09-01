@@ -29,6 +29,10 @@ from crop_classifier.paths import feat, proc
 FN_LGBM = "features_lightgbm.parquet"
 FN_PERDATE = "tensor_perdate.npz"
 FN_PIXELSET = "tensor_pixelset.npz"
+# Optional per-parcel static covariates riding alongside the sequence tensor.
+# Absent from every store built before the climate arms, and absent = no statics,
+# so the sequence models are byte-for-byte unchanged where the file does not exist.
+FN_STATICS = "statics.npz"
 
 
 def load_parcels(require_quality: bool = True,
@@ -197,11 +201,19 @@ def make_flat(parcels: pd.DataFrame, idx: pd.Index,
 # sequence (LTAE) / pixelset (PSE-LTAE)
 # ------------------------------------------------------------------------------------
 class Normalizer:
-    """Per-channel mean/std over *valid* entries; fit on train only."""
+    """Per-channel mean/std over *valid* entries; fit on train only.
+
+    Carries a second, optional block for per-parcel **statics** (the climate columns), fit
+    on the same train subset and for the same reason: a static standardised against the
+    validation fold's own mean is a leak, and with two columns and ~550 training parcels it
+    would be a large one.
+    """
 
     def __init__(self) -> None:
         self.mean: np.ndarray | None = None
         self.std: np.ndarray | None = None
+        self.smean: np.ndarray | None = None
+        self.sstd: np.ndarray | None = None
 
     def fit(self, X: np.ndarray, valid: np.ndarray) -> Normalizer:
         flat = X[valid]                       # [n_valid, C]
@@ -209,17 +221,31 @@ class Normalizer:
         self.std = (flat.std(axis=0) + 1e-6).astype(np.float32)
         return self
 
+    def fit_static(self, S: np.ndarray) -> Normalizer:
+        self.smean = np.nanmean(S, axis=0).astype(np.float32)
+        self.sstd = (np.nanstd(S, axis=0) + 1e-6).astype(np.float32)
+        return self
+
     def apply(self, X: np.ndarray) -> np.ndarray:
         return ((X - self.mean) / self.std).astype(np.float32)
 
+    def apply_static(self, S: np.ndarray) -> np.ndarray:
+        return np.nan_to_num((S - self.smean) / self.sstd).astype(np.float32)
+
     def state(self) -> dict:
-        return {"mean": self.mean.tolist(), "std": self.std.tolist()}
+        d = {"mean": self.mean.tolist(), "std": self.std.tolist()}
+        if self.smean is not None:
+            d["smean"], d["sstd"] = self.smean.tolist(), self.sstd.tolist()
+        return d
 
     @classmethod
     def from_state(cls, s: dict) -> Normalizer:
         n = cls()
         n.mean = np.array(s["mean"], dtype=np.float32)
         n.std = np.array(s["std"], dtype=np.float32)
+        if "smean" in s:
+            n.smean = np.array(s["smean"], dtype=np.float32)
+            n.sstd = np.array(s["sstd"], dtype=np.float32)
         return n
 
 
@@ -253,17 +279,40 @@ class SeqDataset:
         self.mask = z["mask"][rows]
         self.pixmask = z["pixmask"][rows] if kind == "pixelset" else None
 
+        # optional per-parcel statics (the climate arms). Absent file -> n_static 0 and
+        # the batch carries no `stat` key, so nothing downstream changes.
+        self.statics: np.ndarray | None = None
+        self.static_names: list[str] = []
+        sf = fd / FN_STATICS
+        if sf.exists():
+            zs = np.load(sf, allow_pickle=True)
+            spos = {c: i for i, c in enumerate(zs["cod_predio"])}
+            miss = [c for c in self.cod_predio if c not in spos]
+            if miss:
+                raise KeyError(f"{sf} is missing statics for {len(miss)} parcels "
+                               f"(e.g. {miss[:3]}) — rebuild the arm's workspace")
+            self.statics = zs["X"][[spos[c] for c in self.cod_predio]].astype(np.float32)
+            self.static_names = [str(n) for n in zs["names"]]
+
         if normalizer is None:
             normalizer = Normalizer()
             valid = self.mask if kind == "sequence" else self.pixmask
             normalizer.fit(self.X, valid)
+            if self.statics is not None:
+                normalizer.fit_static(self.statics)
         self.normalizer = normalizer
+        if self.statics is not None:
+            self.statics = self.normalizer.apply_static(self.statics)
         self.X = self.normalizer.apply(self.X)
         # re-zero padded entries so masked positions stay neutral after normalisation
         if kind == "sequence":
             self.X[~self.mask] = 0.0
         else:
             self.X[~self.pixmask] = 0.0
+
+    @property
+    def n_static(self) -> int:
+        return 0 if self.statics is None else int(self.statics.shape[1])
 
     def __len__(self) -> int:
         return len(self.y)
@@ -276,6 +325,8 @@ class SeqDataset:
                 "y": torch.tensor(self.y[i])}
         if self.kind == "pixelset":
             item["pixmask"] = torch.from_numpy(self.pixmask[i])
+        if self.statics is not None:
+            item["stat"] = torch.from_numpy(self.statics[i])
         return item
 
 
@@ -288,9 +339,12 @@ def make_dataset(input_kind: str, parcels: pd.DataFrame, idx: pd.Index,
     """Factory used by the trainer: one call site for all three input kinds.
 
     ``drop_features``/``feature_names``/``augment_feat`` apply to the flat path only — the
-    sequence and pixel-set tensors carry no statics at all (only spectral + doy + mask), so
-    the attention models are structurally free of the metadata confound, and degradation
-    augmentation for them would need degraded *tensors*, which is a separate build.
+    sequence and pixel-set tensors carry no statics of their own (only spectral + doy +
+    mask), so the attention models are structurally free of the metadata confound, and
+    degradation augmentation for them would need degraded *tensors*, which is a separate
+    build. The one exception is a feature directory that also holds ``statics.npz``, which
+    the climate arms write deliberately (``labelling.climate_arms``); nothing else in the
+    project ships one.
     """
     if input_kind == "flat":
         return make_flat(parcels, idx, feat_dir=feat_dir, drop_features=drop_features,

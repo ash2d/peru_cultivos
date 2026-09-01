@@ -1,0 +1,91 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Summary of results}{3}{section.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Every line of work and its outcome.}}{3}{table.caption.2}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{tab:scoreboard}{{1}{3}{Every line of work and its outcome}{table.caption.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Data}{4}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Sources}{4}{subsection.2.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces The raw sources.}}{4}{table.caption.3}\protected@file@percent }
+\newlabel{tab:sources}{{2}{4}{The raw sources}{table.caption.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Linkage}{4}{subsection.2.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces The two linkages. The upper chain uses real keys on both joins and forms the training set. The lower chain matches only on the farmer's name, so it identifies the person reliably and the individual parcel only approximately. Its results are therefore reported by link quality and reweighted before any national claim is made.}}{4}{figure.caption.4}\protected@file@percent }
+\newlabel{fig:chain}{{1}{4}{The two linkages. The upper chain uses real keys on both joins and forms the training set. The lower chain matches only on the farmer's name, so it identifies the person reliably and the individual parcel only approximately. Its results are therefore reported by link quality and reweighted before any national claim is made}{figure.caption.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Coverage, and why its limits are permanent}{4}{subsection.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}Classification}{5}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}The three models}{5}{subsection.3.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces The three models and what each one reads.}}{5}{table.caption.5}\protected@file@percent }
+\newlabel{tab:models}{{3}{5}{The three models and what each one reads}{table.caption.5}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.1}F1 score}{5}{subsubsection.3.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Twelve crops: not separable}{5}{subsection.3.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Seasonal greenness for each of the twelve crops, against the all-parcel median in grey. The five annual crops in the upper rows are nearly indistinguishable from one another and from the median. The three perennial crops in the bottom row sit clearly above it all year.}}{6}{figure.caption.6}\protected@file@percent }
+\newlabel{fig:profiles12}{{2}{6}{Seasonal greenness for each of the twelve crops, against the all-parcel median in grey. The five annual crops in the upper rows are nearly indistinguishable from one another and from the median. The three perennial crops in the bottom row sit clearly above it all year}{figure.caption.6}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Per-class results for the twelve-crop model.}}{6}{table.caption.7}\protected@file@percent }
+\newlabel{tab:12class}{{4}{6}{Per-class results for the twelve-crop model}{table.caption.7}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Three land states: separable}{7}{subsection.3.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces The three-class problem. Perennial parcels stay green and moist and expose less bare soil; annual parcels peak and senesce; pasture and fallow sit between. The shaded bands are the interquartile range of each class. They overlap, which is why the classifier reaches 0.68 rather than 0.95.}}{7}{figure.caption.8}\protected@file@percent }
+\newlabel{fig:profiles3}{{3}{7}{The three-class problem. Perennial parcels stay green and moist and expose less bare soil; annual parcels peak and senesce; pasture and fallow sit between. The shaded bands are the interquartile range of each class. They overlap, which is why the classifier reaches 0.68 rather than 0.95}{figure.caption.8}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces The three-class classifier on its held-out test set, and against the best available off-the-shelf land-cover product.}}{7}{table.caption.9}\protected@file@percent }
+\newlabel{tab:3class}{{5}{7}{The three-class classifier on its held-out test set, and against the best available off-the-shelf land-cover product}{table.caption.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}National extension}{7}{subsection.3.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces One department against fourteen.}}{8}{table.caption.10}\protected@file@percent }
+\newlabel{tab:national}{{6}{8}{One department against fourteen}{table.caption.10}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Evaluation}{8}{section.4}\protected@file@percent }
+\newlabel{sec:evaluation}{{4}{8}{Evaluation}{section.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Four tests rather than one}{8}{subsection.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Latitude resembles information and is not}{8}{subsection.4.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces The value of parcel latitude as a LightGBM input, under four tests.}}{8}{table.caption.11}\protected@file@percent }
+\newlabel{tab:latitude}{{7}{8}{The value of parcel latitude as a LightGBM input, under four tests}{table.caption.11}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}The same pattern in a model architecture}{8}{subsection.4.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Left: LTAE beats LightGBM on all four label groupings when the held-out land lies inside a known department, and loses on all four when a whole department is held out, falling 1.4 to 3.4 times further. Right: the same pattern for a single input, parcel latitude.}}{9}{figure.caption.12}\protected@file@percent }
+\newlabel{fig:cvlodo}{{4}{9}{Left: LTAE beats LightGBM on all four label groupings when the held-out land lies inside a known department, and loses on all four when a whole department is held out, falling 1.4 to 3.4 times further. Right: the same pattern for a single input, parcel latitude}{figure.caption.12}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}A trap in the headline metric}{9}{subsection.4.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {8}{\ignorespaces The two-class collapse produces the highest raw score and the least skill. Skill rescales the score so that 0 is always guessing the largest class and 1 is perfect.}}{9}{table.caption.13}\protected@file@percent }
+\newlabel{tab:floor}{{8}{9}{The two-class collapse produces the highest raw score and the least skill. Skill rescales the score so that 0 is always guessing the largest class and 1 is perfect}{table.caption.13}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Why a year-by-year history is not available}{9}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Predicted histories are dominated by noise}{10}{subsection.5.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {9}{\ignorespaces Flicker on the national 25-year panel, 114{,}125 parcel-years per arm. All three fail.}}{10}{table.caption.14}\protected@file@percent }
+\newlabel{tab:flicker}{{9}{10}{Flicker on the national 25-year panel, 114{,}125 parcel-years per arm. All three fail}{table.caption.14}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces The same result on the Piura panel. Flicker roughly doubles as time-invariant inputs are removed, while accuracy is flat. Time-invariant inputs purchase the appearance of stability, not the ability to be correct.}}{10}{figure.caption.15}\protected@file@percent }
+\newlabel{fig:flicker}{{5}{10}{The same result on the Piura panel. Flicker roughly doubles as time-invariant inputs are removed, while accuracy is flat. Time-invariant inputs purchase the appearance of stability, not the ability to be correct}{figure.caption.15}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}The 1998 El Niño makes the baseline years unusable}{10}{subsection.5.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces The mechanism. A perennial parcel is identified not by an absolute greenness level but by the gap between it and annual parcels on the same measure. The flood closed that gap from both sides: perennials lost canopy while flooded annual ground stayed green. A threshold learned in normal years then falls inside both distributions. Only the bare-soil measure survives.}}{11}{figure.caption.16}\protected@file@percent }
+\newlabel{fig:elnino}{{6}{11}{The mechanism. A perennial parcel is identified not by an absolute greenness level but by the gap between it and annual parcels on the same measure. The flood closed that gap from both sides: perennials lost canopy while flooded annual ground stayed green. A threshold learned in normal years then falls inside both distributions. Only the bare-soil measure survives}{figure.caption.16}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Aggregation and correction do not repair it}{11}{subsection.5.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {6}Direct measurement of the change}{11}{section.6}\protected@file@percent }
+\newlabel{sec:census}{{6}{11}{Direct measurement of the change}{section.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}Photo-interpretation of recent imagery}{11}{subsection.6.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {10}{\ignorespaces The labelling campaign against its pre-registered acceptance criteria.}}{12}{table.caption.17}\protected@file@percent }
+\newlabel{tab:gates}{{10}{12}{The labelling campaign against its pre-registered acceptance criteria}{table.caption.17}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}What the labels show without a classifier}{12}{subsection.6.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Declared land use in 1996--2006 against observed land use in 2019 or later, on 865 parcels, weighted to the national population. The 95\,\% interval on the 2.9\,\% cell runs from 0 to 5.9.}}{12}{figure.caption.18}\protected@file@percent }
+\newlabel{fig:transition}{{7}{12}{Declared land use in 1996--2006 against observed land use in 2019 or later, on 865 parcels, weighted to the national population. The 95\,\% interval on the 2.9\,\% cell runs from 0 to 5.9}{figure.caption.18}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.3}The 2012 census as the earlier observation}{13}{subsection.6.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {11}{\ignorespaces Perennial share at the titling declaration (median 1999) and at the 2012 census, on the same parcels. Percentage points.}}{13}{table.caption.19}\protected@file@percent }
+\newlabel{tab:census}{{11}{13}{Perennial share at the titling declaration (median 1999) and at the 2012 census, on the same parcels. Percentage points}{table.caption.19}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.4}The three measurements together}{13}{subsection.6.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Left: every instrument agrees the perennial share rose, and the two declared-crop sources agree closely on the magnitude. The imagery estimates are consistent with them and far too imprecise to add anything. Right: no instrument finds that legal title accounts for the rise.}}{14}{figure.caption.20}\protected@file@percent }
+\newlabel{fig:forest}{{8}{14}{Left: every instrument agrees the perennial share rose, and the two declared-crop sources agree closely on the magnitude. The imagery estimates are consistent with them and far too imprecise to add anything. Right: no instrument finds that legal title accounts for the rise}{figure.caption.20}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {7}The effect of legal title}{14}{section.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}Design}{14}{subsection.7.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {12}{\ignorespaces Sample construction. The final treated group is every qualifying parcel in Peru, not a sample of them.}}{14}{table.caption.21}\protected@file@percent }
+\newlabel{tab:did}{{12}{14}{Sample construction. The final treated group is every qualifying parcel in Peru, not a sample of them}{table.caption.21}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}Result: a tight null}{14}{subsection.7.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Left: both groups move together. Right: the estimated effect of becoming registered under increasingly severe assumptions about how much pre-existing trend to subtract. The interval contains zero throughout.}}{15}{figure.caption.22}\protected@file@percent }
+\newlabel{fig:did}{{9}{15}{Left: both groups move together. Right: the estimated effect of becoming registered under increasingly severe assumptions about how much pre-existing trend to subtract. The interval contains zero throughout}{figure.caption.22}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.3}The census reaches the same conclusion independently}{15}{subsection.7.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {13}{\ignorespaces Change in perennial share, 1999 to 2012, by legal status at declaration. Post-stratified to the national population.}}{15}{table.caption.23}\protected@file@percent }
+\newlabel{tab:tenure}{{13}{15}{Change in perennial share, 1999 to 2012, by legal status at declaration. Post-stratified to the national population}{table.caption.23}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces The three observations of the same quantity. The solid lines are the census panel; the 2025 points come from a different frame with a different restriction, so each is drawn from its own baseline rather than continued from the census line. Joining them would invent a trend neither source measured.}}{16}{figure.caption.24}\protected@file@percent }
+\newlabel{fig:tenure}{{10}{16}{The three observations of the same quantity. The solid lines are the census panel; the 2025 points come from a different frame with a different restriction, so each is drawn from its own baseline rather than continued from the census line. Joining them would invent a trend neither source measured}{figure.caption.24}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.4}What would change this answer}{16}{subsection.7.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {8}Climate covariates}{16}{section.8}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {14}{\ignorespaces Climate inputs on the recent-imagery classifier, 704 parcels, four classes. The final row of each block is a control: parcel latitude and longitude in place of the two climate values, matching them in number and in smoothness over space but carrying no agricultural content.}}{17}{table.caption.25}\protected@file@percent }
+\newlabel{tab:climate}{{14}{17}{Climate inputs on the recent-imagery classifier, 704 parcels, four classes. The final row of each block is a control: parcel latitude and longitude in place of the two climate values, matching them in number and in smoothness over space but carrying no agricultural content}{table.caption.25}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {9}Limitations}{17}{section.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {10}Conclusions}{18}{section.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {A}Work built, tested and deliberately unrun}{18}{appendix.A}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {B}Software}{18}{appendix.B}\protected@file@percent }
+\gdef \@abspage@last{19}

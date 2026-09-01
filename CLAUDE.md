@@ -67,6 +67,30 @@ sorted by frequency and read the top ten** (§8.5).
 
 ---
 
+## ⭐ …and the one case where a feature helped BOTH — because it was scored against a control
+
+Mean temperature added to the S2 endpoint classifier raised CV **and** LODO
+(`RESULTS.md` §8.8/§8.8b) — the first feature in the project to do that. What makes it readable
+is the fourth arm: **centroid lat/lon in place of the two climate columns**, same count, same
+smoothness over space, no agro-climatic content. LightGBM got several times more
+out-of-department gain from climate than from coordinates (adopt it); **LTAE got the same from
+both** (do not).
+
+**When a feature is a smooth function of something the model must not memorise, the comparison
+that decides is not *feature vs nothing* — it is *feature vs a same-shaped surrogate carrying
+only the thing you are worried about*.** Run it in the same folds and label it a control.
+And verify the "nothing" arm reproduces its recorded numbers before reading any delta.
+
+⚠️ **And the follow-up caught the recommendation, not the feature.** §8.8 adopted
+`--climate both` on 12 of 14 departments at p = 0.004. Re-run at the other end of the
+`t4`/`t3w` codebook bracket, that arm is **7/14 at p = 0.345** — the rainfall column is worth
+**−0.001** there. Temperature holds its gain at both ends; rainfall does not replicate.
+**A per-unit consistency result over 14 departments is 14 numbers, and the cheapest way to
+find out whether it is real is to re-ask it under a label-space choice you already know is
+larger than the effect** (§8.2c: the `WOODY_NON_CROP` decision moves `PERENNIAL` F1 by 0.190).
+
+---
+
 ## What this project is
 
 Build a **crop classifier from satellite imagery for Peru**, to answer: *has land shifted from

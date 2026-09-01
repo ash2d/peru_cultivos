@@ -46,6 +46,9 @@ class TorchModelBase:
     def fit(self, train_ds, val_ds, class_weight: np.ndarray, run_dir: Path):
         seed_everything(self.hp["seed"])
         n_classes = len(class_weight)
+        # the dataset, not the caller, knows how many static covariates the store carries;
+        # recorded into model_kw so `load` rebuilds the same architecture
+        self.model_kw["n_static"] = int(getattr(train_ds, "n_static", 0))
         self.net = self.build_net(n_classes).to(self.device).float()
         self.normalizer_state = train_ds.normalizer.state()
 

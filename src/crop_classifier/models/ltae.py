@@ -46,15 +46,38 @@ class LTAECore(nn.Module):
 
 
 class LTAENet(nn.Module):
+    """Attention encoder over dates, optionally fused with per-parcel statics.
+
+    ``n_static > 0`` adds a small ``Linear -> ReLU`` embedding of the standardised static
+    vector, concatenated onto the pooled temporal embedding before the head. The embedding
+    exists rather than a bare concatenation because one or two raw dimensions beside 128
+    temporal ones are trivially ignorable: the comparison being made is "can the
+    architecture use climate", and it should not be lost to a width accident. It is
+    ``d_static = 16``, ~50 parameters for two inputs, so it adds no meaningful capacity.
+    With ``n_static == 0`` the module is identical to the version fitted in RESULTS.md
+    §8.2 — no extra layer, no extra parameter, no change to the forward pass.
+    """
+
     def __init__(self, n_channels: int, n_classes: int, d_model: int = 128,
-                 n_head: int = 8, dropout: float = 0.2):
+                 n_head: int = 8, dropout: float = 0.2, n_static: int = 0,
+                 d_static: int = 16):
         super().__init__()
         self.core = LTAECore(n_channels, d_model, n_head)
-        self.head = nn.Sequential(nn.Linear(d_model, 64), nn.ReLU(),
+        self.n_static = n_static
+        d_head = d_model
+        if n_static:
+            self.static_embed = nn.Sequential(nn.Linear(n_static, d_static), nn.ReLU())
+            d_head += d_static
+        self.head = nn.Sequential(nn.Linear(d_head, 64), nn.ReLU(),
                                   nn.Dropout(dropout), nn.Linear(64, n_classes))
 
-    def forward(self, x, doy, mask):
-        return self.head(self.core(x, doy, mask))
+    def forward(self, x, doy, mask, stat=None):
+        z = self.core(x, doy, mask)
+        if self.n_static:
+            if stat is None:
+                raise ValueError("net was built with statics but the batch carries none")
+            z = torch.cat([z, self.static_embed(stat)], dim=-1)
+        return self.head(z)
 
 
 @register("ltae")
@@ -62,14 +85,15 @@ class LTAEModel(TorchModelBase):
     input_kind = "sequence"
 
     def __init__(self, d_model: int = 128, n_head: int = 8, dropout: float = 0.2,
-                 n_channels: int = 11, **kw):
+                 n_channels: int = 11, n_static: int = 0, d_static: int = 16, **kw):
         super().__init__(d_model=d_model, n_head=n_head, dropout=dropout,
-                         n_channels=n_channels, **kw)
+                         n_channels=n_channels, n_static=n_static, d_static=d_static,
+                         **kw)
 
     def build_net(self, n_classes: int) -> nn.Module:
         kw = self.model_kw
         return LTAENet(kw["n_channels"], n_classes, kw["d_model"], kw["n_head"],
-                       kw["dropout"])
+                       kw["dropout"], kw.get("n_static", 0), kw.get("d_static", 16))
 
     def forward_batch(self, batch: dict) -> torch.Tensor:
-        return self.net(batch["x"], batch["doy"], batch["mask"])
+        return self.net(batch["x"], batch["doy"], batch["mask"], batch.get("stat"))

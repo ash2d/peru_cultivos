@@ -286,3 +286,20 @@ def test_majority_baseline_rises_as_classes_are_removed():
     b = {t: majority_baseline(t)["majority_macro_f1"] for t in ("t5", "t4", "t3w", "t2")}
     assert b["t5"] < b["t4"] < b["t3w"] < b["t2"]
     assert b["t2"] > 2 * b["t5"]
+
+
+def test_eval_test_refuses_the_rules_control():
+    """`--eval-test` spends a one-way resource, so it may not be spent on a control.
+
+    `rules` is a floor exercise (RESULTS.md §8.2/§8.8b), never a candidate model. Scoring it
+    on the locked test would burn the set for a number nothing would ever adopt.
+    """
+    import subprocess
+    import sys
+    r = subprocess.run(
+        [sys.executable, "-m", "crop_classifier.cli", "allperu", "s2-train", "fit",
+         "--model", "rules", "--target", "t3w", "--pilot", "--climate", "temp",
+         "--eval-test"],
+        capture_output=True, text=True)
+    assert r.returncode != 0
+    assert "control" in (r.stdout + r.stderr)

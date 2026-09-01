@@ -35,10 +35,17 @@ import pyreadstat
 
 from crop_classifier.paths import ROOT
 
-SRC_DIR = Path(
-    "/Users/ash/Library/CloudStorage/OneDrive-SharedLibraries-UDEP/"
-    "MARAVI MENESES CRISTIAN ADDERLY - Departamentos_IV_CENAGRO (sin posesionario)"
-)
+
+def src_dir() -> Path:
+    """The 25 CENAGRO 2012 department ``.dta`` files (~17.5 GB).
+
+    Configured as ``cenagro_source_dir`` in ``workspaces.yaml`` — it was an absolute path to
+    one machine's OneDrive mount, which nobody else could have. A function, not a constant,
+    so importing this module does not require the share to be configured or mounted: only
+    the two callers below need it, and only when actually extracting.
+    """
+    from crop_classifier.workspace import cenagro_source_dir
+    return cenagro_source_dir()
 OUT_DIR = ROOT / "data" / "raw" / "Cenagro_IV"
 CROP_TABLE = ROOT / "data" / "raw" / "IV CENAGRO - Tabla_Cultivos_Totales.xlsx"
 
@@ -132,7 +139,7 @@ def _tidy(df: pd.DataFrame, dept: str) -> pd.DataFrame:
 
 def extract_one(dept: str, out_dir: Path = OUT_DIR, overwrite: bool = False) -> dict:
     """Read `<dept>.dta` in chunks, write `<dept>.parquet`, return the audit row."""
-    src = SRC_DIR / f"{dept}.dta"
+    src = src_dir() / f"{dept}.dta"
     if not src.exists():
         raise FileNotFoundError(src)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -171,7 +178,7 @@ def extract_one(dept: str, out_dir: Path = OUT_DIR, overwrite: bool = False) -> 
 
 
 def departments() -> list[str]:
-    return sorted(p.stem for p in SRC_DIR.glob("*.dta"))
+    return sorted(p.stem for p in src_dir().glob("*.dta"))
 
 
 def extract(depts: list[str] | None = None, overwrite: bool = False) -> pd.DataFrame:

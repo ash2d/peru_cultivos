@@ -94,17 +94,18 @@ predios) kept only as a comparison target — it carries **no geometry**.
 `IV_CENAGRO_Piura.dta` (§1.4) is **one department of twenty-five**. The full set lives on the
 UDEP OneDrive share `MARAVI MENESES CRISTIAN ADDERLY - Departamentos_IV_CENAGRO (sin
 posesionario)` as 25 `.dta` files, **409 columns each, 17.5 GB**. `data/` is gitignored, so
-`PIPELINE.md` §7 records how to regenerate; the extractor is
-`allperu/cenagro_extract.py`.
+[`DATA_ACCESS.md`](DATA_ACCESS.md) §4 records how to regenerate; the extractor is
+`allperu/cenagro_extract.py`, pointed at your own mount by `cenagro_source_dir:` in
+`workspaces.yaml`.
 
 ```
 uv run python -m crop_classifier.cli allperu cenagro-extract            # all 25
-uv run python -m crop_classifier.cli allperu cenagro-extract --verify   # the audit below
+uv run python -m crop_classifier.cli allperu cenagro-extract --verify   # the audit
 ```
 
 **17,750,195 rows, 17.5 GB → 0.21 GB (85× smaller), 409 columns → 76, zero rows lost.**
 Output is **long** — one row per producer × parcel × crop-order — because each consumer
-aggregates differently. `_extract_audit.csv` beside the Parquet files carries the table below. (A stray
+aggregates differently. `_extract_audit.csv` beside the Parquet files is the copy of record. (A stray
 `Cenagro_IV/Tacna.dta`, a 148 MB hand-copy from an earlier session, is superseded by
 `Tacna.parquet` and can be deleted.)
 

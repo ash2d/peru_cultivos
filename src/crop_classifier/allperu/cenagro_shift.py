@@ -42,6 +42,8 @@ the answer is the link.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
@@ -566,3 +568,125 @@ def _s2_section(cen_panel: pd.DataFrame) -> dict[str, pd.DataFrame]:
               "\nsize: the labelling campaign drew from the PETT population, not from the"
               "\nname-linked census subset, so the overlap is incidental.")
     return out
+
+
+# --------------------------------------------------------------------------------------
+# The figure. Palette is slots 1–2 of the project's validated categorical theme
+# (blue #2a78d6 / orange #eb6834): all-pairs CVD ΔE 24.7 (target 8), normal-vision ΔE 33.6
+# (floor 15), both ≥ 3:1 on the light surface. Checked, not eyeballed.
+FIG_DIR = ROOT / "docs" / "figures"
+INK, INK2, INK3 = "#0b0b0b", "#52514e", "#8a8880"
+SURFACE = "#fcfcfb"
+TENURE_COLOR = {"INSCRITO": "#2a78d6", "NO INSCRITO": "#eb6834"}
+# x positions: the median year of each instrument, on a real time axis
+T_PETT, T_CEN, T_S2 = 2001, 2012, 2025
+
+
+def _level(df: pd.DataFrame, col: str, weight: str | None = None) -> dict:
+    """Weighted PERENNIAL share with a **Wilson** 95 % interval, in percent.
+
+    Two choices worth stating. (1) The n is **Kish's effective sample size**
+    (Σw)²/Σw², not the row count: a post-stratified or design-weighted share carries less
+    information than its n suggests, and a raw-n interval would overstate the precision —
+    on the imagery arm the design weights are so uneven that n_eff is a fraction of n.
+    (2) The interval is **Wilson, not Wald**. A share cannot be negative, and at the imagery
+    arm's precision a symmetric Wald interval runs below zero and draws an impossible value.
+    """
+    w = df[weight] if weight else pd.Series(1.0, index=df.index)
+    tot = float(w.sum())
+    p = float(w[df[col] == "PERENNIAL"].sum()) / tot
+    n = tot ** 2 / float((w ** 2).sum())          # Kish effective n
+    z = 1.959963985
+    denom = 1 + z * z / n
+    centre = (p + z * z / (2 * n)) / denom
+    half = z / denom * np.sqrt(p * (1 - p) / n + z * z / (4 * n * n))
+    return {"pct": 100 * p,
+            "lo": 100 * max(centre - half, 0.0),
+            "hi": 100 * min(centre + half, 1.0),
+            "n_eff": n}
+
+
+def figure_values() -> dict[str, dict]:
+    """The six levels per tenure group, recomputed from the panels. Never hard-coded here."""
+    df = build_panel()
+    crop = df[df.pett_class.isin(["PERENNIAL", "ANNUAL"])
+              & df.cen_class.isin(["PERENNIAL", "ANNUAL"])].copy()
+    ps = poststratify(crop)
+    s2 = s2_panel()
+    s2e = s2[s2.declared_class.isin(["PERENNIAL", "ANNUAL"])
+             & s2.s2_class.isin(["PERENNIAL", "ANNUAL"])]
+    s2w = s2[s2.declared_class.isin(["PERENNIAL", "ANNUAL"])
+             & s2.s2_class_woody_perennial.isin(["PERENNIAL", "ANNUAL"])]
+
+    out: dict[str, dict] = {}
+    for t in ("INSCRITO", "NO INSCRITO"):
+        a, b, c = ps[ps.tenure == t], s2e[s2e.tenure == t], s2w[s2w.tenure == t]
+        out[t] = {
+            "cen": [_level(a, "pett_class", "ps_weight"),
+                    _level(a, "cen_class", "ps_weight")],
+            "n_cen": len(a),
+            "s2": [_level(b, "declared_class", "weight"),
+                   _level(b, "s2_class", "weight")],
+            "n_s2": len(b),
+            "woody": [_level(c, "declared_class", "weight"),
+                      _level(c, "s2_class_woody_perennial", "weight")],
+            "n_woody": len(c),
+        }
+    return out
+
+
+def figure(path: Path | None = None) -> Path:
+    """Draw `docs/figures/perennial_over_time_by_tenure.png`.
+
+    The **drawing code lives in one place**: `docs/figures/perennial_over_time_by_tenure.py`,
+    a self-contained matplotlib script that runs with no project imports. This function
+    recomputes the numbers from the data, **checks them against the ones baked into that
+    script**, and calls its `draw()` with the fresh values — so the standalone reproduction
+    and the pipeline figure cannot drift apart silently.
+    """
+    import importlib.util
+
+    script = FIG_DIR / "perennial_over_time_by_tenure.py"
+    spec = importlib.util.spec_from_file_location("_perennial_fig", script)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    values = figure_values()
+    drift = []
+    for t, s in values.items():
+        for key in ("cen", "s2", "woody"):
+            for i, lv in enumerate(s[key]):
+                baked = mod.VALUES[t][key][i]
+                if abs(lv["pct"] - baked[0]) > 0.05:
+                    drift.append(f"{t}/{key}[{i}]: data {lv['pct']:.2f} vs "
+                                 f"script {baked[0]:.2f}")
+    if drift:
+        print("⚠️  the standalone script's baked-in values have drifted from the data:")
+        for d in drift:
+            print(f"     {d}")
+        print(f"     update VALUES in {script} — printing the fresh block below")
+        print(_values_literal(values))
+
+    out = mod.draw(values, path or FIG_DIR / "perennial_over_time_by_tenure.png")
+    print(f"wrote {out}")
+    for t, s in values.items():
+        print(f"  {t:<12} census {s['cen'][0]['pct']:.1f} -> {s['cen'][1]['pct']:.1f} % | "
+              f"imagery {s['s2'][0]['pct']:.1f} -> {s['s2'][1]['pct']:.1f} % "
+              f"[{s['s2'][1]['lo']:.1f}, {s['s2'][1]['hi']:.1f}] | "
+              f"woody {s['woody'][0]['pct']:.1f} -> {s['woody'][1]['pct']:.1f} % "
+              f"[{s['woody'][1]['lo']:.1f}, {s['woody'][1]['hi']:.1f}]")
+    return out
+
+
+def _values_literal(values: dict[str, dict]) -> str:
+    """The `VALUES` block, formatted for pasting into the standalone script."""
+    lines = ["VALUES: dict[str, dict] = {"]
+    for t, s in values.items():
+        lines.append(f'    "{t}": {{')
+        for key, n in (("cen", "n_cen"), ("s2", "n_s2"), ("woody", "n_woody")):
+            pts = ", ".join(f'({lv["pct"]:.2f}, {lv["lo"]:.2f}, {lv["hi"]:.2f})'
+                            for lv in s[key])
+            lines.append(f'        "{key}": [{pts}], "{n}": {s[n]},')
+        lines.append("    },")
+    lines.append("}")
+    return "\n".join(lines)

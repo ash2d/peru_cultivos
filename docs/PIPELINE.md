@@ -58,7 +58,7 @@ them wrong silently reads or writes the wrong store.
 | all-Peru population | `data/processed/all_peru_full` | — | — |
 | tenure DiD | `data/processed/all_peru_did` | `…/features` | `runs/all_peru` |
 | S2 labelling | `data/processed/all_peru` | `data/processed/all_peru/features_s2` | `runs/all_peru` |
-| S2 **training** | set by `s2-train` → `…/labels_s2/ws_<target>[_pilot]` | `…/ws_<target>/features` | `runs/s2_labels/ws_<target>` |
+| S2 **training** | set by `s2-train` → `…/labels_s2/ws_<target>[_pilot][__clim_<arm>]` | `…/ws_<target>…/features` | `runs/s2_labels/ws_<target>…` |
 
 ⚠️ `CC_FEAT` exists because the Piura pixel store is **no longer implicitly shared** with the
 national one.
@@ -149,7 +149,19 @@ interface and codebook are translated — the label values written to the CSV st
 English constants, because `ingest.py` compares against them.
 
 `allperu s2-train` steps: `prep | fit | lodo | baseline | report`, with
-`--target t5|t4|t3|t3w|t2|t2w`, `--model lightgbm|ltae|rules`, `--pilot`, `--model-kw '{…}'`.
+`--target t5|t4|t3|t3w|t2|t2w`, `--model lightgbm|ltae|rules`, `--pilot`, `--model-kw '{…}'`,
+`--climate none|temp|rain|both|latlon`.
+
+⭐ **`--climate` adds the WorldClim normals as model inputs** (`labelling/climate_arms.py`):
+`temp` = `tmean_c`, `rain` = `precip_mm_yr`, `both` = the two, `latlon` = the *control*
+(centroid lat/lon in their place). `prep --climate both` builds all the variant workspaces at
+once, by **symlinking** the base workspace's parcels and label map so the folds are identical
+across arms; `report --climate both` prints the whole comparison plus the paired per-department
+Wilcoxon, the per-class F1s and the LightGBM gain ranks. Each model class takes it differently:
+flat columns for LightGBM, a 16-d static embedding concatenated into the head for LTAE, and a
+median split of the training set with its own thresholds either side for `rules`.
+**Result: LightGBM `--climate both` is the arm to use — CV 0.672 → 0.701, LODO 0.539 → 0.577.
+Not for LTAE, where the lat/lon control matches the gain.** `RESULTS.md` §8.8.
 
 ⚠️ **`t2`/`t2w` are the two-class collapse (`PERENNIAL` vs `NON_PERENNIAL`) and `--model rules`
 is refused on them** — the rule maps three semantic names onto label ids and in a two-class
@@ -163,8 +175,11 @@ Take a binary output by summing probabilities from a multi-class model instead. 
   `labels_s2/ws_<target>[_pilot]/`, each with its own `modeling_parcels.parquet`,
   `label_map.json` and a `features/` directory symlinked to the S2 store. `train.py`,
   `evaluate.py` and the model registry then run against it **unmodified**.
-* `fit` is spatial CV + final refit. **There is deliberately no `--eval-test`** — the S2 locked
-  test is unspent.
+* `fit` is spatial CV + final refit, and by default stops there. 🔓 **`--eval-test` also scores
+  the locked test** — 161 usable parcels, all 14 departments, trained on the 633 trainval
+  parcels outside the 3 km dead-zone. ⛔ It was spent on 2026-09-01 (`RESULTS.md` §8.9,
+  LightGBM/`t3w`/`temp`, 0.774 macro-F1) and **must not be used again**: the test can no longer
+  independently confirm anything scored on it. The flag refuses `--model rules`.
 * `lodo` holds out whole departments (default: those with ≥35 usable labels — **all 14**, as
   of the 2026-08-28 return). Required, not optional: every CV number on this data is the kind
   of number `centroid_lat` fooled, and the CV→LODO drop here is **−0.13 to −0.20 macro-F1**.
@@ -333,6 +348,11 @@ maps names to modules without importing them — `get_model("lightgbm")` never t
 * `loyo.py` — leave-one-year-out, and `lodo_by_cohort` (LODYO).
 * `tenure.py`, `tenure_did.py`, `did_sample.py` — the DiD. `amplification_factor` derives M from
   window midpoints **in code**; `write_registration` refuses to overwrite.
+The national CENAGRO route is pinned by **`tests/test_cenagro_national.py`** (27 tests, no
+`data/` needed): the declared schema, the over-common-name cap, Wilson-on-Kish intervals,
+post-stratification restoring the population's cell counts, `WOODY_NON_CROP` staying
+unmapped, and the figure script rendering. `tests/test_cenagro.py` covers the Piura module.
+
 * `cenagro_extract.py` — the 25-department CENAGRO slim-down (`DATA.md` §1.5). Reads each
   `.dta` **once**, chunked, with an explicit `usecols`, and writes one Parquet per
   department; the output stays **long** (one row per parcel × crop-order) because each
@@ -353,7 +373,13 @@ maps names to modules without importing them — `get_model("lightgbm")` never t
   `poststratify()`, which reweights the linked panel to the national population on
   department × declared class — **not optional**, the link over-selects perennial parcels
   16.6 % vs 9.9 %. Every S2 share is design-weighted; `token_audit()` prints the unmapped
-  tail sorted by frequency, which is how `MELOCOTONERO` was caught.
+  tail sorted by frequency, which is how `MELOCOTONERO` was caught. `_level()` returns a
+  **Wilson** interval on **Kish's effective n** — the imagery arm's design weights are uneven
+  enough that n_eff is ~⅓ of the row count, and a symmetric Wald interval on a share that
+  small runs below zero. ⚠️ **`figure()` holds no drawing code**: it recomputes the levels,
+  diffs them against the values baked into `docs/figures/perennial_over_time_by_tenure.py`,
+  prints a paste-ready block if they have drifted, and calls that script's `draw()` — so the
+  standalone reproduction and the pipeline figure cannot diverge silently.
 * `cenagro.py` — CENAGRO 2012 as the "before" observation. Classifies **both** sides with the
   same lexicon machinery, because otherwise part of the measured change is a change of
   definition; `token_audit()` reports the unmapped share and **must be run before trusting a
@@ -459,6 +485,10 @@ that receive exactly 0 mm/year — 0/0, left undefined rather than imputed. `DAT
 | `kappa_report.json`, `stratum_counts.csv` | `s2-labels ingest` | κ + G1/G2/G3 readings; per (dept × declared × observed) counts |
 | `ws_<target>[_pilot]/` | `s2-train prep` | a full `CC_PROC` workspace: `modeling_parcels.parquet`, `label_map.json`, `features/` symlinks |
 | `ws_*/lodo_<model>.csv` | `s2-train lodo` | per-department held-out metrics |
+| `ws_<target>[_pilot]__clim_<arm>/` | `s2-train prep --climate` | one workspace per climate arm; parcels + label map **symlinked** from the base so the folds match exactly |
+| `climate_arms_<target>.csv` | `s2-train report --climate` | the 15-row comparison: CV, LODO, accuracy, floor-normalised skill, per-class F1, deltas |
+| `climate_arms_<target>_{consistency,per_class,gain}.csv` | `s2-train report --climate` | the three companion tables §8.8 quotes: per-fold/per-department deltas + paired Wilcoxon, out-of-fold per-class F1, LightGBM gain ranks |
+| `ws_<target>[_pilot]/climate_location_audit.json` | `climate_arms.location_proxy_audit` | how much department identity the climate columns carry (0.676 accuracy vs a 0.091 prior) |
 | `ws_*/landsat_baseline*.{parquet,json}` | `s2-train baseline` | the transferred Landsat read + its caveat, recorded in the file |
 | `model_comparison.csv` | `s2-train report` | every arm: CV mean/sd/min/max fold, LODO mean/sd |
 | `declared_to_observed_transitions.csv` | `s2-labels transitions` | weighted declared (1996–2006) → observed (2019+) shares + 95 % CIs, **no classifier in it** |
@@ -547,10 +577,9 @@ uv run python -m crop_classifier.cli allperu s2-labels transitions
 # ── regenerate the slimmed CENAGRO 2012 department files ─────────────────────
 # data/ is gitignored, so this is the ONLY record of how data/raw/Cenagro_IV/ is made.
 # Source: the OneDrive share "Departamentos_IV_CENAGRO (sin posesionario)", 25 .dta files,
-# ~18 GB, path hard-coded as SRC_DIR in allperu/cenagro_extract.py — another user needs
-# their own OneDrive mount and must edit it. Make sure the files are downloaded, not
-# placeholders: OneDrive Files-On-Demand streams them and the read then runs at network
-# speed. ~50 min for all 25.
+# ~18 GB. Set `cenagro_source_dir:` in workspaces.yaml to your own mount — see
+# docs/DATA_ACCESS.md §4. Make sure the files are downloaded, not placeholders: OneDrive
+# Files-On-Demand streams them and the read then runs at network speed. ~50 min for all 25.
 
 uv run python -m crop_classifier.cli allperu cenagro-extract               # all 25
 uv run python -m crop_classifier.cli allperu cenagro-extract --dept Piura --overwrite
@@ -561,8 +590,11 @@ uv run python -m crop_classifier.cli allperu cenagro-extract --verify      # the
 # ── the national PETT → CENAGRO 2012 → 2019+ comparison (RESULTS.md §8.6) ────
 # needs data/raw/Cenagro_IV/ (see the block above) and the national PETT build.
 uv run python -m crop_classifier.cli allperu cenagro-link    # ~6 min, 14 departments
-uv run python -m crop_classifier.cli allperu cenagro-shift   # ~3 min
+uv run python -m crop_classifier.cli allperu cenagro-shift   # ~3 min, draws the figure too
+uv run python -m crop_classifier.cli allperu cenagro-shift --figure   # redraw only
+uv run python docs/figures/perennial_over_time_by_tenure.py          # standalone, no project
 # -> data/processed/cenagro/national_*.csv + national_panel.parquet
+# -> docs/figures/perennial_over_time_by_tenure.png
 ```
 
 ```bash
@@ -583,6 +615,7 @@ accumulated that way and were removed on 2026-08-31.
 |---|---|
 | `profiles_12class_ndvi.png`, `profiles_3class.png`, `elnino_signature.png`, `elnino_mechanism.png`, `elnino_signature_collapse.csv`, `flicker_vs_statics.png` | `perennial.report_figures` |
 | `window_control_drift.png`, `did_result.png` | `allperu.report_figures` |
+| `perennial_over_time_by_tenure.png` | `perennial_over_time_by_tenure.py` beside it — **self-contained, matplotlib only**; `allperu cenagro-shift --figure` recomputes the numbers, checks them against the ones baked into that script and calls its `draw()` |
 | `per_class_f1.png`, `pooled_cv_metrics.png` | `perennial compare` |
 | `panel_budget.csv` | `perennial panel probe` (its default `--out`) |
 | `l7_coverage.csv` | ⚠️ **no generator in the tree** — a one-off probe, kept because §7.1's archive-limit numbers are read off it |

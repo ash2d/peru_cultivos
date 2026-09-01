@@ -21,9 +21,17 @@ the same `COD_PREDIO` only ~43 % of the time. `merged_parcels.parquet` carries
 because that is the only honest way to show how much of the answer is the link rather than
 the land.
 
-⚠️ **CENAGRO exists for Piura only** (`IV_CENAGRO_Piura.dta`). Nothing here is national, and
-Piura is the department the whole project's earlier strands were built on — so it is *not* a
-neutral sample of Peru.
+⚠️ **This module is Piura only** — it reads `merged_parcels.parquet`, the Piura crosswalk
+notebook 02 built, and Piura is the department every earlier strand was built on, so it is
+*not* a neutral sample of Peru.
+
+⭐ **The census itself is no longer Piura-only.** All 25 department files were extracted on
+2026-08-29 (`DATA.md` §1.5, `allperu/cenagro_extract.py`), and **`allperu/cenagro_shift.py`
+repeats this comparison over all 14 linkable departments** on a nationally built name link
+(`allperu/cenagro_link.py`) — 63,766 like-for-like parcels against the 8,669 here
+(`RESULTS.md` §8.6). This module is kept as the first, independently built version: its Piura
+answer (+12.5 pp) against the national build's Piura arm (+11.6 pp) is the only external check
+either number has. **For anything national, use `cenagro_shift.py`, not this.**
 
 **Both sides are classified with the same lexicon machinery** (`perennial/labels3.py`),
 because otherwise part of any measured "change" would be a change of definition. The census

@@ -26,7 +26,7 @@ Every model arm has been fitted. Numbers: [`RESULTS.md`](../RESULTS.md) §8.1–
 | **G2** `UNSURE` < 25 % | **0.139 ✅ PASS** | at 1.2 m the annotator could call 86 % of parcels |
 | **G3** ≥35/dept | **48 ✅ PASS** | ⭐ first time. All **14** departments clear it, against 4 at the last read — which is what makes LODO a real estimate |
 | **G3** ≥150/class | **54 ⛔ FAIL** | `NON_AGRICULTURE`, as pre-registered → pool into `OTHER` (`--target t4`). `PERENNIAL` (115) and `ANNUAL` (141) are also under the floor |
-| locked test | **UNSPENT** | 201 parcels, **161 labelled**. `allperu s2-train` exposes no `--eval-test`, and nothing in §8 reads it |
+| locked test | 🔓 **SPENT 2026-09-01** | 201 parcels, **161 usable**. Scored once on LightGBM/`t3w`/`temp` (+ the `both` arm): **0.774 macro-F1, 0.789 accuracy**, RESULTS.md §8.9. `--eval-test` exists now; do not use it again |
 
 ⭐ **Step 3 has now been executed, not rehearsed, and it reversed its own earlier reading.**
 LTAE wins CV in **8 of 8** arms and loses leave-one-department-out in **4 of 4** targets. See
@@ -138,6 +138,27 @@ would measure it.** `RESULTS.md` §8.2c.
 
 ⚠️ **One arm per process** — LightGBM and torch cannot share one on macOS. The CLI steps are
 separate commands for that reason; drive them from a shell loop.
+
+### 3c. ✅ Climate covariates — run, and adopted for LightGBM
+
+```bash
+uv run python -m crop_classifier.cli allperu s2-train prep   --target t4 --pilot --climate both
+for m in lightgbm rules ltae; do for c in none temp rain both latlon; do
+  uv run python -m crop_classifier.cli allperu s2-train fit  --model $m --target t4 --pilot --climate $c
+  uv run python -m crop_classifier.cli allperu s2-train lodo --model $m --target t4 --pilot --climate $c
+done; done
+uv run python -m crop_classifier.cli allperu s2-train report --target t4 --pilot --climate both
+```
+
+Mean temperature and mean annual rainfall (WorldClim normals) as two extra inputs, on `t4`+pilot,
+3 model classes × 4 feature sets **+ a `latlon` control**. ⭐ **The first feature this project
+has added that improves the out-of-department number**: LightGBM **CV 0.672 → 0.701, LODO
+0.539 → 0.577** over 14 departments, `PERENNIAL` F1 **0.471 → 0.574**, 12/14 departments
+improved, paired p = 0.004 — and **2.7× what the raw-coordinate control buys**.
+
+⚠️ **LightGBM only.** LTAE's climate gain is *matched* by the coordinate control, so for the
+attention model it is department memorisation by another route — §8.2's verdict arriving a
+second way. Full table, caveats and the `latlon` reading: [`RESULTS.md`](../RESULTS.md) §8.8.
 
 ### 3b. ⚠️ G4 must be restated before it can be adjudicated
 

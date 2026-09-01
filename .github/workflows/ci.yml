@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - run: uv sync --frozen
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Tests
+        run: uv run pytest -q
+
+      # ── The quickstart, exactly as README.md prints it ────────────────────────────────
+      # This is the job that matters most. The demo is not on anyone's daily path, so if it
+      # breaks, the first person to find out is a new collaborator in their first hour —
+      # and they cannot tell whether they typed it wrong, installed it wrong, or the
+      # repository is broken. Nothing here needs raw data or an Earth Engine account.
+      - name: Quickstart works on a clean checkout
+        run: |
+          uv run cc workspaces
+          uv run cc -w demo train --model lightgbm --drop-features meta,location --run-name ci
+          uv run cc -w demo evaluate runs/demo/ci --tag demo
+
+      - name: The evaluation protocol still prints its floor
+        run: |
+          uv run cc -w demo -q evaluate runs/demo/ci --tag demo | tee /tmp/eval.txt
+          grep -q "floor" /tmp/eval.txt
+          grep -q "skill" /tmp/eval.txt
+          grep -q "LODO" /tmp/eval.txt
+          grep -q "Read the LODO row, not the CV row" /tmp/eval.txt

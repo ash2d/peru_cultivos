@@ -1123,9 +1123,11 @@ def data_verify(
                 n = (sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
                      if path.is_dir() else path.stat().st_size)
                 size = f"  ({n / 1e6:.1f} MB)"
-            typer.echo(f"    {'✓' if ok else '✗'} {need.path}{size}")
+            flag = "○" if (not ok and need.optional) else ("✓" if ok else "✗")
+            typer.echo(f"    {flag} {need.path}{size}")
             if not ok:
-                typer.echo(f"        {need.provenance}: {need.note or 'see docs/DATA_ACCESS.md'}")
+                tag = f"{need.provenance}, optional" if need.optional else need.provenance
+                typer.echo(f"        {tag}: {need.note or 'see docs/DATA_ACCESS.md'}")
         if st != "ok" and cap.doc:
             typer.echo(f"      -> {cap.doc}")
         typer.echo("")

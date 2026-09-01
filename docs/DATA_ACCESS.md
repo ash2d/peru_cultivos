@@ -8,23 +8,72 @@ repository gives you the code and none of the inputs.
 
 ---
 
-## 1. Can I run anything with no data at all?
+## 1. What does a clone already have?
 
-Yes — the `demo` workspace:
+**Most of it.** The tables needed to reproduce this project's published results are committed —
+616 MB, 315 files. You do **not** need the raw archive and you do **not** need to run an Earth
+Engine extraction to rerun the analyses.
 
 ```bash
-uv run cc -w demo train --model lightgbm --drop-features meta,location --run-name demo
-uv run cc -w demo advanced lodo --drop-features meta,location --tag demo --min-parcels 100
-uv run cc -w demo evaluate runs/demo/demo --tag demo
+uv run cc data verify        # ⭐ what this clone can actually do
 ```
 
-1,302 real parcels over six departments, with their satellite features already extracted, so it
-needs no raw archive and no Earth Engine account. Under a minute end to end.
+Every capability comes back as one of three things:
 
-⚠️ **Numbers from the demo workspace are not results.** Classes are balanced within department
-so that every fold can train, which makes it a stratified sample and not a representative one —
-no share, area or prevalence from it means anything. Accuracy figures are indicative of the
-pipeline, not of Peru.
+| | |
+|---|---|
+| `ok` | everything it needs is here |
+| `derivable` | the gap is rebuildable by a command, which the output names |
+| `needs-data` | the gap is the licensed archive or a fresh extraction — this page |
+
+On a bare clone that is: the demo, the national Landsat model, the Sentinel-2 label set, the
+PETT→CENAGRO comparison, the tenure difference-in-differences, and the Piura strand — all `ok`.
+Only rebuilding from the raw archive, and extracting *new* imagery beyond the 56,419 parcels
+already linked, need anything more.
+
+Run it first, and again after obtaining anything. A missing input here usually does **not**
+crash: four of the raw datasets return a plausible empty or column-less result instead of an
+error (§4 of [`DATA.md`](DATA.md)), so "start the job and see" was never a check.
+
+### What is committed
+
+| | |
+|---|---|
+| national PETT parcels — **with the real polygons** — and Landsat features | 160 MB |
+| CENAGRO 2012, the 14 linkable departments, plus the name crosswalk | 126 MB |
+| Piura strand: 12-class and 3-class tables and features | 171 MB |
+| tenure: per-parcel status, two-period, the DiD sample and its predictions | 107 MB |
+| per-parcel climate covariates | 24 MB |
+| the Sentinel-2 endpoint labels (865 parcels) and S2 features | 23 MB |
+| LODO / LOYO / LODYO metrics, summaries and held-out predictions | 8 MB |
+
+The allowlist is at the bottom of [`.gitignore`](../.gitignore), with a block saying what is
+excluded and why.
+
+### What is not, and whether it matters
+
+| excluded | size | does it block anything? |
+|---|---|---|
+| the raw PETT archive (`BD_SSET`, `Grafica_Tabular`, `QGIS`) | 5.0 GB | only rebuilding the label tables from scratch — the derived tables are committed |
+| WorldClim rasters | 10 GB | no — the per-parcel covariates extracted from them are committed |
+| raw pixel stores, and the multi-year panels | ~6 GB | no for the published results; yes if you want to re-derive features from pixels |
+| labelling-UI imagery (tiles, chips, HTML) | 4.0 GB | no — the labels themselves are committed |
+| the other 11 CENAGRO departments | 93 MB | no — they have no PETT counterpart and cannot be linked |
+
+⭐ **`modeling_parcels.parquet` carries the real polygons** (56,419, EPSG:4326), so a fresh Earth
+Engine extraction can be run from this repository alone. You do not need the 3 GB shapefile
+archive to pull new imagery.
+
+---
+
+## 1b. The one real gap
+
+The **multi-year panel extractions** are not committed and cannot be, at ~6 GB. That matters in
+exactly one place: the difference-in-differences.
+
+Its classifier *predictions* are committed, so the estimate reproduces from this clone. Rebuilding
+those predictions from pixels is a ~13.5-hour Earth Engine job. `cc data verify` marks that
+input `optional` and shows it as `○` rather than counting it as a gap.
 
 ---
 

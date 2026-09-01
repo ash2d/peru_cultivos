@@ -30,6 +30,11 @@ class Need:
     path: str                     # relative to the repository root
     provenance: str               # repo | derive | obtain
     note: str = ""                # how to get it, when it is not `repo`
+    #: Needed only to rebuild this capability's inputs from further upstream — not to run
+    #: it. The DiD is the case: its classifier predictions are committed, so the estimate
+    #: reproduces, and the 13.5-hour panel extraction behind them is optional. Without this
+    #: distinction the check reports "needs data" for something that in fact works.
+    optional: bool = False
 
 
 @dataclass(frozen=True)
@@ -58,7 +63,10 @@ CAPABILITIES: tuple[Capability, ...] = (
          Need("data/processed/all_peru/features/features_lightgbm_degraded.parquet", "repo",
               "the density-augmented copy the primary model trains against"),
          Need("data/processed/all_peru/lodo_summary_nolat_aug_yleak10.json", "repo",
-              "the LODO record; recompute with `cc advanced lodo` (hours)")),
+              "the LODO record; recompute with `cc advanced lodo` (hours)"),
+         Need("data/processed/all_peru/lodo_predictions_nolat_aug_yleak10.parquet", "repo",
+              "the held-out predictions; without them `cc evaluate` cannot print the "
+              "majority-class floor")),
         "docs/howto/04_train_and_evaluate.md"),
 
     Capability(
@@ -93,8 +101,9 @@ CAPABILITIES: tuple[Capability, ...] = (
                       "them is not committed"),
          Need("data/processed/all_peru/tenure_two_period.parquet", "repo"),
          Need("data/processed/all_peru_did/features/panel", "obtain",
-              "the 15-year panel extraction, ~13.5 h on 5 GEE workers. Only needed to "
-              "rebuild the predictions above from pixels")),
+              "the 15-year panel extraction, ~13.5 h on 5 GEE workers — needed only to "
+              "rebuild the predictions above from pixels, not to run the DiD",
+              optional=True)),
         "docs/howto/05_perennial_change_by_tenure.md"),
 
     Capability(
@@ -112,7 +121,8 @@ CAPABILITIES: tuple[Capability, ...] = (
               "carries the real polygons, so an extraction can run from it alone"),
          Need("workspaces.yaml", "repo", "set `gee_project:` to your own GCP project"),
          Need("data/raw/QGIS", "obtain",
-              "only if you need parcels beyond the 56,419 already linked — 3 GB, licensed")),
+              "only if you need parcels beyond the 56,419 already linked — 3 GB, licensed",
+              optional=True)),
         "docs/howto/02_get_satellite_data.md"),
 
     Capability(
@@ -133,7 +143,7 @@ def check(cap: Capability) -> list[tuple[Need, bool]]:
 
 def status(cap: Capability) -> str:
     """``ok`` | ``derivable`` | ``needs-data`` — the three answers worth distinguishing."""
-    missing = [n for n, ok in check(cap) if not ok]
+    missing = [n for n, ok in check(cap) if not ok and not n.optional]
     if not missing:
         return "ok"
     return "derivable" if all(n.provenance == "derive" for n in missing) else "needs-data"

@@ -112,9 +112,13 @@ data/processed/all_peru/*
 !data/processed/all_peru/tenure_two_period.parquet
 !data/processed/all_peru/panel_parcels.parquet
 !data/processed/all_peru/panel_predictions*.parquet
-# the LODO / LOYO / LODYO metrics and summaries — small, and hours to recompute
+# the LODO / LOYO / LODYO record — metrics, summaries, and the held-out predictions
+# themselves. 8 MB, hours to recompute, and without the predictions `cc evaluate` cannot
+# print the majority-class floor, which is half of what that table is for.
 !data/processed/all_peru/*.csv
 !data/processed/all_peru/*.json
+!data/processed/all_peru/lodo_predictions*.parquet
+!data/processed/all_peru/loyo_predictions*.parquet
 !data/processed/all_peru/features/
 data/processed/all_peru/features/*
 !data/processed/all_peru/features/features_lightgbm.parquet

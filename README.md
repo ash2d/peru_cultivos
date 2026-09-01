@@ -55,9 +55,15 @@ uv run cc -w demo evaluate runs/demo/demo --tag demo    # CV and LODO side by si
 full archive is licensed and not redistributable — see [`docs/DATA_ACCESS.md`](docs/DATA_ACCESS.md).
 
 ```bash
-uv run cc workspaces        # where everything resolves on your machine, and what exists
+uv run cc data verify       # ⭐ what this clone can actually do
+uv run cc workspaces        # where everything resolves on your machine
 uv run cc --help
 ```
+
+**The data to reproduce the published results is in the repository** — 616 MB of parcels,
+polygons, labels and extracted satellite features. You do not need the licensed raw archive, and
+you do not need to run an Earth Engine extraction. [`docs/DATA_ACCESS.md`](docs/DATA_ACCESS.md)
+says what is here and what is not.
 
 ---
 

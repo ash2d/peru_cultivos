@@ -53,9 +53,7 @@ EXPECTED_DOCS = {
     "docs/s2_labelling/plan.md",
     "docs/s2_labelling/codebook.md",
     "reports/archive/REPORT.md",
-    # ⏳ the migration plan for the public release; delete this entry and the file together
-    # when the last phase lands (docs/github_prep_plan.md, "Final acceptance checklist")
-    "docs/github_prep_plan.md",
+    "docs/repo_layout.md",
 }
 
 _LINK = re.compile(r"\]\(([^)]+?\.md)(?:#[^)]*)?\)")

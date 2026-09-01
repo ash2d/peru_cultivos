@@ -784,80 +784,9 @@ def allperu_s2_train(
     configuration scored on it is one the test can no longer independently confirm. Spend it
     on an arm already selected on CV/LODO (RESULTS.md §8.8b), and write the number down.
     """
-    import json
-    import os
-
-    from crop_classifier.labelling import train_prep as P
-
-    if step == "prep":
-        if climate != "none":
-            from crop_classifier.labelling import climate_arms as C
-            C.build_all(target or "t4", include_pilot=pilot)
-            return
-        for t in P.TARGETS:
-            for inc in (False, True):
-                P.build_workspace(t, include_pilot=inc)
-                print()
-        return
-
-    if step == "report":
-        if climate != "none":
-            from crop_classifier.labelling import climate_arms as C
-            C.report(target or "t4", include_pilot=pilot)
-            return
-        P.report(target=target or None, include_pilot=pilot or None)
-        return
-
-    if climate != "none":
-        from crop_classifier.labelling import climate_arms as C
-        if climate not in C.CLIMATE_SETS:
-            raise typer.BadParameter(f"unknown climate arm {climate!r}; "
-                                     f"expected one of {C.ARMS}")
-        ws = C.ws_dir(target or "t4", climate, pilot)
-    else:
-        ws = P.ws_dir(target or "t4", pilot)
-    if not (ws / "modeling_parcels.parquet").exists():
-        raise SystemExit(f"{ws} not built - run `allperu s2-train prep` first")
-    os.environ["CC_PROC"] = str(ws)
-    os.environ["CC_FEAT"] = str(ws / "features")
-
-    if step in ("fit", "lodo") and model == "rules" and (target or "t4") in P.RULES_INCOMPATIBLE:
-        raise SystemExit(
-            f"--model rules cannot be run on --target {target}: the rule maps three "
-            f"semantic groups onto label ids and in a two-class space its fallback "
-            f"resolves PASTURE_FALLOW to PERENNIAL. It would return a meaningless number "
-            f"rather than an error. Use lightgbm or ltae.")
-
-    kw = json.loads(model_kw) if model_kw else {}
-    if climate != "none" and model == "rules":
-        # the rule has no coefficient to give a covariate; climate enters it as a
-        # median split of the training set with its own thresholds either side
-        from crop_classifier.labelling import climate_arms as C
-        kw["climate_features"] = C.CLIMATE_SETS[climate]
-
-    if step == "fit":
-        from crop_classifier.train import train as _train
-        if eval_test and model == "rules":
-            # the rule is a floor exercise, not a candidate; §8.8/§8.8b never proposes it
-            raise SystemExit("--eval-test is for a selected model; `rules` is a control.")
-        if eval_test:
-            print(f"⚠️  SPENDING THE LOCKED TEST on {model}/{target or 't4'}"
-                  f"/climate={climate}. This is one-way — record it in RESULTS.md.")
-        os.environ["CC_RUNS"] = str(Path("runs/s2_labels") / ws.name)
-        _train(model_name=model, run_name=model, eval_test=eval_test,
-               model_kw=kw or None)
-    elif step == "baseline":
-        out = P.landsat_baseline(run, target=target or "t4", include_pilot=pilot)
-        P.report_baseline(out, ws)
-    elif step == "lodo":
-        # the climate arms address their workspace explicitly; the plain arm keeps the
-        # historical behaviour (pilot always folded in) so its numbers stay comparable
-        # with the LODO CSVs already on disk
-        extra = {"ws": ws, "tag": f"_clim_{climate}"} if climate != "none" else {}
-        P.dept_transfer(target=target or "t4", model_name=model,
-                        model_kw=kw or None, **extra)
-    else:
-        raise typer.BadParameter(f"unknown step {step!r}")
+    from crop_classifier.labelling.arms import run_step
+    run_step(step, model=model, target=target, pilot=pilot, run=run,
+             model_kw=model_kw, climate=climate, eval_test=eval_test)
 
 
 @allperu_app.command("cenagro")

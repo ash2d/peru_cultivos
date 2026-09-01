@@ -125,6 +125,7 @@ them; each is pinned by a test. [`docs/DATA.md`](docs/DATA.md).
 | [`docs/PIPELINE.md`](docs/PIPELINE.md) | module reference |
 | [`docs/s2_labelling/`](docs/s2_labelling/plan.md) | the photo-interpretation campaign + codebook |
 | `reports/peru_report.tex` | the written-up narrative (PDF beside it); earlier snapshots in [`reports/archive/`](reports/archive/REPORT.md) |
+| [`docs/repo_layout.md`](docs/repo_layout.md) | why the repository is shaped like this |
 | [`CLAUDE.md`](CLAUDE.md) | orientation for a coding agent |
 | `src/crop_classifier/archive/` | ⛔ closed routes, and which gate killed each |
 

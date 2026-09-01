@@ -22,12 +22,20 @@ The strongest thing in the project, because there is no model in it: the same la
 twice, by two different official instruments (PETT ~1999, CENAGRO 2012).
 
 ```bash
-uv run cc -w national data cenagro-link      # crosswalk by farmer name, 14 depts, ~6 min
-uv run cc -w national analysis perennial-shift               # ~3 min, draws the figure too
+uv run cc -w national analysis perennial-shift               # ~30 s, draws the figure too
 uv run cc -w national analysis perennial-shift --figure      # redraw only
 ```
 
-Needs `data/raw/Cenagro_IV/` — see [`../DATA_ACCESS.md`](../DATA_ACCESS.md) §4.
+**This runs on a clone as it stands** — the census extracts and the linked panel are both
+committed. `uv run cc reproduce perennial-shift` checks the three headline numbers against
+what is published.
+
+Rebuilding the name crosswalk underneath it is a separate thing and needs the licensed bridge
+files ([`../DATA_ACCESS.md`](../DATA_ACCESS.md)):
+
+```bash
+uv run cc -w national data cenagro-link      # crosswalk by farmer name, 14 depts, ~6 min
+```
 
 Writes `data/processed/cenagro/national_*.csv` and `national_panel.parquet`, and
 `docs/figures/perennial_over_time_by_tenure.png`.
@@ -64,11 +72,24 @@ on disk: the declaration-time `ESTADO en RRPP` (~1997–2006) and the cadastre's
 The classifier supplies the outcome at both dates, drift and all — the point of the design is
 that the drift is **common to both arms and differences out**.
 
+The estimate itself reproduces from the committed predictions:
+
+```bash
+uv run cc -w tenure_did analysis did \
+    --preds data/processed/all_peru_did/panel_predictions_nolat_aug_yleak10.parquet \
+    --tag mycheck                          # placebo first, then the headline
+```
+
+`--tag` names the configuration and the run refuses to overwrite an existing one, so pick a
+new word rather than reusing `nolat_aug_yleak10`. `uv run cc reproduce tenure-did` does the
+same check without writing anything.
+
+The three commands that *designed* it — run in this order, before any extraction:
+
 ```bash
 uv run cc -w tenure_did analysis did-feasibility    # ⭐ feasibility FIRST, always
 uv run cc -w tenure_did analysis did-sample
 uv run cc -w tenure_did analysis did-register       # refuses to overwrite
-uv run cc -w tenure_did analysis did                # placebo first, then the headline
 ```
 
 **This is complete. Do not re-run it for a bigger sample — the population is exhausted.** 6,559

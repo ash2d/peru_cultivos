@@ -79,6 +79,10 @@ data/raw/Cenagro_IV/*
 !data/raw/Cenagro_IV/Tacna.parquet
 !data/raw/Cenagro_IV/Tumbes.parquet
 !data/raw/Cenagro_IV/_extract_audit.csv
+# the question-024 crop code list (3,351 codes), exported from the INEI workbook — the
+# workbook itself is not redistributed, and without this list the census comparison cannot
+# resolve a single crop. `cenagro_extract.crop_code_table(export=True)` writes it.
+!data/raw/Cenagro_IV/crop_code_table.csv
 
 !data/processed/
 data/processed/*

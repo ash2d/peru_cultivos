@@ -11,11 +11,12 @@ repository gives you the code and none of the inputs.
 ## 1. What does a clone already have?
 
 **Most of it.** The tables needed to reproduce this project's published results are committed —
-616 MB, 315 files. You do **not** need the raw archive and you do **not** need to run an Earth
-Engine extraction to rerun the analyses.
+642 MB, 317 files. You do **not** need the raw archive and you do **not** need to run an Earth
+Engine extraction to rerun the analyses. The direct proof of that:
 
 ```bash
-uv run cc data verify        # ⭐ what this clone can actually do
+uv run cc reproduce          # ⭐ re-derive every published headline number, ~90 s
+uv run cc data verify        # what this clone can actually do, file by file
 ```
 
 Every capability comes back as one of three things:
@@ -59,6 +60,8 @@ excluded and why.
 | raw pixel stores, and the multi-year panels | ~6 GB | no for the published results; yes if you want to re-derive features from pixels |
 | labelling-UI imagery (tiles, chips, HTML) | 4.0 GB | no — the labels themselves are committed |
 | the other 11 CENAGRO departments | 93 MB | no — they have no PETT counterpart and cannot be linked |
+| the full national parcel table (`all_peru_full/`, 726,808 parcels) | 437 MB | no — the two things built from it that the results use, the CENAGRO panel and the department × class population counts, are committed. A **new** labelling draw falls back to the 56,419-parcel table, which is a smaller frame, not a broken one |
+| the INEI question-024 crop workbook (`.xlsx`) | 0.1 MB | no — the 3,351-code list it contains is committed as `Cenagro_IV/crop_code_table.csv`, which is what the code reads when the workbook is absent |
 
 ⭐ **`modeling_parcels.parquet` carries the real polygons** (56,419, EPSG:4326), so a fresh Earth
 Engine extraction can be run from this repository alone. You do not need the 3 GB shapefile

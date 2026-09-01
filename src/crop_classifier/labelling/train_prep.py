@@ -26,7 +26,7 @@ import numpy as np
 import pandas as pd
 
 from crop_classifier.config_loader import load_yaml_config
-from crop_classifier.paths import ROOT
+from crop_classifier.paths import ROOT, labels_dir
 
 # ---------------------------------------------------------------------------------
 # Targets
@@ -55,14 +55,13 @@ def __getattr__(name: str):                     # PEP 562
 # that — which is what `PASTURE_FALLOW` means in the Landsat label space.
 TO_LANDSAT = {"PERENNIAL": "PERENNIAL", "ANNUAL": "ANNUAL", "OTHER": "PASTURE_FALLOW"}
 
-LABELS_DIR = ROOT / "data" / "processed" / "all_peru" / "labels_s2"
 FEAT_S2 = ROOT / "data" / "processed" / "all_peru" / "features_s2"
 SPLIT_CFG = ROOT / "src" / "crop_classifier" / "config" / "split_s2labels.yaml"
 N_FOLDS = 5
 
 
 def ws_dir(target: str, include_pilot: bool = False) -> Path:
-    return LABELS_DIR / f"ws_{target}{'_pilot' if include_pilot else ''}"
+    return labels_dir() / f"ws_{target}{'_pilot' if include_pilot else ''}"
 
 
 # ---------------------------------------------------------------------------------
@@ -134,9 +133,9 @@ def build_workspace(target: str, include_pilot: bool = False,
     label_set = load_label_set(target)          # raises, naming the config dir, if unknown
     cfg = load_yaml_config(SPLIT_CFG)
 
-    lab = gpd.read_parquet(LABELS_DIR / "labelled_parcels.parquet")
+    lab = gpd.read_parquet(labels_dir() / "labelled_parcels.parquet")
     lab = lab[lab["usable"]].copy()
-    sample = gpd.read_parquet(LABELS_DIR / "label_sample.parquet")
+    sample = gpd.read_parquet(labels_dir() / "label_sample.parquet")
     extra = ["COD_PREDIO", "year", "n_valid_obs", "max_gap", "n_pixels_est",
              "buffer_excl_test", *[f"buffer_excl_fold{k}" for k in range(N_FOLDS)]]
     df = lab.merge(sample[extra], on="COD_PREDIO", how="left")
@@ -216,7 +215,7 @@ def landsat_baseline(run: Path, target: str = "t3",
     ws = ws_dir(target, include_pilot)
     parcels = gpd.read_parquet(ws / "modeling_parcels.parquet")
     feats = pd.read_parquet(FEAT_S2 / "s2_features_lightgbm.parquet")
-    sample = gpd.read_parquet(LABELS_DIR / "label_sample.parquet")
+    sample = gpd.read_parquet(labels_dir() / "label_sample.parquet")
     feats = feats.merge(sample[["COD_PREDIO", "n_pixels_est"]], on="COD_PREDIO",
                         how="left")
 
@@ -284,7 +283,7 @@ def panel_check() -> pd.DataFrame | None:
     f = proc / "panel_predictions_nolat_aug_yleak10.parquet"
     if not f.exists():
         return None
-    lab = gpd.read_parquet(LABELS_DIR / "labelled_parcels.parquet")
+    lab = gpd.read_parquet(labels_dir() / "labelled_parcels.parquet")
     lab = lab[lab["usable"]].copy()
     lab["COD_PREDIO"] = lab["COD_PREDIO"].astype(str)
     pan = pd.read_parquet(f)
@@ -323,7 +322,7 @@ def report(target: str | None = None, include_pilot: bool | None = None
             continue
         m = json.loads(f.read_text())
         f1 = [x["macro_f1"] for x in m["folds"]]
-        lodo_f = LABELS_DIR / ws / f"lodo_{f.parent.name}.csv"
+        lodo_f = labels_dir() / ws / f"lodo_{f.parent.name}.csv"
         lodo = pd.read_csv(lodo_f)["macro_f1"] if lodo_f.exists() else None
         rows.append({
             "target": tgt, "pilot": pil, "model": f.parent.name,
@@ -338,8 +337,8 @@ def report(target: str | None = None, include_pilot: bool | None = None
     t = pd.DataFrame(rows).sort_values(["target", "pilot", "model"])
     if len(t):
         print(t.to_string(index=False))
-        t.to_csv(LABELS_DIR / "model_comparison.csv", index=False)
-        print(f"\nwrote {LABELS_DIR / 'model_comparison.csv'}")
+        t.to_csv(labels_dir() / "model_comparison.csv", index=False)
+        print(f"\nwrote {labels_dir() / 'model_comparison.csv'}")
     return t
 
 

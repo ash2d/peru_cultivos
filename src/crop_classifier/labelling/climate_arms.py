@@ -108,7 +108,10 @@ def build_variant(target: str = "t4", climate: str = "both",
         raise SystemExit(f"unknown climate arm {climate!r}; expected {ARMS}")
     base = P.ws_dir(target, include_pilot)
     if not (base / "modeling_parcels.parquet").exists():
-        raise SystemExit(f"{base} not built — run `allperu s2-train prep` first")
+        # a climate arm is the base label set plus two columns, so build the base rather
+        # than telling the caller to run a second command in the right order
+        print(f"{base.name} not built yet — building it first")
+        P.build_workspace(target, include_pilot=include_pilot)
     if climate == "none":
         return base
 
@@ -601,21 +604,21 @@ def report(target: str = "t4", include_pilot: bool = True) -> pd.DataFrame:
 
     # every table printed here is also written, because RESULTS.md §8.8 quotes numbers
     # from all four and a figure that exists only in a terminal scrollback is not a record
-    written = [P.LABELS_DIR / f"climate_arms_{target}.csv"]
+    written = [P.labels_dir() / f"climate_arms_{target}.csv"]
     t.round(4).to_csv(written[0], index=False)
 
     fp = fold_paired(target, include_pilot)
     if len(fp):
         print("\nper-fold / per-department consistency of each delta:")
         print(fp.round(3).to_string(index=False))
-        written.append(P.LABELS_DIR / f"climate_arms_{target}_consistency.csv")
+        written.append(P.labels_dir() / f"climate_arms_{target}_consistency.csv")
         fp.round(4).to_csv(written[-1], index=False)
 
     pc = per_class(target, include_pilot)
     if len(pc):
         print("\nout-of-fold per-class F1 (CV pool):")
         print(pc.round(3).to_string(index=False))
-        written.append(P.LABELS_DIR / f"climate_arms_{target}_per_class.csv")
+        written.append(P.labels_dir() / f"climate_arms_{target}_per_class.csv")
         pc.round(4).to_csv(written[-1], index=False)
 
     lpc = lodo_per_class(target, include_pilot)
@@ -623,7 +626,7 @@ def report(target: str = "t4", include_pilot: bool = True) -> pd.DataFrame:
         print("\nper-class F1 on the pooled LODO predictions "
               "(the axis the verdict is read on):")
         print(lpc.round(3).to_string(index=False))
-        written.append(P.LABELS_DIR / f"climate_arms_{target}_lodo_per_class.csv")
+        written.append(P.labels_dir() / f"climate_arms_{target}_lodo_per_class.csv")
         lpc.round(4).to_csv(written[-1], index=False)
 
     cp = control_paired(target, include_pilot)
@@ -632,7 +635,7 @@ def report(target: str = "t4", include_pilot: bool = True) -> pd.DataFrame:
               "departments\n   (this, not the delta against `none`, is what the verdict "
               "rests on):")
         print(cp.round(3).to_string(index=False))
-        written.append(P.LABELS_DIR / f"climate_arms_{target}_vs_control.csv")
+        written.append(P.labels_dir() / f"climate_arms_{target}_vs_control.csv")
         cp.round(4).to_csv(written[-1], index=False)
 
     wb = woody_boundary(target, include_pilot)
@@ -641,7 +644,7 @@ def report(target: str = "t4", include_pilot: bool = True) -> pd.DataFrame:
               "annotator's\nrainfall-aligned boundary? (see the docstring; `t3w` deletes "
               "this boundary):")
         print(wb.round(3).to_string(index=False))
-        written.append(P.LABELS_DIR / f"climate_arms_{target}_woody_boundary.csv")
+        written.append(P.labels_dir() / f"climate_arms_{target}_woody_boundary.csv")
         wb.round(4).to_csv(written[-1], index=False)
 
     try:
@@ -650,7 +653,7 @@ def report(target: str = "t4", include_pilot: bool = True) -> pd.DataFrame:
             print("\nLightGBM gain rank of the climate columns "
                   "(gain is not contribution — see the docstring):")
             print(ci.round(4).to_string(index=False))
-            written.append(P.LABELS_DIR / f"climate_arms_{target}_gain.csv")
+            written.append(P.labels_dir() / f"climate_arms_{target}_gain.csv")
             ci.round(4).to_csv(written[-1], index=False)
     except Exception as e:
         print(f"(climate importance skipped: {e})")
@@ -664,7 +667,7 @@ def report(target: str = "t4", include_pilot: bool = True) -> pd.DataFrame:
                                    if c.startswith(("lodo_skill", "lodo_perennial_f1",
                                                     "d_lodo_macro_f1"))]
         print(br[show].round(3).to_string(index=False))
-        written.append(P.LABELS_DIR / "climate_arms_bracket_t4_t3w.csv")
+        written.append(P.labels_dir() / "climate_arms_bracket_t4_t3w.csv")
         br.round(4).to_csv(written[-1], index=False)
 
     print("\nwrote:")

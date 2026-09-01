@@ -34,36 +34,54 @@ Numbers of record, with intervals and caveats: [`docs/RESULTS.md`](docs/RESULTS.
 
 ---
 
-## Run something in two minutes
+## Reproduce every headline number — two commands, about 90 seconds
 
 ```bash
-uv sync                                                  # Python 3.11, from uv.lock
-uv run cc -w demo train --model lightgbm --run-name demo
-uv run cc -w demo evaluate runs/demo/demo
+uv sync              # Python 3.11, exact versions from uv.lock
+uv run cc reproduce
 ```
 
-That works on a fresh clone with **no data and no Earth Engine account**. `data/demo/` is a
-real 1,302-parcel sample over six departments, committed for exactly this — and it already shows
-the thing this repository is mostly about: cross-validation says **0.538**, holding out a whole
-department says **0.494**.
+That is the whole thing. **No licensed data, no Earth Engine account, no multi-hour job** —
+the tables needed are committed to this repository. It prints each published number beside the
+one your machine just computed:
 
-```bash
-uv run cc -w demo evaluate runs/demo/demo --tag demo    # CV and LODO side by side
+```
+check           quantity                                          published   measured
+demo            demo quickstart, CV macro-F1                        +0.5381    +0.5381  ok
+national-lodo   national Landsat, LODO macro-F1 (14 departments)    +0.4789    +0.4789  ok
+s2-model        Sentinel-2 3-class (t3w, --climate temp), CV        +0.7620    +0.7585  ok
+perennial-shift perennial share of parcels, 1999 → 2012 (pp)          9.900      9.900  ok
+                perennial share of cadastral area (pp)               12.500     12.500  ok
+                titled − untitled gap in that change (pp)            -2.100     -2.100  ok
+tenure-did      DiD headline effect on perennial probability        -0.0011    -0.0011  ok
 ```
 
-⚠️ It is a *stratified* sample, so no share or prevalence computed from it means anything. The
-full archive is licensed and not redistributable — see [`docs/DATA_ACCESS.md`](docs/DATA_ACCESS.md).
+Two of those checks refit a model, so they land within a few thousandths rather than exactly —
+LightGBM is not bit-identical across machines. The rest are exact. `cc reproduce --list` says
+which is which, `cc reproduce <name>` runs one, `-v` shows each check's full tables.
 
 ```bash
-uv run cc data verify       # ⭐ what this clone can actually do
+uv run cc data verify       # ⭐ what this clone can actually do, and what is missing
 uv run cc workspaces        # where everything resolves on your machine
 uv run cc --help
 ```
 
-**The data to reproduce the published results is in the repository** — 616 MB of parcels,
-polygons, labels and extracted satellite features. You do not need the licensed raw archive, and
-you do not need to run an Earth Engine extraction. [`docs/DATA_ACCESS.md`](docs/DATA_ACCESS.md)
+**The data to reproduce the published results is in the repository** — 642 MB of parcels,
+polygons, labels and extracted satellite features. [`docs/DATA_ACCESS.md`](docs/DATA_ACCESS.md)
 says what is here and what is not.
+
+### Train something yourself, in one minute
+
+```bash
+uv run cc -w demo train --model lightgbm --drop-features meta,location --run-name mine
+uv run cc -w demo evaluate runs/demo/mine --tag demo
+```
+
+`data/demo/` is a real 1,302-parcel sample over six departments, and it already shows the thing
+this repository is mostly about: cross-validation says **0.538**, holding out a whole department
+says **0.494**.
+
+⚠️ It is a *stratified* sample, so no share or prevalence computed from it means anything.
 
 ---
 
@@ -76,6 +94,7 @@ says what is here and what is not.
 | [`docs/howto/03_new_label_set.md`](docs/howto/03_new_label_set.md) | add a label set — a YAML file, no Python |
 | [`docs/howto/04_train_and_evaluate.md`](docs/howto/04_train_and_evaluate.md) | train on either label set, and ⭐ **why CV alone is not a verdict** |
 | [`docs/howto/05_perennial_change_by_tenure.md`](docs/howto/05_perennial_change_by_tenure.md) | the headline analysis, three routes to it, and what is closed |
+| [`docs/howto/06_label_more_parcels.md`](docs/howto/06_label_more_parcels.md) | ⭐ **label new imagery and train on it** — the loop that makes the classifier better. Written for someone who does not code |
 
 ---
 

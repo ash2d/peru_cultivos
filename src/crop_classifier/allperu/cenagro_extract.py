@@ -48,6 +48,9 @@ def src_dir() -> Path:
     return cenagro_source_dir()
 OUT_DIR = ROOT / "data" / "raw" / "Cenagro_IV"
 CROP_TABLE = ROOT / "data" / "raw" / "IV CENAGRO - Tabla_Cultivos_Totales.xlsx"
+# The same 3,351 codes as a plain CSV, committed so a clone that does not have the INEI
+# workbook can still resolve `P024_03`. Written by `crop_code_table(export=True)`.
+CROP_TABLE_CSV = OUT_DIR / "crop_code_table.csv"
 
 # rows read per pass; Cajamarca and Puno are >2 GB and must not be held whole
 CHUNK = 1_200_000
@@ -199,17 +202,32 @@ def extract(depts: list[str] | None = None, overwrite: bool = False) -> pd.DataF
 
 
 # --------------------------------------------------------------------------------------
-def crop_code_table() -> pd.DataFrame:
+def crop_code_table(export: bool = False) -> pd.DataFrame:
     """The official question-024 crop code list, sheet "Permanente".
 
     Despite the sheet name it is the **whole** crop vocabulary (3,351 codes, transitory
     included) with an `Exportable` flag. Codes are 1-4 characters and are **not**
     zero-padded consistently on either side, so both sides are canonicalised to an int.
+
+    ``CROP_TABLE`` is the INEI workbook and is not redistributed; the identical code list
+    is committed as ``CROP_TABLE_CSV``, and is used whenever the workbook is absent, so the
+    census comparison reproduces from a clone alone.
     """
-    d = pd.read_excel(CROP_TABLE, sheet_name="Permanente", skiprows=3,
-                      usecols=[1, 2, 3], names=["CODIGO", "TITULO", "Exportable"])
+    if CROP_TABLE.exists():
+        d = pd.read_excel(CROP_TABLE, sheet_name="Permanente", skiprows=3,
+                          usecols=[1, 2, 3], names=["CODIGO", "TITULO", "Exportable"])
+    elif CROP_TABLE_CSV.exists():
+        d = pd.read_csv(CROP_TABLE_CSV)
+    else:
+        raise SystemExit(
+            f"no crop code list: neither {CROP_TABLE.name} nor "
+            f"{CROP_TABLE_CSV.relative_to(ROOT)} exists (docs/DATA_ACCESS.md)")
     d = d.dropna(subset=["CODIGO"]).copy()
     d["code"] = pd.to_numeric(d["CODIGO"], errors="coerce").astype("Int64")
+    if export:
+        CROP_TABLE_CSV.parent.mkdir(parents=True, exist_ok=True)
+        d.loc[d["code"].notna(), ["CODIGO", "TITULO", "Exportable"]].to_csv(
+            CROP_TABLE_CSV, index=False)
     return d.dropna(subset=["code"])
 
 

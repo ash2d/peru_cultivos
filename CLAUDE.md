@@ -7,14 +7,16 @@
 3. **[`docs/PIPELINE.md`](docs/PIPELINE.md)** — module reference, CLI table, cookbook.
 4. **[`docs/DATA.md`](docs/DATA.md)** — datasets, linkage chains, the four silent traps.
 
-Also: [`docs/LESSONS.md`](docs/LESSONS.md) (method findings worth reusing),
+`cc reproduce` re-derives every published number from the committed data (~90 s); `cc data
+verify` says what a clone can do; [`docs/howto/`](docs/howto/) is the task-shaped documentation
+(`06_label_more_parcels.md` = the label-more-and-retrain loop, for a non-programmer). Also
+[`docs/LESSONS.md`](docs/LESSONS.md) (method findings worth reusing),
 [`docs/s2_labelling/plan.md`](docs/s2_labelling/plan.md) (the only live work),
-[`docs/cenagro_columns.md`](docs/cenagro_columns.md) (the 2012 census column dictionary).
-`reports/` holds the written-up narrative — `peru_report.tex` and its PDF are current;
-[`reports/archive/`](reports/archive/REPORT.md) keeps the earlier snapshots.
+[`docs/cenagro_columns.md`](docs/cenagro_columns.md) (the 2012 census columns), and
+`reports/peru_report.tex` + PDF (the narrative; older snapshots in [`reports/archive/`](reports/archive/REPORT.md)).
 
-**Do not put status updates or results in this file.** They go in `STATUS.md` / `RESULTS.md`.
-This file is orientation only and is auto-loaded into every context.
+**Do not put status updates or results in this file.** They go in `STATUS.md` / `RESULTS.md`;
+this file is orientation only, and is auto-loaded into every context.
 
 ---
 

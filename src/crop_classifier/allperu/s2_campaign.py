@@ -67,7 +67,22 @@ def _record_gate(name: str, value, criterion: str, passed: bool, **extra) -> Non
 
 # ------------------------------------------------------------------------------------
 def step_universe(source: Path) -> None:
-    LS.build_universe(source)
+    """Build the draw frame. Falls back to the committed national parcel table.
+
+    The campaign of record drew from the full population (``all_peru_full``, 726,808
+    parcels, not committed). A clone has the 56,419-parcel national sample instead, which is
+    a perfectly good frame for drawing *more* parcels to label — it is simply a smaller one,
+    and it is already restricted to the linkable 14 departments.
+    """
+    src = Path(source)
+    if not (src / "modeling_parcels.parquet").exists():
+        alt = Path("data/processed/all_peru")
+        if not (alt / "modeling_parcels.parquet").exists():
+            raise SystemExit(f"no modeling_parcels.parquet under {src} or {alt}")
+        print(f"  {src}/modeling_parcels.parquet is not present (437 MB, not committed) — "
+              f"drawing from {alt}/modeling_parcels.parquet, 56,419 parcels")
+        src = alt
+    LS.build_universe(src)
 
 
 def step_pool(supp_depts: list[str] | None = None) -> None:
@@ -147,13 +162,27 @@ def step_split() -> None:
     LS.assign_split()
 
 
+def cadastre_path() -> Path:
+    """The polygon table the chips draw neighbouring parcel boundaries from.
+
+    The full national table (726,808 parcels) is 437 MB and is not committed, so a clone
+    falls back to the 56,419-parcel national sample. That changes only how many *context*
+    outlines a chip shows — never which parcel is being labelled, which comes from
+    ``label_sample.parquet``.
+    """
+    for c in (Path("data/processed/all_peru_full/modeling_parcels.parquet"),
+              Path("data/processed/all_peru/modeling_parcels.parquet")):
+        if c.exists():
+            return c
+    raise SystemExit("no parcel polygon table found under data/processed/ "
+                     "(docs/DATA_ACCESS.md)")
+
+
 def step_chips(workers: int = 3, overwrite: bool = False) -> None:
     from crop_classifier.labelling import chips
 
     s = gpd.read_parquet(d() / LS.F_SAMPLE)
-    cad = gpd.read_parquet(
-        Path("data/processed/all_peru_full/modeling_parcels.parquet"),
-        columns=["COD_PREDIO", "geometry"])
+    cad = gpd.read_parquet(cadastre_path(), columns=["COD_PREDIO", "geometry"])
     stats = chips.render_all(s, cad, chip_dir(), cache_dir=d() / "tiles",
                              workers=workers, overwrite=overwrite)
     with open(d() / "chip_report.json", "w") as f:
@@ -235,6 +264,68 @@ def step_ingest(csv_dir: Path) -> None:
     ingest(Path(csv_dir), s, key, s2_meta=meta, out_dir=d())
 
 
+def step_combine() -> None:
+    """Merge THIS round with the campaign of record, into a third round you can train on.
+
+    A round is deliberately kept apart from the campaign of record while it is being built
+    (`--round <name>` moves both its labels and its feature store), because a draw replaces
+    a sample and an assemble replaces a feature table. But the reason to label more parcels
+    is to train on *all* of them, so this writes the union — labels, sample and the LightGBM
+    feature block — into ``labels_s2_<name>_all`` / ``features_s2_<name>_all``, leaving both
+    inputs untouched.
+
+    Train on it with ``--round <name>_all``.
+
+    ⚠️ Two things it does not do. It does not rebuild ``tensor_perdate.npz``, so the merged
+    round trains LightGBM (the model carried forward) and not LTAE. And the merged test
+    split contains the round-of-record's **already-spent** locked test — a score on it
+    confirms nothing that has not been confirmed once already, so select on CV and LODO.
+    """
+    from crop_classifier.features.s2_assemble import FN_LGBM, FN_META
+    from crop_classifier.paths import feat, proc
+
+    rd, rf = d(), feat()                                   # this round
+    od, of = proc() / "labels_s2", proc() / "features_s2"   # the campaign of record
+    if rd == od:
+        raise SystemExit("`combine` needs a round: pass --round <name>, the same one you "
+                         "drew and labelled (docs/howto/06_label_more_parcels.md)")
+    name = rd.name.replace("labels_s2_", "")
+    md, mf = proc() / f"labels_s2_{name}_all", proc() / f"features_s2_{name}_all"
+    md.mkdir(parents=True, exist_ok=True)
+    mf.mkdir(parents=True, exist_ok=True)
+
+    def _read(f: Path):
+        """Geo where there is geometry, plain pandas where there is not."""
+        try:
+            return gpd.read_parquet(f)
+        except ValueError:
+            return pd.read_parquet(f)
+
+    def _cat(a: Path, b: Path, key: str = "COD_PREDIO"):
+        fa, fb = _read(a), _read(b)
+        miss = set(fa.columns) ^ set(fb.columns)
+        if miss:
+            raise SystemExit(
+                f"{a.name}: the two rounds do not have the same columns "
+                f"({sorted(miss)[:6]}). They were built by different code versions; "
+                f"re-run the round's `assemble` before combining.")
+        out = pd.concat([fa, fb[~fb[key].astype(str).isin(set(fa[key].astype(str)))]],
+                        ignore_index=True)
+        return gpd.GeoDataFrame(out, crs=fa.crs) if isinstance(fa, gpd.GeoDataFrame) else out
+
+    for fn in ("labelled_parcels.parquet", LS.F_SAMPLE):
+        m = _cat(od / fn, rd / fn)
+        m.to_parquet(md / fn, index=False)
+        print(f"{fn}: {len(m):,} parcels "
+              f"({len(m) - len(_read(od / fn)):+,} from round '{name}')")
+    for fn in (FN_LGBM, FN_META):
+        _cat(of / fn, rf / fn).to_parquet(mf / fn, index=False)
+
+    print(f"\nwrote {md} and {mf}\n"
+          f"train on it with:  cc -w national_s2 labelling train prep "
+          f"--round {name}_all --target t3w --climate temp")
+
+
 def step_transitions() -> None:
     from crop_classifier.labelling.ingest import transition_matrix
 
@@ -258,6 +349,7 @@ STEPS = {
     "assemble": lambda **k: step_assemble(),
     "html": lambda **k: step_html(k.get("lang", "en")),
     "ingest": lambda **k: step_ingest(k["csv_dir"]),
+    "combine": lambda **k: step_combine(),
     "transitions": lambda **k: step_transitions(),
 }
 

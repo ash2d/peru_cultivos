@@ -17,10 +17,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from crop_classifier.paths import ROOT
+from crop_classifier.paths import ROOT, labels_dir
 
 RUNS = ROOT / "runs" / "s2_labels"
-LABELS_DIR = ROOT / "data" / "processed" / "all_peru" / "labels_s2"
 
 MODEL_LABEL = {"lightgbm": "LightGBM", "ltae": "LTAE", "rules": "rules"}
 TARGET_DESC = {
@@ -66,7 +65,7 @@ def headline() -> pd.DataFrame:
     for tgt, pilot, model, run in _arms():
         m = json.loads((run / "cv_metrics.json").read_text())
         f1 = [x["macro_f1"] for x in m["folds"]]
-        ws = LABELS_DIR / f"ws_{tgt}{'_pilot' if pilot else ''}"
+        ws = labels_dir() / f"ws_{tgt}{'_pilot' if pilot else ''}"
         lf = ws / f"lodo_{model}.csv"
         lodo = pd.read_csv(lf) if lf.exists() else None
         rows.append({
@@ -83,7 +82,7 @@ def headline() -> pd.DataFrame:
             "n_val_per_fold": int(np.mean([x["n_val"] for x in m["folds"]])),
         })
     t = pd.DataFrame(rows).sort_values(["target", "train_pool", "model"])
-    t.to_csv(LABELS_DIR / "model_comparison.csv", index=False)
+    t.to_csv(labels_dir() / "model_comparison.csv", index=False)
     return t
 
 
@@ -113,7 +112,7 @@ def per_class(target: str, pilot: bool, model: str) -> pd.DataFrame:
     from sklearn.metrics import precision_recall_fscore_support
     suf = "_pilot" if pilot else ""
     run = RUNS / f"ws_{target}{suf}" / model
-    ws = LABELS_DIR / f"ws_{target}{suf}"
+    ws = labels_dir() / f"ws_{target}{suf}"
     classes = _classes(ws)
     d = oof(run)
     yt = d["y_true"].values
@@ -127,7 +126,7 @@ def per_class(target: str, pilot: bool, model: str) -> pd.DataFrame:
 def confusion(target: str, pilot: bool, model: str) -> pd.DataFrame:
     """Counts of parcels: rows = what the human called it, columns = what the model said."""
     suf = "_pilot" if pilot else ""
-    ws = LABELS_DIR / f"ws_{target}{suf}"
+    ws = labels_dir() / f"ws_{target}{suf}"
     classes = _classes(ws)
     d = oof(RUNS / f"ws_{target}{suf}" / model)
     d["human"] = [classes[i] for i in d["y_true"]]
@@ -141,7 +140,7 @@ def confusion(target: str, pilot: bool, model: str) -> pd.DataFrame:
 def lodo_table(target: str, models: list[str] | None = None) -> pd.DataFrame:
     """Per-department macro-F1 for each model, one row per department."""
     models = models or ["lightgbm", "rules", "ltae"]
-    ws = LABELS_DIR / f"ws_{target}_pilot"
+    ws = labels_dir() / f"ws_{target}_pilot"
     out = None
     for m in models:
         f = ws / f"lodo_{m}.csv"
@@ -162,7 +161,7 @@ def paired_depts(target: str, a: str, b: str) -> dict:
     largest paired sample the campaign has, and it is still small.
     """
     from scipy import stats
-    ws = LABELS_DIR / f"ws_{target}_pilot"
+    ws = labels_dir() / f"ws_{target}_pilot"
     da = pd.read_csv(ws / f"lodo_{a}.csv").set_index("dept")["macro_f1"]
     db = pd.read_csv(ws / f"lodo_{b}.csv").set_index("dept")["macro_f1"]
     idx = da.index.intersection(db.index)
@@ -197,7 +196,7 @@ def majority_baseline(target: str, pilot: bool = True) -> dict:
     import geopandas as gpd
     from sklearn.metrics import f1_score
 
-    ws = LABELS_DIR / f"ws_{target}{'_pilot' if pilot else ''}"
+    ws = labels_dir() / f"ws_{target}{'_pilot' if pilot else ''}"
     d = gpd.read_parquet(ws / "modeling_parcels.parquet")
     d = d[d["split"] == "trainval"]
     y = d["label_id"].values
@@ -218,7 +217,7 @@ def perennial_f1(target: str, pilot: bool, model: str) -> dict:
     """
     from sklearn.metrics import precision_recall_fscore_support
     suf = "_pilot" if pilot else ""
-    ws = LABELS_DIR / f"ws_{target}{suf}"
+    ws = labels_dir() / f"ws_{target}{suf}"
     classes = _classes(ws)
     if "PERENNIAL" not in classes:
         return {}

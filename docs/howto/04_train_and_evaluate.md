@@ -19,9 +19,14 @@ uv run cc -w national train --model lightgbm --drop-features meta,location \
 2019+ imagery):
 
 ```bash
-uv run cc -w national_s2 labelling train prep                       # builds every label set
-uv run cc -w national_s2 labelling train fit --target t3w --model lightgbm --climate temp
+uv run cc -w national_s2 labelling train prep --target t3w --climate temp
+uv run cc -w national_s2 labelling train fit  --target t3w --climate temp --model lightgbm
 ```
+
+`prep` builds the workspace one arm needs. **Pass it the same `--target` and `--climate` you
+are about to fit with** — bare `prep` builds every plain label set and no climate arm, so
+`fit --climate temp` after a bare `prep` stops and says so. To label *more* parcels and train
+on them: [`06_label_more_parcels.md`](06_label_more_parcels.md).
 
 Models: `lightgbm` (the one to carry forward), `ltae`, `psetae`, `rules` (a hand-written
 baseline — a floor, not a candidate).
@@ -52,6 +57,11 @@ for m in lightgbm ltae; do uv run cc -w national_s2 labelling train fit --model 
 uv run cc -w national evaluate runs/all_peru/lightgbm_nometa_nolat_aug_yleak10 \
     --tag nolat_aug_yleak10
 ```
+
+⚠️ **On a fresh clone the CV row is missing from that table and the other three are not.**
+`runs/` is not committed — a CV score lives in the run directory, so it comes back when you
+retrain — while the LODO/LOYO/LODYO record *is* committed, because recomputing it is a model
+per department. The three rows that decide are the three you get for free.
 
 ```
 split     mean±sd over units   pooled   floor   skill              units         n

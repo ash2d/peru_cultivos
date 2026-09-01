@@ -53,3 +53,35 @@ def runs() -> Path:
     p = Path(os.environ.get("CC_RUNS", ROOT / "runs"))
     p.mkdir(parents=True, exist_ok=True)
     return p
+
+
+def shared_input(name: str) -> Path:
+    """A table that lives in the *national* workspace but is read from several others.
+
+    ``tenure_two_period.parquet`` is the case: it is built once over all 14 departments and
+    is then read by the DiD workspace, which has no copy of its own. Resolution is
+    ``CC_PROC`` first, then ``data/processed/all_peru`` — so a workspace that does have its
+    own copy still wins, and a clone that only has the committed national one still works.
+    """
+    here = proc() / name
+    if here.exists():
+        return here
+    national = PROC_SHARED / "all_peru" / name
+    if national.exists():
+        return national
+    return here          # let the caller raise on the workspace-local path
+
+
+def labels_dir() -> Path:
+    """Where one photo-interpretation campaign keeps its sample, chips and labels.
+
+    Defaults to ``<CC_PROC>/labels_s2`` — the campaign of record. Override with
+    ``CC_LABELS`` to run a **second round** (a new draw, new chips, new returned CSVs)
+    without writing over the first: the committed ``label_sample.parquet`` is the key that
+    every returned label of record is joined through, and a fresh draw would replace it.
+
+    Same rule as ``proc()``: resolved at call time, never bound at import.
+    """
+    d = Path(os.environ.get("CC_LABELS", proc() / "labels_s2"))
+    d.mkdir(parents=True, exist_ok=True)
+    return d

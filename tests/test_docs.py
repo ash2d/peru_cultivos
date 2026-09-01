@@ -50,6 +50,7 @@ EXPECTED_DOCS = {
     "docs/howto/03_new_label_set.md",
     "docs/howto/04_train_and_evaluate.md",
     "docs/howto/05_perennial_change_by_tenure.md",
+    "docs/howto/06_label_more_parcels.md",
     "docs/s2_labelling/plan.md",
     "docs/s2_labelling/codebook.md",
     "reports/archive/REPORT.md",

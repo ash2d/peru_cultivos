@@ -2,25 +2,21 @@
 
 from __future__ import annotations
 
-import os
 import sys
-from pathlib import Path
 
 import pandas as pd
 
-from crop_classifier.paths import ROOT
-
-LABELS_S2 = Path(os.environ.get("CC_PROC", ROOT / "data" / "processed" / "all_peru")) / "labels_s2"
+from crop_classifier.paths import labels_dir
 
 
 def centroid(item_id: str) -> tuple[float, float]:
-    key = pd.read_csv(LABELS_S2 / "html" / "item_key.csv")
+    key = pd.read_csv(labels_dir() / "html" / "item_key.csv")
     match = key.loc[key["item_id"] == item_id, "COD_PREDIO"]
     if match.empty:
-        raise KeyError(f"{item_id!r} not found in {LABELS_S2 / 'html' / 'item_key.csv'}")
+        raise KeyError(f"{item_id!r} not found in {labels_dir() / 'html' / 'item_key.csv'}")
     cod_predio = match.iloc[0]
 
-    sample = pd.read_parquet(LABELS_S2 / "label_sample.parquet",
+    sample = pd.read_parquet(labels_dir() / "label_sample.parquet",
                               columns=["COD_PREDIO", "centroid_lat", "centroid_lon"])
     row = sample.loc[sample["COD_PREDIO"] == cod_predio]
     if row.empty:

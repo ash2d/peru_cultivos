@@ -82,6 +82,32 @@ def main(
                    err=True)
 
 
+def _use_round(name: str) -> None:
+    """`--round NAME` -> ``CC_LABELS=<CC_PROC>/labels_s2_NAME``.
+
+    A labelling round is a draw plus the labels that came back from it, and the two are
+    joined by an ``item_id`` that only that draw's ``label_sample.parquet`` explains. So a
+    second round gets its own directory rather than adding to the first — nothing of record
+    is edited, and both rounds stay readable on their own.
+    """
+    if not name:
+        return
+    import os
+
+    from crop_classifier.paths import proc
+    d = proc() / f"labels_s2_{name}"
+    f = proc() / f"features_s2_{name}"
+    d.mkdir(parents=True, exist_ok=True)
+    f.mkdir(parents=True, exist_ok=True)
+    os.environ["CC_LABELS"] = str(d)
+    # the feature store moves with the round too: `campaign assemble` REPLACES the feature
+    # table for the sample it is given, so a round assembling into the store of record would
+    # drop the 865 parcels that are already in it.
+    os.environ["CC_FEAT"] = str(f)
+    typer.echo(f"labelling round '{name}' -> labels {d}\n"
+               f"{' ' * 22}features {f}", err=True)
+
+
 @app.command("workspaces")
 def workspaces_cmd(
     check: bool = typer.Option(True, help="also report which inputs exist on this machine"),
@@ -405,10 +431,10 @@ def allperu_tenure_did(
                                    help="reproduce the pilot — NOT a valid specification")):
     """Two-period tenure DiD + gates G1-G3 (docs/RESULTS.md §7). Exits 1 if G1 FAILS."""
     from crop_classifier.allperu.tenure_did import print_verdict, run
-    from crop_classifier.paths import proc
+    from crop_classifier.paths import proc, shared_input
 
     v = run(preds, parcels or proc() / "panel_parcels.parquet",
-            tenure or proc() / "tenure_two_period.parquet", tag=tag,
+            tenure or shared_input("tenure_two_period.parquet"), tag=tag,
             cohort_min_year=cohort_min_year, control=control, apply_r4=not no_r4)
     print_verdict(v)
     raise typer.Exit(code=1 if v["G1_placebo"]["verdict"] == "FAIL" else 0)
@@ -463,10 +489,10 @@ def allperu_tenure_did2(
     trend, which is what the study is for.
     """
     from crop_classifier.allperu.tenure_did import print_corrected, run_corrected
-    from crop_classifier.paths import proc
+    from crop_classifier.paths import proc, shared_input
 
     v = run_corrected(preds, parcels or proc() / "panel_parcels.parquet",
-                      tenure or proc() / "tenure_two_period.parquet", tag=tag,
+                      tenure or shared_input("tenure_two_period.parquet"), tag=tag,
                       cohort_min_year=cohort_min_year, control=control, n_boot=n_boot)
     print_corrected(v)
     raise typer.Exit(code=0 if v["corrected"]["se"] == v["corrected"]["se"] else 1)
@@ -488,11 +514,11 @@ def allperu_tenure_xsec(
         cross_sectional_contrast,
         print_cross_sectional,
     )
-    from crop_classifier.paths import proc
+    from crop_classifier.paths import proc, shared_input
 
     w = tuple(x.strip() for x in windows.split(","))
     v = cross_sectional_contrast(preds, parcels or proc() / "panel_parcels.parquet",
-                                 tenure or proc() / "tenure_two_period.parquet",
+                                 tenure or shared_input("tenure_two_period.parquet"),
                                  tag=tag, windows=w)  # type: ignore[arg-type]
     print_cross_sectional(v)
 
@@ -708,7 +734,7 @@ def allperu_label_budget(out_dir: Path = typer.Option(Path("docs/figures"))):
 def allperu_s2_labels(
         step: str = typer.Argument(
             ..., help="universe|pool|probe|draw|split|chips|extract|harmonisation|"
-                      "html|assemble|ingest|transitions"),
+                      "html|assemble|ingest|combine|transitions"),
         source: Path = typer.Option(Path("data/processed/all_peru_full"),
                                     help="universe: workspace holding the FULL national "
                                          "modeling_parcels.parquet"),
@@ -720,7 +746,12 @@ def allperu_s2_labels(
         overwrite: bool = typer.Option(False, help="chips: re-render existing"),
         lang: str = typer.Option("en", help="html: interface + codebook language "
                                             "(en|es). Non-English writes to "
-                                            "labels_s2/html_<lang>/")):
+                                            "labels_s2/html_<lang>/"),
+        round_: str = typer.Option(
+            "", "--round", help="name a NEW labelling round; everything it writes goes to "
+                                "`labels_s2_<name>/` instead of over the campaign of "
+                                "record. Use this for any second batch of parcels "
+                                "(docs/howto/06_label_more_parcels.md)")):
     """S2 endpoint-labelling campaign (docs/s2_labelling/plan.md).
 
     The steps run in the plan's §11 order, cheapest-that-can-kill-it first::
@@ -733,6 +764,7 @@ def allperu_s2_labels(
     ``CC_FEAT=data/processed/all_peru/features_s2``.
     """
     from crop_classifier.allperu import s2_campaign as C
+    _use_round(round_)
     C.run_step(step, source=source, csv_dir=csv_dir, workers=workers,
                chunk_size=chunk_size, max_chunks=max_chunks, overwrite=overwrite,
                lang=lang,
@@ -764,6 +796,9 @@ def allperu_s2_train(
                          "for lightgbm, a static embedding for ltae, threshold strata for "
                          "rules. `prep` builds every arm; `report` with --climate all "
                          "tabulates them"),
+        round_: str = typer.Option(
+            "", "--round", help="train on a labelling round built with `campaign --round "
+                                "<name>` instead of the campaign of record"),
         eval_test: bool = typer.Option(
             False, "--eval-test",
             help="⚠️ ONE-WAY: also score the LOCKED TEST (161 usable parcels, 14 depts) "
@@ -785,6 +820,7 @@ def allperu_s2_train(
     on an arm already selected on CV/LODO (RESULTS.md §8.8b), and write the number down.
     """
     from crop_classifier.labelling.arms import run_step
+    _use_round(round_)
     run_step(step, model=model, target=target, pilot=pilot, run=run,
              model_kw=model_kw, climate=climate, eval_test=eval_test)
 
@@ -1015,6 +1051,29 @@ def evaluate(run: Path,
     """
     from crop_classifier.protocol import report
     report(run, tag=tag)
+
+
+@app.command("reproduce")
+def reproduce_cmd(
+        check: str = typer.Argument("", help="one check name, or blank for all"),
+        list_: bool = typer.Option(False, "--list", help="describe the checks, run none"),
+        verbose: bool = typer.Option(False, "-v", help="also print each check's own output — "
+                                                      "the full tables, not just the compare")):
+    """⭐ Re-derive the published headline numbers from the committed data. Start here.
+
+    Needs nothing but a clone: no licensed archive, no Earth Engine account, no multi-hour
+    job. Each line prints the published value beside the one this machine just computed, so
+    a disagreement is visible rather than something you have to go and look up.
+
+    ⚠️ Refit checks (the demo, the Sentinel-2 model) will not match to the last digit —
+    LightGBM is not bit-identical across platforms. Read-from-disk checks should match
+    exactly. `--list` says which is which.
+    """
+    from crop_classifier.reproduce import run, show
+    if list_:
+        show()
+        return
+    raise typer.Exit(code=1 if run([check] if check else None, verbose=verbose) else 0)
 
 
 @app.command("report")

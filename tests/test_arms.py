@@ -52,8 +52,7 @@ def test_the_refusal_follows_the_config_files(tmp_path, monkeypatch):
 
 
 def test_an_unbuilt_workspace_names_the_command_that_builds_it(monkeypatch, tmp_path):
-    from crop_classifier.labelling import train_prep as P
-    monkeypatch.setattr(P, "LABELS_DIR", tmp_path)
+    monkeypatch.setenv("CC_LABELS", str(tmp_path))
     with pytest.raises(SystemExit) as e:
         arms.resolve_workspace("t4", "none", False)
     assert "prep" in str(e.value)

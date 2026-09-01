@@ -38,7 +38,7 @@ import numpy as np
 import pandas as pd
 
 from crop_classifier.allperu.build_labels import clean_geometry
-from crop_classifier.paths import proc
+from crop_classifier.paths import labels_dir
 
 # One metric CRS for the whole country so region ids come off a single continuous grid —
 # the same choice, and the same reasoning, as allperu.sample.METRIC_CRS.
@@ -69,7 +69,7 @@ F_SWEEP = "label_class_mix_sweep.csv"
 
 
 def _d() -> Path:
-    return proc() / "labels_s2"
+    return labels_dir()
 
 
 def out_dir() -> Path:
@@ -532,6 +532,16 @@ def draw(universe: gpd.GeoDataFrame | None = None, total: int = TOTAL,
     _report(out, alloc, universe, max_per_region, max_crop_share, pop_eligible)
 
     if save:
+        # ⛔ `label_sample.parquet` is the key every returned label is joined through: an
+        # item_id means nothing without the draw that minted it. A second campaign must go
+        # to its own directory (`CC_LABELS=.../labels_s2_round2`), never over this one.
+        if (d / F_SAMPLE).exists():
+            raise SystemExit(
+                f"{d / F_SAMPLE} already exists — a draw would replace the sample that "
+                f"the existing labels are keyed to.\n"
+                f"For a NEW round, point CC_LABELS at a new directory first:\n"
+                f"  CC_LABELS={d.parent / (d.name + '_round2')} uv run cc ... campaign draw\n"
+                f"docs/howto/06_label_more_parcels.md")
         out.to_parquet(d / F_SAMPLE, index=False)
         alloc.to_csv(d / F_ALLOC, index=False)
         sweep = sensitivity_sweep()

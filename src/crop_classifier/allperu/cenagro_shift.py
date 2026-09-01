@@ -52,6 +52,12 @@ from crop_classifier.paths import ROOT
 CENAGRO_DIR = ROOT / "data" / "raw" / "Cenagro_IV"
 LINK = ROOT / "data" / "processed" / "cenagro" / "cenagro_pett_link.parquet"
 PETT = ROOT / "data" / "processed" / "all_peru_full" / "modeling_parcels.parquet"
+# `PETT` is 437 MB and is not committed. Two small derived files stand in for it, so this
+# comparison reproduces from a clone alone: the built panel itself, and the department x
+# declared-class population counts that post-stratification needs. Both are written by a run
+# that *did* have the full table.
+PANEL = ROOT / "data" / "processed" / "cenagro" / "national_panel.parquet"
+PETT_POP = ROOT / "data" / "processed" / "cenagro" / "pett_population_by_dept_class.csv"
 TENURE = ROOT / "data" / "processed" / "all_peru" / "tenure_by_predio.parquet"
 LABELS_S2 = ROOT / "data" / "processed" / "all_peru" / "labels_s2" / "labelled_parcels.parquet"
 CONFIG = ROOT / "src" / "crop_classifier" / "config" / "perennial_cenagro.yaml"
@@ -279,6 +285,17 @@ def build_panel(depts: list[str] | None = None) -> pd.DataFrame:
     producer is also matched to, and a parcel with any perennial recorded on it is perennial
     under the project's own `group_priority`.
     """
+    if not PETT.exists():
+        if not PANEL.exists():
+            raise SystemExit(
+                f"needs either {PETT.relative_to(ROOT)} (the full national parcel table, "
+                f"not committed) or the committed {PANEL.relative_to(ROOT)}. "
+                f"docs/DATA_ACCESS.md")
+        print(f"  reading the committed panel {PANEL.relative_to(ROOT)} — the full national "
+              f"parcel table is not present, so the panel is not rebuilt from the link")
+        df = pd.read_parquet(PANEL)
+        return df[df["dept"].isin(depts)] if depts else df
+
     link = pd.read_parquet(LINK)
     if depts:
         link = link[link["dept"].isin(depts)]
@@ -358,10 +375,15 @@ def poststratify(df: pd.DataFrame) -> pd.DataFrame:
     unweighted one, not a replacement for it: if the two agree, the composition was not
     driving the answer.
     """
-    pop = pd.read_parquet(PETT, columns=["COD_PREDIO", "dept", "label"])
-    pop = (pop.groupby(["dept", "label"]).size()
-           .rename("N_pop").reset_index()
-           .rename(columns={"label": "pett_class"}))
+    if PETT.exists():
+        pop = pd.read_parquet(PETT, columns=["COD_PREDIO", "dept", "label"])
+        pop = (pop.groupby(["dept", "label"]).size()
+               .rename("N_pop").reset_index())
+        PETT_POP.parent.mkdir(parents=True, exist_ok=True)
+        pop.to_csv(PETT_POP, index=False)
+    else:
+        pop = pd.read_csv(PETT_POP)          # the same counts, committed
+    pop = pop.rename(columns={"label": "pett_class"})
     got = (df.groupby(["dept", "pett_class"]).size().rename("n_link").reset_index())
     w = pop.merge(got, on=["dept", "pett_class"], how="right")
     w["ps_weight"] = w["N_pop"] / w["n_link"]

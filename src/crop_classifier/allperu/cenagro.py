@@ -216,6 +216,12 @@ def build(config_path: Path | None = None, save: bool = True) -> dict:
     cen = cen[cen["cen_class"].notna()]
 
     # ---- the PETT side: the project's canonical declared label ----
+    if not PETT_NATIONAL.exists():
+        raise SystemExit(
+            f"{PETT_NATIONAL.relative_to(ROOT)} is 437 MB and is not committed, and this "
+            f"Piura-only comparison rebuilds from it. The national comparison that "
+            f"supersedes it does reproduce from the clone: `cc -w national analysis "
+            f"perennial-shift` (docs/howto/05_perennial_change_by_tenure.md).")
     pett = pd.read_parquet(PETT_NATIONAL,
                            columns=["COD_PREDIO", "dept", "label", "year", "area_ha"])
     pett["COD_PREDIO"] = pett["COD_PREDIO"].astype(str)

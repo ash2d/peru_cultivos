@@ -197,8 +197,9 @@ def test_lodo_predictions_contain_no_locked_test_parcel():
     this ever fails the test set is spent and there is no second one.
     """
 
-    from crop_classifier.labelling.train_prep import LABELS_DIR
+    from crop_classifier.paths import labels_dir
 
+    LABELS_DIR = labels_dir()
     preds = sorted(LABELS_DIR.glob("ws_*/lodo_*_preds.parquet"))
     if not preds:
         pytest.skip("no LODO run in this workspace")
@@ -213,8 +214,9 @@ def test_lodo_predictions_contain_no_locked_test_parcel():
 def test_every_department_is_held_out_exactly_once():
     """Each parcel appears in exactly one held-out department, so the mean is unweighted
     over departments and every parcel contributes once."""
-    from crop_classifier.labelling.train_prep import LABELS_DIR
+    from crop_classifier.paths import labels_dir
 
+    LABELS_DIR = labels_dir()
     preds = sorted(LABELS_DIR.glob("ws_*/lodo_*_preds.parquet"))
     if not preds:
         pytest.skip("no LODO run in this workspace")

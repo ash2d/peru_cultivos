@@ -1,6 +1,8 @@
 # Status
 
-**Last updated 2026-08-28.** Read this before starting work. Numbers and their evidence live in
+**Last updated 2026-09-01.** Read this before starting work.
+`uv run cc reproduce` re-derives every published headline number from the committed data in
+~90 s; run it after any change that could move one. Numbers and their evidence live in
 [`RESULTS.md`](RESULTS.md) — this page says only what is done, what is closed, and what to do.
 
 ---
@@ -165,4 +167,5 @@ from a general rule:
 | [`PIPELINE.md`](PIPELINE.md) | module reference, CLI table, cookbook |
 | [`cenagro_columns.md`](cenagro_columns.md) | the 2012 census extract, column by column |
 | [`s2_labelling/`](s2_labelling/) | the live campaign + frozen codebook |
+| [`howto/06_label_more_parcels.md`](howto/06_label_more_parcels.md) | the label-more-parcels-and-retrain loop, written for a non-programmer |
 | `../reports/peru_report.tex` | the written-up narrative, with its PDF; earlier snapshots in [`../reports/archive/`](../reports/archive/REPORT.md) |

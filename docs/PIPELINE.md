@@ -89,6 +89,8 @@ abandoned — the code is built and unit-tested, and it stays unrun (`RESULTS.md
 
 | command | what it does |
 |---|---|
+| `reproduce [name] [--list] [-v]` | ⭐ re-derive every published headline number from the committed data, each printed beside its published value. ~90 s, no raw archive, no GEE |
+| `data verify [name] [-v]` | what this clone can do; every gap named with the command or the licence that fills it |
 | `labels build` | label table: category policy + merge map + area/year gates |
 | `splits assign` | 1 km blocks, autocorrelation audit, locked test, CV folds, buffers |
 | `features extract [--stage coverage\|pixels\|all] [--years A-B] [--max-chunks N]` | the two-stage GEE extraction |
@@ -155,7 +157,15 @@ closed. **Nothing about how they run changed** — `allperu windows …` is now
 | `closed tenure-did` | the **v2** DiD | superseded by `tenure-did2`, §7.3 |
 
 `allperu s2-labels` steps: `universe | pool | probe | draw | split | chips | extract |
-harmonisation | html | ingest | transitions`. **`html` takes `--lang en|es`**; anything but
+harmonisation | html | assemble | ingest | combine | transitions`.
+
+**`--round <name>` is how a second campaign is run.** It moves both the labels
+(`labels_s2_<name>/`) and the feature store (`features_s2_<name>/`) off the campaign of
+record, because `draw` replaces a sample and `assemble` replaces a feature table — either
+would make the committed 865 labels unreadable. `combine` then writes the union as
+`labels_s2_<name>_all`, which `labelling train --round <name>_all` trains on. The
+step-by-step version, written for a non-programmer, is
+[`howto/06_label_more_parcels.md`](howto/06_label_more_parcels.md). **`html` takes `--lang en|es`**; anything but
 English writes to `labels_s2/html_<lang>/`, and the delivered set is `html_es/`. Only the
 interface and codebook are translated — the label values written to the CSV stay the canonical
 English constants, because `ingest.py` compares against them.

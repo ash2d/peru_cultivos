@@ -36,7 +36,11 @@ def resolve_workspace(target: str, climate: str, pilot: bool) -> Path:
     else:
         ws = P.ws_dir(target, pilot)
     if not (ws / "modeling_parcels.parquet").exists():
-        raise SystemExit(f"{ws} not built — run `cc labelling train prep` first")
+        # `prep` builds the plain label sets; the climate arms are built only when it is
+        # asked for one, so name the exact command rather than the bare step.
+        cmd = "cc labelling train prep" + (
+            f" --target {target} --climate {climate}" if climate != "none" else "")
+        raise SystemExit(f"{ws} not built — run `{cmd}` first")
     return ws
 
 
@@ -87,8 +91,14 @@ def run_step(step: str, *, model: str = "lightgbm", target: str = "",
     if step not in STEPS:
         raise SystemExit(f"unknown step {step!r}; expected one of {', '.join(STEPS)}")
 
-    ws = resolve_workspace(target, climate, pilot)
+    # the model/label-space check first: it is about the arm itself, so a combination that
+    # can never run should be refused whether or not its workspace happens to be built
     check_model_is_runnable(step, model, target)
+    if step == "fit" and eval_test and model == "rules":
+        # the rule is a floor exercise, not a candidate; §8.8/§8.8b never proposes it. Same
+        # reasoning as above: refuse the combination itself, before any path is resolved.
+        raise SystemExit("--eval-test is for a selected model; `rules` is a control.")
+    ws = resolve_workspace(target, climate, pilot)
 
     os.environ["CC_PROC"] = str(ws)
     os.environ["CC_FEAT"] = str(ws / "features")
@@ -102,13 +112,15 @@ def run_step(step: str, *, model: str = "lightgbm", target: str = "",
 
     if step == "fit":
         from crop_classifier.train import train as _train
-        if eval_test and model == "rules":
-            # the rule is a floor exercise, not a candidate; §8.8/§8.8b never proposes it
-            raise SystemExit("--eval-test is for a selected model; `rules` is a control.")
         if eval_test:
             print(f"⚠️  SPENDING THE LOCKED TEST on {model}/{target}/climate={climate}. "
                   f"This is one-way — record it in RESULTS.md.")
-        os.environ["CC_RUNS"] = str(Path("runs/s2_labels") / ws.name)
+        # a round trains into its own run directory: the arm names (`ws_t3w`, ...) repeat
+        # across rounds, and two rounds writing one run dir would overwrite each other
+        from crop_classifier.paths import labels_dir
+        ld = labels_dir().name
+        base = Path("runs/s2_labels") if ld == "labels_s2" else Path("runs") / ld
+        os.environ["CC_RUNS"] = str(base / ws.name)
         _train(model_name=model, run_name=model, eval_test=eval_test, model_kw=kw or None)
 
     elif step == "baseline":

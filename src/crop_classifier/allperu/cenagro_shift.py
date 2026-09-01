@@ -375,12 +375,12 @@ def poststratify(df: pd.DataFrame) -> pd.DataFrame:
     unweighted one, not a replacement for it: if the two agree, the composition was not
     driving the answer.
     """
+    # read-only in both branches: writing the committed counts as a side effect of an
+    # estimate is how a test fixture ends up in the repository. `export_pett_population()`
+    # is the one place that writes it, and it is called on purpose.
     if PETT.exists():
         pop = pd.read_parquet(PETT, columns=["COD_PREDIO", "dept", "label"])
-        pop = (pop.groupby(["dept", "label"]).size()
-               .rename("N_pop").reset_index())
-        PETT_POP.parent.mkdir(parents=True, exist_ok=True)
-        pop.to_csv(PETT_POP, index=False)
+        pop = (pop.groupby(["dept", "label"]).size().rename("N_pop").reset_index())
     else:
         pop = pd.read_csv(PETT_POP)          # the same counts, committed
     pop = pop.rename(columns={"label": "pett_class"})
@@ -389,6 +389,20 @@ def poststratify(df: pd.DataFrame) -> pd.DataFrame:
     w["ps_weight"] = w["N_pop"] / w["n_link"]
     return df.merge(w[["dept", "pett_class", "ps_weight"]], on=["dept", "pett_class"],
                     how="left")
+
+
+def export_pett_population() -> Path:
+    """Write the department x declared-class counts that ``poststratify`` reweights to.
+
+    Needs the full national parcel table, which is not committed — so this is run once by
+    someone who has it, and everyone else reads the CSV it wrote.
+    """
+    pop = pd.read_parquet(PETT, columns=["COD_PREDIO", "dept", "label"])
+    pop = pop.groupby(["dept", "label"]).size().rename("N_pop").reset_index()
+    PETT_POP.parent.mkdir(parents=True, exist_ok=True)
+    pop.to_csv(PETT_POP, index=False)
+    print(f"wrote {PETT_POP} — {len(pop)} cells, {pop.N_pop.sum():,} parcels")
+    return PETT_POP
 
 
 def build(depts: list[str] | None = None, save: bool = True) -> dict[str, pd.DataFrame]:

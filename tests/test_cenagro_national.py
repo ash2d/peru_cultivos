@@ -191,6 +191,28 @@ def test_post_stratification_restores_the_population_cell_counts(tmp_path, monke
         pytest.approx(10.0)
 
 
+def test_the_committed_population_counts_are_the_national_ones(tmp_path, monkeypatch):
+    """⚠️ The counts post-stratification reweights to are COMMITTED, and a test once
+    overwrote them with a 100-parcel fixture — which silently moved the headline from
+    +9.9 pp to +16.2 pp and reproduced perfectly on the machine that had the real table.
+
+    So: pin the file's content, and pin that estimating never writes it. Regenerate it
+    deliberately with `cenagro_shift.export_pett_population()`.
+    """
+    pop = pd.read_csv(S.PETT_POP)
+    assert set(pop.columns) == {"dept", "label", "N_pop"}
+    assert pop["dept"].nunique() == 14
+    assert int(pop["N_pop"].sum()) == 726_808
+
+    before = S.PETT_POP.read_bytes()
+    fake = tmp_path / "pop.parquet"
+    pd.DataFrame({"COD_PREDIO": ["1"], "dept": ["PIURA"],
+                  "label": ["PERENNIAL"]}).to_parquet(fake, index=False)
+    monkeypatch.setattr(S, "PETT", fake)
+    S.poststratify(pd.DataFrame({"dept": ["PIURA"], "pett_class": ["PERENNIAL"]}))
+    assert S.PETT_POP.read_bytes() == before, "poststratify wrote the committed counts"
+
+
 def test_woody_non_crop_is_left_unmapped_on_purpose():
     """Folding it either way is the decision, not a preprocessing step — so both are reported."""
     assert S.S2_TO_DECLARED["WOODY_NON_CROP"] is None

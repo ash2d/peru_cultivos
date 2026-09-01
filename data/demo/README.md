@@ -1,27 +1,56 @@
-# ⚠️ Synthetic demo workspace — no number here is a result
+# The demo workspace
 
-Everything in this directory is **generated**, by `tools/make_demo_workspace.py`, from a fixed
-seed. None of it is Peruvian land, crops, or imagery.
+**A real sample — 1,302 parcels across six departments**, with their real declared labels, their
+real extracted Landsat features and the real spatial split assignment inherited from the national
+build.
 
-It exists for one reason: the raw data this project is built on (PETT/COFOPRI land-titling
-records and the 2012 CENAGRO census) was obtained under a research agreement and cannot be
-redistributed, so a fresh clone has no inputs at all. Without this, nothing in the repository
-runs until someone has ~20 GB of licensed files. See [`docs/DATA_ACCESS.md`](../../docs/DATA_ACCESS.md).
-
-What it *is* faithful to is the **schema and the discipline**: the same tables, columns and
-dtypes; regions assigned whole to a split and whole to a fold; the buffer dead-zone columns
-present; the acquisition-metadata features correlated with label year exactly as the real store
-has them, so `--drop-features meta` has something real to drop.
+It exists because `data/` is 33 GB and gitignored, so a fresh clone could otherwise run nothing
+at all. Redistributing *this sample* was confirmed as permitted. The **full** archive is licensed
+and is not here — [`docs/DATA_ACCESS.md`](../../docs/DATA_ACCESS.md).
 
 ```bash
-uv run cc -w demo train --model lightgbm --run-name demo
-uv run cc -w demo evaluate runs/demo/demo
+uv run cc -w demo train --model lightgbm --drop-features meta,location --run-name demo
+uv run cc -w demo advanced lodo --drop-features meta,location --tag demo --min-parcels 100
+uv run cc -w demo evaluate runs/demo/demo --tag demo
 ```
 
-The parcel table carries a `synthetic` column set to `True`, and the departments are named
-`DEMOLANDIA` and `EJEMPLIA`, so a table derived from this cannot quietly be mistaken for one
-derived from the real store.
+Under a minute end to end, no Earth Engine account needed.
 
-Regenerate with `uv run python tools/make_demo_workspace.py`.
+## ⭐ What it is for
 
-**Real results are in [`docs/RESULTS.md`](../../docs/RESULTS.md).**
+It reproduces the project's central finding at small scale:
+
+```
+split     mean±sd over units   pooled   floor   skill              units         n
+CV           0.5381 ± 0.0705   0.5533   0.171   0.443         5 CV folds     1,091
+LODO         0.4940 ± 0.0516   0.5015   0.167   0.393      6 departments     1,302
+```
+
+Cross-validation says 0.538. Holding out a **whole department** says 0.494. That gap is the thing
+this repository is mostly about, and you can see it here before you have any data of your own.
+[`docs/howto/04_train_and_evaluate.md`](../../docs/howto/04_train_and_evaluate.md).
+
+The six departments were chosen to span the country's range of class balance — TUMBES is 75 %
+perennial nationally, LAMBAYEQUE 6 %. Six similar departments would have made
+leave-one-department-out look easy, which is the opposite of the lesson.
+
+## ⚠️ It is a stratified sample, not a representative one
+
+Classes are balanced within each department so that every fold can train. **No share, area or
+prevalence computed from this workspace means anything** — the same caveat the real national
+sample carries, for the same reason.
+
+Accuracy figures from it are indicative of the pipeline, not of Peru. The numbers of record are
+in [`docs/RESULTS.md`](../../docs/RESULTS.md).
+
+## What is in here
+
+| file | what |
+|---|---|
+| `modeling_parcels.parquet` | parcels: geometry, label, year, department, split, fold, buffer columns |
+| `features/features_lightgbm.parquet` | the extracted Landsat summary features |
+| `label_map.json` | class name → id |
+| `lodo_*_demo.*` | a completed leave-one-department-out run, committed so `cc evaluate` has something to read on a fresh clone |
+
+Regenerate with `uv run python tools/make_demo_workspace.py` — which needs the national workspace
+on disk. Using the demo does not.

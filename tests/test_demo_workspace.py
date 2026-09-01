@@ -4,6 +4,10 @@ This is the promise `README.md` makes in its quickstart, and it is the one most 
 silently: the demo is not on anyone's daily path, so the first person to find it broken is a
 new collaborator on their first hour with the repository.
 
+It is a real sample of the national build, so these tests also guard the two properties that
+make a small sample honest — whole regions move together into a split, and more than one
+department is present so that leave-one-department-out can actually run.
+
 The training arm runs in a **subprocess**. LightGBM and torch each bundle their own libomp and
 co-loading them on macOS segfaults the interpreter (exit 139), which in a test session takes
 the whole run down rather than failing one test.
@@ -27,7 +31,7 @@ DEMO = ROOT / "data" / "demo"
 def test_the_demo_workspace_is_committed():
     """`data/` is gitignored; the demo is the deliberate exception. If this fails, a fresh
     clone has nothing to run."""
-    for f in ("modeling_parcels.parquet", "label_map.json", "README.md",
+    for f in ("modeling_parcels.parquet", "label_map.json", "README.md", "expected_cv.json",
               "features/features_lightgbm.parquet"):
         assert (DEMO / f).exists(), f"data/demo/{f} missing"
     out = subprocess.run(["git", "ls-files", "data/demo"], cwd=ROOT,
@@ -36,12 +40,25 @@ def test_the_demo_workspace_is_committed():
         "data/demo is not tracked by git — check the !data/demo/ rules in .gitignore")
 
 
-def test_it_is_stamped_synthetic_on_the_table_itself():
-    """A README nobody opens is not a safeguard. The stamp rides on the data, so anything
-    derived from it carries the mark."""
+def test_more_than_one_department_is_present():
+    """⭐ The demo's whole point is that someone can see CV and LODO disagree before they have
+    any data. Leave-one-department-out needs more than one department to hold out; a
+    single-department demo would teach the pipeline while hiding the split that decides."""
     g = gpd.read_parquet(DEMO / "modeling_parcels.parquet")
-    assert g["synthetic"].all()
-    assert set(g["dept"]) == {"DEMOLANDIA", "EJEMPLIA"}      # not Peruvian department names
+    assert g["dept"].nunique() >= 4
+    assert (g.groupby("dept").size() >= 100).all(), "a department too small to hold out"
+
+
+def test_a_completed_lodo_run_is_committed():
+    """So `cc evaluate` prints the CV-vs-LODO gap on a fresh clone, instead of telling a new
+    collaborator to go and run something that needs the data they do not have."""
+    assert (DEMO / "lodo_summary_demo.json").exists()
+    m = json.loads((DEMO / "lodo_summary_demo.json").read_text())
+    assert m["n_departments"] >= 4
+    cv = json.loads((DEMO / "expected_cv.json").read_text())["cv_macro_f1_mean"]
+    assert m["mean_macro_f1"] < cv, (
+        "the committed demo no longer shows LODO below CV — either the sample changed or "
+        "something is wrong; that gap is what the demo exists to show")
 
 
 def test_it_has_the_columns_the_real_loader_requires():
@@ -78,18 +95,19 @@ def test_the_feature_store_carries_the_real_column_groups():
     assert set(ORDER_FEATURES) <= set(f.columns)
 
 
-def test_the_generator_is_deterministic(tmp_path, monkeypatch):
-    """Committed generated data plus a nondeterministic generator means an unreviewable diff
-    every time anyone regenerates."""
+def test_the_generator_refuses_to_run_without_the_source_data(monkeypatch, tmp_path):
+    """Committed data plus a generator that silently produces something else is worse than no
+    generator. Without the national workspace it must say so and stop — not write a partial
+    demo over the committed one."""
     import importlib.util
     spec = importlib.util.spec_from_file_location(
         "mk", ROOT / "tools" / "make_demo_workspace.py")
     mk = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mk)
-    import numpy as np
-    a = mk.build_parcels(np.random.default_rng(mk.SEED))
-    b = mk.build_parcels(np.random.default_rng(mk.SEED))
-    assert a.drop(columns="geometry").equals(b.drop(columns="geometry"))
+    monkeypatch.setattr(mk, "SRC_PROC", tmp_path / "absent")
+    with pytest.raises(SystemExit) as e:
+        mk._require_source()
+    assert "DATA_ACCESS" in str(e.value)
 
 
 @pytest.mark.slow
@@ -107,7 +125,10 @@ def test_train_then_evaluate_runs_end_to_end(tmp_path):
     assert r.returncode == 0, r.stdout + r.stderr
     assert (tmp_path / "t" / "cv_metrics.json").exists()
     m = json.loads((tmp_path / "t" / "cv_metrics.json").read_text())
-    assert 0.2 < m["cv_macro_f1_mean"] < 0.95        # a working model, not a perfect one
+    expected = json.loads((DEMO / "expected_cv.json").read_text())["cv_macro_f1_mean"]
+    assert m["cv_macro_f1_mean"] == pytest.approx(expected, abs=0.05), (
+        f"demo CV moved: {m['cv_macro_f1_mean']:.4f} against a recorded {expected:.4f}. "
+        f"Training is seeded, so this is a real change in behaviour, not noise.")
 
     r = subprocess.run([sys.executable, "-m", "crop_classifier.cli", "evaluate",
                         str(tmp_path / "t")],

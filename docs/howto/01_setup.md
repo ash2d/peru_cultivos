@@ -26,9 +26,11 @@ uv run cc -w demo train --model lightgbm --run-name demo
 uv run cc -w demo evaluate runs/demo/demo
 ```
 
-That trains and scores a model on `data/demo/` — a small **synthetic** workspace committed to
-the repository so a fresh clone runs something. Numbers from it are meaningless; it is a
-plumbing check. See [`data/demo/README.md`](../../data/demo/README.md).
+That trains and scores a model on `data/demo/` — a real 1,302-parcel sample over six
+departments, committed so a fresh clone runs something. It is *stratified*, so no share computed
+from it means anything, but it does reproduce the pipeline's real behaviour, including the gap
+between cross-validation and holding out a whole department. See
+[`data/demo/README.md`](../../data/demo/README.md).
 
 ---
 

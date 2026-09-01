@@ -13,17 +13,18 @@ repository gives you the code and none of the inputs.
 Yes — the `demo` workspace:
 
 ```bash
-uv run cc -w demo labels build
-uv run cc -w demo train
-uv run cc -w demo evaluate
+uv run cc -w demo train --model lightgbm --drop-features meta,location --run-name demo
+uv run cc -w demo advanced lodo --drop-features meta,location --tag demo --min-parcels 100
+uv run cc -w demo evaluate runs/demo/demo --tag demo
 ```
 
-It ships a small parcel sample with its satellite features already extracted, so it needs no raw
-archive and no Earth Engine account. It exists to prove your install works and to let you read
-the pipeline end to end in a few minutes.
+1,302 real parcels over six departments, with their satellite features already extracted, so it
+needs no raw archive and no Earth Engine account. Under a minute end to end.
 
-⚠️ **Numbers from the demo workspace are not results.** It is far too small, and it is a single
-convenience sample. Never quote a metric from it.
+⚠️ **Numbers from the demo workspace are not results.** Classes are balanced within department
+so that every fold can train, which makes it a stratified sample and not a representative one —
+no share, area or prevalence from it means anything. Accuracy figures are indicative of the
+pipeline, not of Peru.
 
 ---
 

@@ -42,10 +42,17 @@ uv run cc -w demo train --model lightgbm --run-name demo
 uv run cc -w demo evaluate runs/demo/demo
 ```
 
-That works on a fresh clone with **no data and no Earth Engine account** — `data/demo/` is a
-small synthetic workspace committed for exactly this. Its numbers are meaningless; it is a
-plumbing check. The real data is licensed and not redistributable — see
-[`docs/DATA_ACCESS.md`](docs/DATA_ACCESS.md).
+That works on a fresh clone with **no data and no Earth Engine account**. `data/demo/` is a
+real 1,302-parcel sample over six departments, committed for exactly this — and it already shows
+the thing this repository is mostly about: cross-validation says **0.538**, holding out a whole
+department says **0.494**.
+
+```bash
+uv run cc -w demo evaluate runs/demo/demo --tag demo    # CV and LODO side by side
+```
+
+⚠️ It is a *stratified* sample, so no share or prevalence computed from it means anything. The
+full archive is licensed and not redistributable — see [`docs/DATA_ACCESS.md`](docs/DATA_ACCESS.md).
 
 ```bash
 uv run cc workspaces        # where everything resolves on your machine, and what exists

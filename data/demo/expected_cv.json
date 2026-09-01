@@ -1,0 +1,6 @@
+{
+  "_comment": "The demo CV score of record, for tests/test_demo_workspace.py. Regenerate with tools/make_demo_workspace.py, then re-run the quickstart and update this. Command: cc -w demo train --model lightgbm --drop-features meta,location",
+  "cv_macro_f1_mean": 0.5381042632268056,
+  "cv_macro_f1_std": 0.07052749314241473,
+  "drop_features": "meta,location"
+}

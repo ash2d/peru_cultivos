@@ -1,3 +1,7 @@
+> ⚠️ **Superseded.** The current narrative is [`reports/peru_report.tex`](../peru_report.tex)
+> and its PDF. This file is kept as an earlier snapshot; where the two disagree, the
+> numbers of record are in [`docs/RESULTS.md`](../../docs/RESULTS.md).
+
 # Peru crop classification — what was built, what was tested, and where it stands
 
 > The short version of the modelling work: a crop classifier built from land-titling records
@@ -5,13 +9,13 @@
 > change, and what each attempt showed.
 >
 > This is the human-facing narrative. The numbers of record, per strand and with verdicts, are
-> in [`RESULTS.md`](../docs/RESULTS.md); the current state and next actions are in
-> [`STATUS.md`](../docs/STATUS.md).
+> in [`RESULTS.md`](../../docs/RESULTS.md); the current state and next actions are in
+> [`STATUS.md`](../../docs/STATUS.md).
 >
 > Last updated **2026-08-31**. §1–§7 were written on 2026-08-12, after the two-period tenure
 > difference-in-differences returned the project's first actual estimate; §8 was added after the
 > Sentinel-2 endpoint labelling campaign returned. For the campaign's own plan and gates see
-> [`s2_labelling/plan.md`](../docs/s2_labelling/plan.md).
+> [`s2_labelling/plan.md`](../../docs/s2_labelling/plan.md).
 
 ---
 
@@ -51,7 +55,7 @@ Every accuracy figure in this document is measured in ~1997–2006. Not one is m
 
 ## 1. The data, and the shape of the problem
 
-![Data overview flowchart](../docs/figures/data_overview_flowchart.svg)
+![Data overview flowchart](../../docs/figures/data_overview_flowchart.svg)
 
 The chain is: a crop registry (free text, one row per declaration) → a cadastral bridge file
 that carries both key systems → parcel polygons. All three are needed, because the registry has
@@ -88,14 +92,14 @@ Three features of the labels shape everything that follows:
 
 ### 2.2 Twelve crop classes does not work
 
-![12-class per-class F1](../docs/figures/per_class_f1.png)
+![12-class per-class F1](../../docs/figures/per_class_f1.png)
 
 Best model **0.427 macro-F1** (LTAE) on 49,648 parcels. Rice scores 0.751 and coffee 0.698;
 maize 0.228, banana 0.197, sugarcane 0.147, beans 0.114.
 
 The reason is visible in the seasonal curves:
 
-![12-class seasonal NDVI profiles](../docs/figures/profiles_12class_ndvi.png)
+![12-class seasonal NDVI profiles](../../docs/figures/profiles_12class_ndvi.png)
 
 At 30 m resolution over parcels averaging ~0.5 ha — about five pixels — maize, beans, cotton
 and sugarcane look the same. Rice is separable because it floods; coffee because it keeps its
@@ -107,7 +111,7 @@ whether a parcel stays green year-round.**
 Regrouping into `PERENNIAL` / `ANNUAL` / `PASTURE_FALLOW` keeps **56,419 parcels**, including
 rare and mixed crops that the 12-class problem had to discard.
 
-![3-class seasonal profiles](../docs/figures/profiles_3class.png)
+![3-class seasonal profiles](../../docs/figures/profiles_3class.png)
 
 Between August and December, perennial parcels sit at NDVI 0.50–0.60 while annual and
 pasture parcels fall to 0.31–0.44. Bare-soil index tells the mirror-image story. The
@@ -168,7 +172,7 @@ Piura: 7,690 parcels × 28 years = **215,320 parcel-years**. Nationally: 4,565 �
 
 Two gates had to pass before any trend could be believed.
 
-![Validation gates flowchart](../docs/figures/validation_gates_flowchart.svg)
+![Validation gates flowchart](../../docs/figures/validation_gates_flowchart.svg)
 
 - **S4 — temporal transfer.** Score a parcel against its known label in nearby years. A
   perennial in 1998 should still read perennial in 1996 or 2001. Criterion: within 0.10 of
@@ -187,7 +191,7 @@ Two gates had to pass before any trend could be believed.
 
 ### 3.1 The El Niño (Piura only, but it explains the shape of the failure)
 
-![The 1997-98 El Niño signature](../docs/figures/elnino_signature.png)
+![The 1997-98 El Niño signature](../../docs/figures/elnino_signature.png)
 
 Piura's 1997–98 El Niño brought flooding and extraordinary greening. Panel-wide Jan–Mar NDVI
 was 0.51–0.61 in 1998 against 0.33–0.45 in normal years. That is also when ~80 % of Piura's
@@ -205,7 +209,7 @@ what it does:
 Perennial detection goes to essentially zero. LTAE does the same thing (0.660 → 0.033), so it
 is the imagery, not the model.
 
-![Why the perennial signature collapses](../docs/figures/elnino_mechanism.png)
+![Why the perennial signature collapses](../../docs/figures/elnino_mechanism.png)
 
 **Why:** the model has no absolute definition of "perennial". It learned thresholds — a greener
 NDVI floor, a flatter season — that work only because the two classes sit far apart on those
@@ -223,7 +227,7 @@ The national panel starts in 1999, has no El Niño in its baseline, has no thin-
 (minimum 93.4 % parcel coverage across 25 years), and spreads its labels over 1997–2006.
 **S4 passes. S5 still fails, harder — 0.517 to 0.980.**
 
-![Flicker vs static features](../docs/figures/flicker_vs_statics.png)
+![Flicker vs static features](../../docs/figures/flicker_vs_statics.png)
 
 *(Figure shows the Piura panel, where the pattern was first seen: 0.428 / 0.547 / 0.780. The
 national run reproduced it one rung worse at every step.)*
@@ -256,7 +260,7 @@ window-state twice or more**; 82 % never change at all.
 **The comparison does not.** The design needs a yardstick: parcels the titling record already
 calls `PERENNIAL` should stay perennial, so any movement in that group is measurement error.
 
-![Control-pool drift](../docs/figures/window_control_drift.png)
+![Control-pool drift](../../docs/figures/window_control_drift.png)
 
 The control pool falls **12.5 percentage points** while the at-risk pool rises **1.8**. The
 yardstick moves
@@ -355,7 +359,7 @@ the sensitivity curve answers directly, and lets the reader pick their own assum
 hours), 219,375 parcel-years inferred.** The placebo was estimated first, enforced by the code
 path.
 
-![The tenure DiD result](../docs/figures/did_result.png)
+![The tenure DiD result](../../docs/figures/did_result.png)
 
 | | coefficient | standard error | 95 % interval |
 |---|---:|---:|---|
@@ -444,7 +448,7 @@ the classifier's absolute level. That code is written and unit-tested and stays 
 
 ### ➡ The next step: photo-interpret endpoint labels
 
-[`s2_labelling/plan.md`](../docs/s2_labelling/plan.md) — **since built, and since carried out. What it
+[`s2_labelling/plan.md`](../../docs/s2_labelling/plan.md) — **since built, and since carried out. What it
 produced is §8 below**, which is the closest this project comes to answering its own question.
 The one piece still outstanding is the inter-rater check.
 

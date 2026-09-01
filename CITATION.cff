@@ -1,0 +1,34 @@
+cff-version: 1.2.0
+title: >-
+  Peru crop classifier: land-use classification from satellite imagery
+  using legacy land-titling records as labels
+message: If you use this software or its findings, please cite it.
+type: software
+authors:
+  - given-names: Daniel
+    family-names: Ash
+    email: danielmartinash@gmail.com
+repository-code: https://github.com/ash2d/peru-crop-classifier
+abstract: >-
+  A land-use classifier for Peru built from Landsat and Sentinel-2 imagery,
+  labelled with the crop declarations recorded by Peru's PETT/COFOPRI
+  land-titling programme (~1997-2006), and used to ask whether farmland has
+  shifted from domestic annual crops to export perennial crops and whether
+  secure legal title makes that shift more likely.
+
+  Headline findings: the shift is large (+9.9 pp of parcels, +12.5 pp of
+  cadastral area, ~1999 to 2012, measured from two declarations with no
+  classifier involved); tenure does not appear to cause it (a two-period
+  difference-in-differences returns a bounded null of -0.0011
+  [-0.0126, +0.0104]); and the single-year classifier reaches 0.774 macro-F1
+  on a locked test while four separate attempts to read a per-parcel time
+  series out of it failed pre-registered gates.
+keywords:
+  - remote sensing
+  - crop classification
+  - land tenure
+  - Peru
+  - Sentinel-2
+  - Landsat
+  - difference-in-differences
+license: MIT

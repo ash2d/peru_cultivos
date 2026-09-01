@@ -165,4 +165,4 @@ from a general rule:
 | [`PIPELINE.md`](PIPELINE.md) | module reference, CLI table, cookbook |
 | [`cenagro_columns.md`](cenagro_columns.md) | the 2012 census extract, column by column |
 | [`s2_labelling/`](s2_labelling/) | the live campaign + frozen codebook |
-| [`../reports/`](../reports/REPORT.md) | the written-up narratives — `REPORT.md` is current, the PDF and `.tex` are superseded snapshots |
+| `../reports/peru_report.tex` | the written-up narrative, with its PDF; earlier snapshots in [`../reports/archive/`](../reports/archive/REPORT.md) |

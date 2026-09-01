@@ -45,9 +45,14 @@ EXPECTED_DOCS = {
     "docs/PIPELINE.md",
     "docs/cenagro_columns.md",
     "docs/DATA_ACCESS.md",
+    "docs/howto/01_setup.md",
+    "docs/howto/02_get_satellite_data.md",
+    "docs/howto/03_new_label_set.md",
+    "docs/howto/04_train_and_evaluate.md",
+    "docs/howto/05_perennial_change_by_tenure.md",
     "docs/s2_labelling/plan.md",
     "docs/s2_labelling/codebook.md",
-    "reports/REPORT.md",
+    "reports/archive/REPORT.md",
     # ⏳ the migration plan for the public release; delete this entry and the file together
     # when the last phase lands (docs/github_prep_plan.md, "Final acceptance checklist")
     "docs/github_prep_plan.md",
@@ -149,7 +154,7 @@ def test_every_committed_figure_is_referenced_by_a_doc():
     )
 
 
-@pytest.mark.parametrize("nb", sorted(ROOT.glob("notebooks/*.ipynb")), ids=lambda p: p.name)
+@pytest.mark.parametrize("nb", sorted(ROOT.glob("notebooks/**/*.ipynb")), ids=lambda p: p.name)
 def test_notebooks_do_not_carry_their_rendered_imagery(nb):
     mb = nb.stat().st_size / 1e6
     assert mb <= NOTEBOOK_MAX_MB, (
@@ -161,7 +166,8 @@ def test_notebooks_do_not_carry_their_rendered_imagery(nb):
 
 def test_notebook_01_keeps_its_text_outputs():
     """01 is the forensic exploration; its printed tables are the only record of them."""
-    nb = json.loads((ROOT / "notebooks" / "01_explore_raw_datasets.ipynb").read_text())
+    nb = json.loads((ROOT / "notebooks" / "exploratory" /
+                     "01_explore_raw_datasets.ipynb").read_text())
     n = sum(len(c.get("outputs", [])) for c in nb["cells"])
     assert n >= 20, f"01_explore_raw_datasets.ipynb has only {n} outputs left — over-stripped"
 

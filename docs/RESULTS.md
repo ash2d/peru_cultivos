@@ -7,7 +7,7 @@ with a verdict line.
 population, not a preference. **LIVE** means work is outstanding; the task list is in
 [`STATUS.md`](STATUS.md).
 
-For the readable narrative of the same material, see [`REPORT.md`](../reports/REPORT.md). For findings
+For the readable narrative of the same material, see `reports/peru_report.tex` and its PDF (earlier snapshot: [`reports/archive/REPORT.md`](../reports/archive/REPORT.md)). For findings
 that generalise beyond Peru, see [`LESSONS.md`](LESSONS.md).
 
 ---

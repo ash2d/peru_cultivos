@@ -24,6 +24,18 @@ logs/
 # docs cite by path are force-added: `git add -f runs/all_peru/selected_model*.json`.
 runs/
 
+# LaTeX build products. `reports/peru_report.tex` and its PDF are tracked; everything
+# latexmk drops beside them is not.
+reports/*.aux
+reports/*.fdb_latexmk
+reports/*.fls
+reports/*.log
+reports/*.out
+reports/*.synctex.gz
+reports/*.toc
+reports/*.bbl
+reports/*.blg
+
 # Data & credentials
 data/
 # ...except the synthetic demo workspace, which is committed so that a fresh clone runs

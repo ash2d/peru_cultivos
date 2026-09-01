@@ -619,5 +619,5 @@ accumulated that way and were removed on 2026-08-31.
 | `per_class_f1.png`, `pooled_cv_metrics.png` | `perennial compare` |
 | `panel_budget.csv` | `perennial panel probe` (its default `--out`) |
 | `l7_coverage.csv` | ⚠️ **no generator in the tree** — a one-off probe, kept because §7.1's archive-limit numbers are read off it |
-| `big_parcels_grid.png` | `notebooks/04_inspect_parcel_basemaps.ipynb` |
+| `big_parcels_grid.png` | `notebooks/04_inspect_parcel_basemaps.ipynb` (see `notebooks/README.md`) |
 | `data_overview_flowchart.svg`, `validation_gates_flowchart.svg` | hand-drawn; **no generator, do not delete** |

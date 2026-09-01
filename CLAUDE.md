@@ -10,8 +10,8 @@
 Also: [`docs/LESSONS.md`](docs/LESSONS.md) (method findings worth reusing),
 [`docs/s2_labelling/plan.md`](docs/s2_labelling/plan.md) (the only live work),
 [`docs/cenagro_columns.md`](docs/cenagro_columns.md) (the 2012 census column dictionary).
-`reports/` holds the written-up narratives — [`REPORT.md`](reports/REPORT.md) is the current
-one; the PDF and the `.tex` are earlier snapshots, superseded and kept.
+`reports/` holds the written-up narrative — `peru_report.tex` and its PDF are current;
+[`reports/archive/`](reports/archive/REPORT.md) keeps the earlier snapshots.
 
 **Do not put status updates or results in this file.** They go in `STATUS.md` / `RESULTS.md`.
 This file is orientation only and is auto-loaded into every context.
@@ -197,17 +197,11 @@ One CLI for everything: `uv run python -m crop_classifier.cli --help`. Command t
 
 ## Notebooks
 
-Exploratory and historical; the pipeline in `src/` supersedes them for anything reproducible.
-Paths inside them are relative to `notebooks/` (use `../data/raw/…`).
+Exploratory and historical; `src/` supersedes them for anything reproducible. What each one is,
+and how to run them: [`notebooks/README.md`](notebooks/README.md).
 
-| notebook | what it is |
-|---|---|
-| `01_explore_raw_datasets.ipynb` | the original forensic exploration (81 cells): characterises every file, establishes the polygon↔crop join, validates it against year-matched Landsat / Sentinel-2 / Esri imagery, and settles the **PETT provenance** of the polygons |
-| `02_merge_cenagro_sset_polygons.ipynb` | census↔PETT by farmer name (Chain B) |
-| `03_pett_crop_polygon.ipynb` | the Chain-A training build, since scripted into `src/` |
-| `04_inspect_parcel_basemaps.ipynb` | per-parcel inspector — enter a `COD_PREDIO`, get it and its neighbours on three basemaps, captioned by crop and year. Its large-parcel contact sheet is checked in as `docs/figures/big_parcels_grid.png` — the quickest way to see what the polygons actually look like without running anything |
-| `05_crop_label_cleaning.ipynb` | label-normalisation development |
-| `06_perennial_trends.ipynb` | 3-class exploration |
+`04_inspect_parcel_basemaps.ipynb` is the exception — a live per-parcel inspector, the quickest
+way to see what the polygons actually look like.
 
 ---
 

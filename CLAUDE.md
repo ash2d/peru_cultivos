@@ -26,7 +26,8 @@ This file is orientation only and is auto-loaded into every context.
 Spatial CV holds out 5 km cells *inside departments the model has already seen*, and LOYO holds
 region approximately fixed — so neither can separate spatial memorisation from real signal.
 **Never select a feature or a model on CV alone.** Report **CV / LODO / LOYO / LODYO**; LODYO is
-free (`allperu lodyo` re-scores existing LODO predictions).
+free (LODYO is re-scored automatically at the end of every LODO run). `cc evaluate <run>
+--tag <tag>` prints all four in one table, each beside its majority-class floor.
 
 The same lesson has three independent instances: `frac_l7` manufactured *change*, statics
 manufacture *stability*, and `centroid_lat` manufactures *accuracy that does not leave the
@@ -118,8 +119,10 @@ perennial/annual/pasture classifier (works), and a national extension to 14 depa
 * Key libs: `geopandas`, `rasterio`, `rioxarray`, `xarray`, `shapely`, `pyproj`,
   `scikit-learn`, `lightgbm`, `torch`, `earthengine-api`, `geemap`, `contextily`, `pyreadstat`.
   Dev: `ruff`, `pytest`, `ipykernel`, `jupyterlab`.
-* **Workspace env vars decide which dataset you touch** — `CC_PROC`, `CC_FEAT`, `CC_RUNS`. Get
-  them wrong and you silently read or write the wrong store. Table in `PIPELINE.md` §2.
+* **A named workspace decides which dataset you touch** — `-w national`, `-w demo`, … defined
+  in `workspaces.yaml` and listed by `cc workspaces`. It sets `CC_PROC`/`CC_FEAT`/`CC_RUNS`,
+  which still work by hand but are no longer the documented path: three exports that have to
+  agree is how you silently read or write the wrong store. `PIPELINE.md` §2.
 * `data/` (~20 GB), `runs/` (~780 MB) and `logs/` are gitignored and local-only.
 
 ---
@@ -176,7 +179,11 @@ a test in `tests/test_allperu.py`. Read raw data through `allperu.sources`, whic
 
 ```
 src/crop_classifier/
-  paths.py                 workspace resolution (CC_PROC / CC_FEAT / CC_RUNS)
+  workspace.py             named workspaces from workspaces.yaml (-w)
+  paths.py                 path resolution, at call time, never at import
+  label_sets.py            label spaces from config/labels/*.yaml
+  protocol.py              `cc evaluate` — CV / LODO / LOYO / LODYO + the floor
+  archive/                 ⛔ closed routes; README says which gate killed each
   crop_normalization.py    one dirty CULTIVO cell → list of (crop, category)
   build_training_data.py   Chain A end-to-end for Piura
   labels.py  splits.py     label policy; spatially blocked splits + autocorrelation audit
@@ -190,7 +197,7 @@ src/crop_classifier/
   config/                  data.yaml, split*.yaml, perennial*.yaml
 ```
 
-One CLI for everything: `uv run python -m crop_classifier.cli --help`. Command table in
+One CLI for everything: `uv run cc --help`. Command table in
 `PIPELINE.md` §3.
 
 ---

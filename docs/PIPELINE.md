@@ -41,36 +41,48 @@ modeling_parcels.parquet
 evaluate.py (metrics/confusion/reliability)     infer.py (predict + abstain)
 ```
 
-Everything runs from one CLI: `uv run python -m crop_classifier.cli --help`.
+Everything runs from one CLI: `uv run cc --help`.
 
 ---
 
-## 2. Workspaces — set these before anything else
+## 2. Workspaces
 
-The same code serves four datasets through three environment variables (`paths.py`). Getting
-them wrong silently reads or writes the wrong store.
+The same code serves several datasets. Which one a command touches is a **named workspace**,
+defined in [`workspaces.yaml`](../workspaces.yaml) at the repository root and selected with
+`-w`:
 
-| workspace | `CC_PROC` | `CC_FEAT` | `CC_RUNS` |
-|---|---|---|---|
-| 12-class Piura (closed) | *unset* | *unset* | *unset* |
-| 3-class Piura | `data/processed/perennial` | *shared* | `runs/perennial` |
-| **all-Peru** ⭐ | `data/processed/all_peru` | `data/processed/all_peru/features` | `runs/all_peru` |
-| all-Peru population | `data/processed/all_peru_full` | — | — |
-| tenure DiD | `data/processed/all_peru_did` | `…/features` | `runs/all_peru` |
-| S2 labelling | `data/processed/all_peru` | `data/processed/all_peru/features_s2` | `runs/all_peru` |
-| S2 **training** | set by `s2-train` → `…/labels_s2/ws_<target>[_pilot][__clim_<arm>]` | `…/ws_<target>…/features` | `runs/s2_labels/ws_<target>…` |
+```bash
+uv run cc workspaces                    # what is configured, and what exists locally
+uv run cc -w national train ...
+```
 
-⚠️ `CC_FEAT` exists because the Piura pixel store is **no longer implicitly shared** with the
-national one.
+| workspace | what it is |
+|---|---|
+| `demo` | the committed 1,302-parcel sample; runs with no raw data |
+| `piura` | the original single-department build (12-class, closed) |
+| `perennial` | 3-class labels over the **same** Piura pixel store |
+| `national` ⭐ | 14 departments, Landsat |
+| `national_s2` | the same parcels, Sentinel-2 |
+| `tenure_did` | the two-period difference-in-differences sample |
 
-The S2 **training** row is the only one you never set by hand: `allperu s2-train` sets all three
-per arm, so the four label targets cannot contaminate one another's tables.
+`-w` sets `CC_PROC` / `CC_FEAT` / `CC_RUNS` for that process, and those three still work if you
+set them by hand — but they are no longer the documented path. Getting them wrong silently reads
+or writes the wrong store, which is why a workspace names the triple and why every `-w` run
+prints what it resolved.
+
+⚠️ `piura` and `perennial` **deliberately share** a feature store: same parcels, same years,
+same pixels, only the label column differs. `cc workspaces` prints the sharing so it is visible
+rather than surprising.
+
+⚠️ The S2 **training** workspaces are the one set you never name yourself:
+`cc labelling train` creates and selects `…/labels_s2/ws_<target>[_pilot][_clim_<arm>]` per arm,
+so the label targets cannot contaminate one another's tables.
 
 ---
 
 ## 3. Command reference
 
-`uv run python -m crop_classifier.cli <group> <command>`. ⛔ marks commands whose estimand was
+`uv run cc <group> <command>`. The task-shaped groups (`data`, `satellite`, `analysis`, `labelling`, `advanced`) are the current names; the historical `features` / `perennial` / `allperu` groups still work and are hidden from `--help`. ⛔ marks commands whose estimand was
 abandoned — the code is built and unit-tested, and it stays unrun (`RESULTS.md` §9).
 
 ### Core
@@ -519,80 +531,73 @@ that receive exactly 0 mm/year — 0/0, left undefined rather than imputed. `DAT
 
 ---
 
-## 7. Cookbook
+## 7. Commands of record
 
-Set the workspace first (§2). These are the commands of record.
+⭐ **If you are trying to *do* something, read [`howto/`](howto/) instead** — those are
+start-to-finish and explain the choices. What follows is the reference list: the exact
+invocations that produced the results on file.
 
 ```bash
 # ── national single-year model ───────────────────────────────────────────────
-export CC_PROC=data/processed/all_peru CC_FEAT=data/processed/all_peru/features CC_RUNS=runs/all_peru
-
-uv run python -m crop_classifier.cli allperu labels
-uv run python -m crop_classifier.cli allperu sample --source data/processed/all_peru_full
-uv run python -m crop_classifier.cli splits assign --config src/crop_classifier/config/split_allperu.yaml
-uv run python -m crop_classifier.cli features extract --stage all
-uv run python -m crop_classifier.cli features assemble
+uv run cc -w national labels build
+uv run cc -w national data sample --source data/processed/all_peru_full
+uv run cc -w national splits assign --config src/crop_classifier/config/split_allperu.yaml
+uv run cc -w national satellite extract --stage all
+uv run cc -w national satellite assemble
 
 # the selected arm. --drop-features is not optional: centroid_lat is memorisation.
-uv run python -m crop_classifier.cli train --model lightgbm --drop-features meta,location \
+uv run cc -w national train --model lightgbm --drop-features meta,location \
     --run-name lightgbm_nometa_nolat
 
-# selection is made HERE, not on CV. LODYO runs automatically at the end.
-uv run python -m crop_classifier.cli allperu lodo --tag nolat --drop-features meta,location
-uv run python -m crop_classifier.cli allperu loyo --drop-features meta,location
+# selection is made HERE, not on CV. LODYO runs automatically at the end of LODO.
+uv run cc -w national advanced lodo --tag nolat --drop-features meta,location
+uv run cc -w national advanced loyo --drop-features meta,location
+uv run cc -w national evaluate runs/all_peru/lightgbm_nometa_nolat --tag nolat
 ```
 
 ```bash
 # ── the panel + its gate  (⛔ the gate FAILS; kept for reproduction only) ─────
-uv run python -m crop_classifier.cli perennial panel extract --years 1999-2023   # 20+ h, resumable
-uv run python -m crop_classifier.cli perennial panel rebuild                     # after ALL workers exit
-uv run python -m crop_classifier.cli perennial panel verify
-uv run python -m crop_classifier.cli perennial panel assemble
-uv run python -m crop_classifier.cli perennial panel infer --run runs/all_peru/lightgbm_nometa_nolat
-uv run python -m crop_classifier.cli perennial diagnostics                       # exits 1 on failure
+uv run cc -w perennial advanced panel extract --years 1999-2023   # 20+ h, resumable
+uv run cc -w perennial advanced panel rebuild                     # after ALL workers exit
+uv run cc -w perennial advanced panel verify
+uv run cc -w perennial advanced panel assemble
+uv run cc -w perennial advanced panel infer --run runs/all_peru/lightgbm_nometa_nolat
+uv run cc -w perennial advanced panel-gate                        # exits 1 on failure
 ```
 
 ⚠️ **The LTAE arm must run in a separate process from any LightGBM arm** (libomp, §6).
 
 ```bash
 # ── the tenure DiD (complete — see RESULTS.md §7; do not re-run for a bigger sample) ──
-export CC_PROC=data/processed/all_peru_did CC_FEAT=data/processed/all_peru_did/features
-
-uv run python -m crop_classifier.cli allperu tenure-ceiling      # feasibility FIRST, always
-uv run python -m crop_classifier.cli allperu did-sample
-uv run python -m crop_classifier.cli allperu tenure-register     # refuses to overwrite
-uv run python -m crop_classifier.cli allperu tenure-did2         # placebo, then headline
+uv run cc -w tenure_did analysis did-feasibility      # feasibility FIRST, always
+uv run cc -w tenure_did analysis did-sample
+uv run cc -w tenure_did analysis did-register         # refuses to overwrite
+uv run cc -w tenure_did analysis did                  # placebo, then headline
 ```
 
 ```bash
 # ── the live S2 labelling campaign — see docs/s2_labelling/plan.md ───────────
-export CC_PROC=data/processed/all_peru CC_FEAT=data/processed/all_peru/features_s2
-
-uv run python -m crop_classifier.cli allperu s2-labels html --lang es   # -> html_es/
-uv run python -m crop_classifier.cli allperu s2-labels ingest --csv-dir <returned CSVs>
-uv run python -m crop_classifier.cli allperu s2-labels transitions
+uv run cc -w national_s2 labelling campaign html --lang es
+uv run cc -w national_s2 labelling campaign ingest --csv-dir <returned CSVs>
+uv run cc -w national_s2 labelling campaign transitions
 ```
 
 ```bash
 # ── regenerate the slimmed CENAGRO 2012 department files ─────────────────────
-# data/ is gitignored, so this is the ONLY record of how data/raw/Cenagro_IV/ is made.
-# Source: the OneDrive share "Departamentos_IV_CENAGRO (sin posesionario)", 25 .dta files,
-# ~18 GB. Set `cenagro_source_dir:` in workspaces.yaml to your own mount — see
-# docs/DATA_ACCESS.md §4. Make sure the files are downloaded, not placeholders: OneDrive
-# Files-On-Demand streams them and the read then runs at network speed. ~50 min for all 25.
-
-uv run python -m crop_classifier.cli allperu cenagro-extract               # all 25
-uv run python -m crop_classifier.cli allperu cenagro-extract --dept Piura --overwrite
-uv run python -m crop_classifier.cli allperu cenagro-extract --verify      # the audit
+# data/ is gitignored, so DATA_ACCESS.md §4 is the record of how data/raw/Cenagro_IV/ is
+# made. Set `cenagro_source_dir:` in workspaces.yaml first. ~50 min for all 25.
+uv run cc data cenagro-extract                          # all 25
+uv run cc data cenagro-extract --dept Piura --overwrite
+uv run cc data cenagro-extract --verify                 # the audit
 ```
 
 ```bash
 # ── the national PETT → CENAGRO 2012 → 2019+ comparison (RESULTS.md §8.6) ────
-# needs data/raw/Cenagro_IV/ (see the block above) and the national PETT build.
-uv run python -m crop_classifier.cli allperu cenagro-link    # ~6 min, 14 departments
-uv run python -m crop_classifier.cli allperu cenagro-shift   # ~3 min, draws the figure too
-uv run python -m crop_classifier.cli allperu cenagro-shift --figure   # redraw only
-uv run python docs/figures/perennial_over_time_by_tenure.py          # standalone, no project
+# needs data/raw/Cenagro_IV/ (see above) and the national PETT build.
+uv run cc -w national data cenagro-link             # ~6 min, 14 departments
+uv run cc -w national analysis perennial-shift      # ~3 min, draws the figure too
+uv run cc -w national analysis perennial-shift --figure          # redraw only
+uv run python docs/figures/perennial_over_time_by_tenure.py      # standalone, no project
 # -> data/processed/cenagro/national_*.csv + national_panel.parquet
 # -> docs/figures/perennial_over_time_by_tenure.png
 ```
@@ -605,7 +610,8 @@ uv run pytest -q
 uv run ruff check .
 ```
 
-Both read only persisted artefacts under `data/processed/` — no satellite calls, no training.
+Both figure commands read only persisted artefacts under `data/processed/` — no satellite
+calls, no training.
 
 **Every committed figure and who makes it.** `docs/figures/` is checked in, so a file in it that
 no doc cites is weight with no reader; `tests/test_docs.py` fails on one. 24 of 37 had

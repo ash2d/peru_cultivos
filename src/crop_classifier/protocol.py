@@ -117,6 +117,23 @@ def _pooled_and_floor(path: Path, label_map: dict[str, int] | None = None):
     return pooled, majority_class_floor(d.y_true), len(d)
 
 
+def _pooled_folds(run: Path, label_map: dict[str, int] | None):
+    """Pool ``fold*/preds_val.parquet`` — every parcel appears in exactly one fold's val
+    set, so concatenating them is the out-of-fold prediction for the whole trainval set."""
+    parts = sorted(run.glob("fold*/preds_val.parquet"))
+    if not parts:
+        return None, None, None
+    d = pd.concat([pd.read_parquet(f) for f in parts], ignore_index=True)
+    y_pred = _y_pred(d, label_map)
+    if y_pred is None:
+        return None, None, None
+    from sklearn.metrics import f1_score
+    labels = sorted(pd.unique(d.y_true))
+    pooled = float(f1_score(d.y_true, y_pred, average="macro", labels=labels,
+                            zero_division=0))
+    return pooled, majority_class_floor(d.y_true), len(d)
+
+
 def _cv_row(run: Path) -> Row | None:
     """CV from a run directory.
 
@@ -128,6 +145,12 @@ def _cv_row(run: Path) -> Row | None:
     lm = run / "label_map.json"
     label_map = json.loads(lm.read_text()) if lm.exists() else None
     pooled, floor, n = _pooled_and_floor(run / "preds_cv.parquet", label_map)
+    if pooled is None:
+        # `preds_cv.parquet` is written by `pool-cv`, which not every run has been through.
+        # The per-fold validation predictions are always there and are the same rows, so
+        # pool them here rather than leaving the floor blank — a macro-F1 printed with no
+        # floor beside it is the thing this command exists to prevent.
+        pooled, floor, n = _pooled_folds(run, label_map)
     j = run / "cv_metrics.json"
     if not j.exists():
         if pooled is None:

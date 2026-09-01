@@ -52,6 +52,7 @@ packages = ["src/crop_classifier"]
 [tool.pytest.ini_options]
 markers = [
     "closed_route: guards code for an estimand that was abandoned; kept so it does not rot",
+    "slow: spawns a subprocess and trains a model; skip with -m 'not slow'",
 ]
 
 [tool.ruff]

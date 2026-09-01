@@ -30,7 +30,7 @@ produces a trend, an annual series, or a per-parcel conversion date — see RESU
 
 Run with::
 
-    CC_PROC=data/processed/all_peru uv run python -m crop_classifier.cli allperu windows \\
+    CC_PROC=data/processed/all_peru uv run python -m crop_classifier.cli archive windows \\
         --preds data/processed/all_peru/panel_predictions_nolat.parquet --tag nolat
 """
 

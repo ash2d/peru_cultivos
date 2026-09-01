@@ -21,8 +21,8 @@ import pandas as pd
 import pytest
 
 from crop_classifier.allperu import density as D
-from crop_classifier.allperu import oli_overlap as O
 from crop_classifier.allperu import yearleak as YL
+from crop_classifier.archive import oli_overlap as O
 
 
 # ------------------------------------------------------------------------------------
@@ -190,7 +190,7 @@ def test_refit_default_is_offset_only_because_a_slope_is_not_identified():
     medians disagree more than parcels differ from each other (SD of the difference exceeds
     the SD of either sensor's values), so any slope fitted from them is diluted — OLS gives
     0.116 in blue against a physical ~0.85. Defaulting to a slope would silently ship that."""
-    from crop_classifier.allperu import oli_refit as RF
+    from crop_classifier.archive import oli_refit as RF
 
     fit = {"NIR": {"slope": 0.52, "intercept": 0.11, "theilsen_slope": 0.83,
                    "theilsen_intercept": 0.03, "raw_bias_l7_minus_oli": -0.0189}}

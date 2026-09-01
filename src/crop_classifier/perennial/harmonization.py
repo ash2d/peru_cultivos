@@ -27,7 +27,7 @@ import pandas as pd
 # (-0.0423 -> -0.1073) and lowers class agreement. On same-day L7/OLI parcel pairs over Peru,
 # raw OLI already reads *greener* than ETM+ (mean NDVI +0.055) and these coefficients push it
 # further away (+0.069) instead of back. A locally-refitted per-band offset does much better
-# (allperu/oli_refit.py) and STILL fails, because the cross-sensor difference is cover-type
+# (archive/oli_refit.py) and STILL fails, because the cross-sensor difference is cover-type
 # dependent (0.025 NDVI between perennial and pasture parcels) and no global linear map can
 # remove a difference that lies between classes. Do not enable OLI on the strength of this
 # module.

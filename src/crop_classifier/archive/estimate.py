@@ -38,7 +38,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from crop_classifier.allperu import windows as W
+from crop_classifier.archive import windows as W
 from crop_classifier.paths import proc
 from crop_classifier.perennial import area as AR
 

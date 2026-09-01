@@ -38,10 +38,10 @@ import numpy as np
 import pandas as pd
 import pyreadstat
 
-from crop_classifier.allperu import windows as W
 from crop_classifier.allperu.build_labels import CACHE
 from crop_classifier.allperu.export_crops import classify
 from crop_classifier.allperu.sources import Dept, departments
+from crop_classifier.archive import windows as W
 from crop_classifier.paths import proc
 
 

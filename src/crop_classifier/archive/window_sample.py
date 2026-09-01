@@ -31,7 +31,7 @@ reproducible and reviewable *before* anyone spends it, not as permission to spen
 
 Run with::
 
-    CC_PROC=data/processed/all_peru_window uv run python -m crop_classifier.allperu.window_sample \\
+    CC_PROC=data/processed/all_peru_window uv run python -m crop_classifier.archive.window_sample \\
         --source data/processed/all_peru_full \\
         --tenure data/processed/all_peru/tenure_by_predio.parquet
 """

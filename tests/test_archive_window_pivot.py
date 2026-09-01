@@ -18,8 +18,8 @@ import pytest
 from crop_classifier.allperu import export_crops as EX
 from crop_classifier.allperu import loyo as LO
 from crop_classifier.allperu import tenure as TEN
-from crop_classifier.allperu import window_sample as WS
-from crop_classifier.allperu import windows as W
+from crop_classifier.archive import window_sample as WS
+from crop_classifier.archive import windows as W
 from crop_classifier.splits import _draw_test_units, _joint_tv_distance, pick_test_units
 
 pytestmark = pytest.mark.closed_route
@@ -267,7 +267,7 @@ def test_loyo_verdict_uses_the_tolerance_and_ignores_el_nino():
 
 
 def test_estimate_refuses_while_a_gate_is_failed(tmp_path, monkeypatch):
-    from crop_classifier.allperu import estimate as ES
+    from crop_classifier.archive import estimate as ES
 
     monkeypatch.setenv("CC_PROC", str(tmp_path))
     with pytest.raises(RuntimeError, match="refuses to run"):

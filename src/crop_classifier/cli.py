@@ -11,29 +11,44 @@ from pathlib import Path
 import typer
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
-labels_app = typer.Typer(no_args_is_help=True)
-splits_app = typer.Typer(no_args_is_help=True)
-features_app = typer.Typer(no_args_is_help=True)
+labels_app = typer.Typer(
+    no_args_is_help=True,
+    help="Turn declared crop text into model labels, under one label policy")
+splits_app = typer.Typer(
+    no_args_is_help=True,
+    help="Spatially blocked train/val/test splits, with an autocorrelation audit")
+features_app = typer.Typer(no_args_is_help=True, help="Deprecated: see `cc satellite`")
 perennial_app = typer.Typer(no_args_is_help=True,
                             help="3-class perennial/annual/pasture work (docs/RESULTS.md §2)")
 allperu_app = typer.Typer(no_args_is_help=True,
                           help="all-Peru extension: 14 linkable departments (docs/RESULTS.md §4)")
 # ⛔ Commands whose ESTIMAND was abandoned after a pre-registered gate failed. The code is
 # built, unit-tested and correct; it stays unrun (docs/RESULTS.md §9), and it stays in the
-# tree because "we tried this and measured why it does not work" is a result. It lives one
-# level down so that `allperu --help` lists the ~25 commands someone might actually want,
-# not 32 of which 7 are closed. Nothing about how they run has changed:
-#   allperu windows ...  ->  allperu closed windows ...
+# tree because "we tried this and measured why it does not work" is a result.
+#
+# It sits at the top level as `cc archive`, beside the modules in
+# src/crop_classifier/archive/ (see the README there for what each one tried and which gate
+# killed it). Nothing about how they run has changed, only the prefix:
+#   cc allperu windows ...  ->  cc archive windows ...
 closed_app = typer.Typer(
     no_args_is_help=True,
     help="⛔ closed routes — the estimand failed its gate; kept for reproduction only "
-         "(docs/RESULTS.md §5, §6.4, §7, §9)")
+         "(src/crop_classifier/archive/README.md, docs/RESULTS.md §5, §6.4, §7, §9)")
+# The historical grouping: `features`, `perennial`, `allperu`. It groups commands by which
+# *strand of the research* built them, which is the right axis for someone who worked on the
+# project and the wrong one for someone arriving at it — `allperu` alone held 27 commands, of
+# which about four are the pipeline.
+#
+# The task-shaped groups below (`data`, `satellite`, `analysis`, ...) re-register these same
+# functions under names that say what you would be trying to do. Both work; only the new ones
+# are listed in `--help`, so a shell history, a running script or a line in docs/PIPELINE.md
+# keeps working while the docs migrate.
 app.add_typer(labels_app, name="labels")
 app.add_typer(splits_app, name="splits")
-app.add_typer(features_app, name="features")
-app.add_typer(perennial_app, name="perennial")
-app.add_typer(allperu_app, name="allperu")
-allperu_app.add_typer(closed_app, name="closed")
+app.add_typer(features_app, name="features", hidden=True)
+app.add_typer(perennial_app, name="perennial", hidden=True)
+app.add_typer(allperu_app, name="allperu", hidden=True)
+app.add_typer(closed_app, name="archive")
 
 
 # ── the active workspace ─────────────────────────────────────────────────────────────────
@@ -341,7 +356,7 @@ def allperu_windows(preds: Path = typer.Option(..., help="panel_predictions*.par
     """T3: the 5-year-window diagnostic (W1-W4) — run this BEFORE funding any extraction."""
     import pandas as pd
 
-    from crop_classifier.allperu.windows import print_diagnostic, run_diagnostic
+    from crop_classifier.archive.windows import print_diagnostic, run_diagnostic
     ten = pd.read_parquet(tenure) if tenure else None
     v = run_diagnostic(preds, tag=tag, tenure=ten, min_years=min_years,
                        threshold=threshold, balanced=balanced)
@@ -480,7 +495,7 @@ def allperu_tenure_error(run: Path = typer.Option(..., help="model run dir with 
     import geopandas as gpd
     import pandas as pd
 
-    from crop_classifier.allperu.windows import print_tenure_error, tenure_error_test
+    from crop_classifier.archive.windows import print_tenure_error, tenure_error_test
     from crop_classifier.paths import proc as _proc
     v = tenure_error_test(pd.read_parquet(run / "preds_cv.parquet"),
                           gpd.read_parquet(_proc() / "modeling_parcels.parquet"),
@@ -526,7 +541,7 @@ def allperu_window_sample(source: Path = typer.Option(..., help="FULL all-Peru w
                           n_pasture: int = 1500, max_per_region: int = 220,
                           seed: int = 42):
     """Draw the dept x tenure x label stratified window sample (§4.5/§4.6). Writes CC_PROC."""
-    from crop_classifier.allperu.window_sample import power_table, sample
+    from crop_classifier.archive.window_sample import power_table, sample
     print(power_table().to_string(index=False), "\n")
     sample(source, tenure, at_risk_per_tenure=at_risk_per_tenure,
            n_perennial=n_perennial, n_pasture=n_pasture, max_per_region=max_per_region,
@@ -551,7 +566,7 @@ def allperu_estimate(preds: Path = typer.Option(...), tenure: Path = typer.Optio
     """T5: the tenure contrast on the window estimand. Refuses to run unless T1-T3 passed."""
     import json as _json
 
-    from crop_classifier.allperu.estimate import run as _run
+    from crop_classifier.archive.estimate import run as _run
     print(_json.dumps(_run(preds, tenure, run, tag=tag, force=force), indent=2,
                       default=float))
 
@@ -564,7 +579,7 @@ def allperu_external(preds: Path = typer.Option(...), siea: Path = typer.Option(
     """T6: rank-compare district perennial growth against MIDAGRI/SIEA statistics."""
     import json as _json
 
-    from crop_classifier.allperu.external import compare
+    from crop_classifier.archive.external import compare
     compare(preds, siea, _json.loads(map) if map else None, min_parcels=min_parcels)
 
 
@@ -940,7 +955,7 @@ def allperu_oli(step: str = typer.Argument(
     disjoint halves of the L7 acquisitions. It is the ceiling any cross-sensor agreement can
     reach, and without it the 0.95 criterion has no referent.
     """
-    from crop_classifier.allperu import oli_overlap as O
+    from crop_classifier.archive import oli_overlap as O
     yrs = tuple(_years(years))
     if step == "probe":
         O.probe(yrs)
@@ -972,7 +987,7 @@ def allperu_oli_refit(years: str = "2015,2019,2022", max_days: int = 1):
     correction at all (RESULTS.md §9.3.2). Landsat 7 and 8 image the same parcel on the same
     day in WRS sidelaps, which is the same observational design, on our own imagery.
     """
-    from crop_classifier.allperu.oli_refit import run
+    from crop_classifier.archive.oli_refit import run
     run(tuple(_years(years)), max_days=max_days)
 
 
@@ -1017,26 +1032,141 @@ def train(model: str = "lightgbm", folds: int | None = None,
            augment_feat=augment_feat)
 
 
-@app.command()
+@app.command(hidden=True)
 def sweep(model: str, trials: int = 30, folds: int = 3):
     """Optuna sweep on CV macro-F1 (never touches the locked test) (§9)."""
     from crop_classifier.train import sweep as _sweep
     _sweep(model, n_trials=trials, n_folds=folds)
 
 
-@app.command("eval")
-def eval_cmd(run: Path, preds: str = "preds_test.parquet"):
-    """Write the §11 report bundle (metrics/confusion/per-class/stratified) for a run."""
+@app.command("evaluate")
+def evaluate(run: Path,
+             tag: str = typer.Option(
+                 "", help="the LODO/LOYO artifact tag for this configuration, e.g. "
+                          "'nolat_aug_yleak10'. Written by `cc advanced lodo --tag`"),
+             ):
+    """⭐ The evaluation protocol in one table: CV / LODO / LOYO / LODYO, each beside its floor.
+
+    Reads what is already on disk; it never starts a LODO refit, which is hours. Anything
+    missing is named, with the command that produces it.
+
+    Read the LODO row, not the CV row. CV holds out 5 km blocks *inside* departments the
+    model has already seen, so it cannot separate signal from spatial memorisation — which
+    is how `centroid_lat` (+0.047 CV, -0.060 LODO) and an entire architecture both got as
+    far as being adopted. See docs/LESSONS.md.
+    """
+    from crop_classifier.protocol import report
+    report(run, tag=tag)
+
+
+@app.command("report")
+def report_cmd(run: Path, preds: str = "preds_test.parquet"):
+    """Write the full report bundle (metrics/confusion/per-class/stratified) for one run."""
     from crop_classifier.evaluate import full_report
     full_report(run, preds)
 
 
-@app.command()
-def infer(run: Path, polygons: Path | None = None, out: Path | None = None,
-          tau: float = 0.0):
-    """Batch inference with abstain (§12)."""
+@app.command("eval", hidden=True)
+def eval_cmd(run: Path, preds: str = "preds_test.parquet"):
+    """Deprecated alias for `cc report`."""
+    from crop_classifier.evaluate import full_report
+    full_report(run, preds)
+
+
+@app.command("predict")
+def predict(run: Path, polygons: Path | None = None, out: Path | None = None,
+            tau: float = 0.0):
+    """Apply a trained model to a parcel set. `--tau` abstains below that probability."""
     from crop_classifier.infer import infer as _infer
     _infer(run, polygons, out, tau)
+
+
+@app.command("infer", hidden=True)
+def infer(run: Path, polygons: Path | None = None, out: Path | None = None,
+          tau: float = 0.0):
+    """Deprecated alias for `cc predict`."""
+    from crop_classifier.infer import infer as _infer
+    _infer(run, polygons, out, tau)
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════
+#  The task-shaped command surface
+# ══════════════════════════════════════════════════════════════════════════════════════
+#  Same functions, same options, grouped by what someone is trying to *do* rather than by
+#  which strand of the research produced them. The old names above still work and are
+#  hidden rather than removed.
+#
+#  Deliberately NOT everything is promoted. A command that exists because one audit needed
+#  it once lives under `advanced`, where it is findable without competing for attention
+#  with the four commands that are the pipeline.
+
+data_app = typer.Typer(
+    no_args_is_help=True,
+    help="Build the parcel, crop and tenure tables from the raw archive (docs/DATA.md)")
+satellite_app = typer.Typer(
+    no_args_is_help=True,
+    help="Pull imagery from Google Earth Engine and turn it into model features")
+analysis_app = typer.Typer(
+    no_args_is_help=True,
+    help="The research outputs: perennial change over time, and its relation to land tenure")
+labelling_app = typer.Typer(
+    no_args_is_help=True,
+    help="The human photo-interpretation campaign that produced the Sentinel-2 label set")
+advanced_app = typer.Typer(
+    no_args_is_help=True,
+    help="Audits, diagnostics and sensitivity arms — one-off tools, not the pipeline")
+
+app.add_typer(data_app, name="data")
+app.add_typer(satellite_app, name="satellite")
+app.add_typer(analysis_app, name="analysis")
+app.add_typer(labelling_app, name="labelling")
+app.add_typer(advanced_app, name="advanced")
+
+# ── data: raw archive -> linked parcels with a crop, a year and a tenure status ────────
+data_app.command("link")(allperu_labels)
+data_app.command("sample")(allperu_sample)
+data_app.command("tenure")(allperu_tenure)
+data_app.command("climate")(allperu_climate)
+data_app.command("inventory")(allperu_inventory)
+data_app.command("cenagro-extract")(allperu_cenagro_extract)
+data_app.command("cenagro")(allperu_cenagro)
+data_app.command("cenagro-link")(allperu_cenagro_link)
+
+# ── satellite: the two-stage GEE extraction, then assembly into features ──────────────
+satellite_app.command("extract")(features_extract)
+satellite_app.command("assemble")(features_assemble)
+
+# ── analysis: what the project is actually for ────────────────────────────────────────
+analysis_app.command("perennial-shift")(allperu_cenagro_shift)
+analysis_app.command("tenure-gap")(allperu_tenure_xsec)
+analysis_app.command("did")(allperu_tenure_did2)
+analysis_app.command("did-sample")(allperu_did_sample)
+analysis_app.command("did-register")(allperu_tenure_register)
+analysis_app.command("did-feasibility")(allperu_tenure_ceiling)
+
+# ── labelling: the S2 campaign ────────────────────────────────────────────────────────
+labelling_app.command("campaign")(allperu_s2_labels)
+labelling_app.command("budget")(allperu_label_budget)
+labelling_app.command("train")(allperu_s2_train)
+
+# ── advanced: real tools, but not the road anyone should start down ───────────────────
+advanced_app.command("lodo")(allperu_lodo)
+advanced_app.command("loyo")(allperu_loyo)
+advanced_app.command("lodyo")(allperu_lodyo)
+advanced_app.command("year-leak")(allperu_year_leak)
+advanced_app.command("tenure-error")(allperu_tenure_error)
+advanced_app.command("export-status")(allperu_export_status)
+advanced_app.command("density-audit")(allperu_density_audit)
+advanced_app.command("density-calibrate")(allperu_density_calibrate)
+advanced_app.command("degrade")(allperu_degrade)
+advanced_app.command("esri-dates")(allperu_esri_dates)
+advanced_app.command("panel")(perennial_panel)
+advanced_app.command("panel-gate")(perennial_diagnostics)
+advanced_app.command("mapbiomas")(perennial_mapbiomas)
+advanced_app.command("compare")(perennial_compare)
+advanced_app.command("calibrate")(perennial_calibrate)
+advanced_app.command("pool-cv")(perennial_pool_cv)
+advanced_app.command("sweep")(sweep)
 
 
 if __name__ == "__main__":

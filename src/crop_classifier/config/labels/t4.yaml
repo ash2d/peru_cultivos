@@ -1,0 +1,8 @@
+name: t4
+about: >-
+  Five classes minus the non-agriculture/other distinction. NON_AGRICULTURE (roads, built-up,
+  water) is folded into OTHER, since a model has little to gain from separating two kinds of
+  "not a crop" and the campaign returned few of them. The default target.
+collapse:
+  NON_AGRICULTURE: OTHER
+rules_compatible: true

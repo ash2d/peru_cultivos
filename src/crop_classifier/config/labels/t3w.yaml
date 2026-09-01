@@ -1,0 +1,11 @@
+name: t3w
+about: >-
+  The same three classes as t3, but WOODY_NON_CROP folded into PERENNIAL instead of dropped —
+  which is what a Landsat model with no woody class does with those parcels anyway, so this is
+  the *generous* reading of the baseline rather than the clean one.
+  ⚠️ Report t3 and t3w together. The gap between them is the size of the decision, and it is
+  0.190 of PERENNIAL F1 against t4 — larger than most effects measured on this data.
+collapse:
+  NON_AGRICULTURE: OTHER
+  WOODY_NON_CROP: PERENNIAL
+rules_compatible: true

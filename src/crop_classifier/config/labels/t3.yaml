@@ -1,0 +1,10 @@
+name: t3
+about: >-
+  The clean head-to-head with the Landsat model, whose label space is
+  ANNUAL / PASTURE_FALLOW / PERENNIAL and which has no counterpart for either
+  WOODY_NON_CROP or NON_AGRICULTURE. Both are dropped, which costs about a quarter of the
+  labelled data — the price of a comparison with nothing fudged in it.
+collapse:
+  NON_AGRICULTURE: null
+  WOODY_NON_CROP: null
+rules_compatible: true

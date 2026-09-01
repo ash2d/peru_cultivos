@@ -1,0 +1,6 @@
+name: t5
+about: >-
+  The campaign's label space, unchanged: all five classes the codebook defines. The most
+  faithful to what the annotators actually recorded, and the hardest to predict.
+collapse: {}
+rules_compatible: true

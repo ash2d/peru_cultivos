@@ -148,6 +148,35 @@ def labels_build(config: Path | None = None):
     build(config_path=config)
 
 
+@labels_app.command("list")
+def labels_list():
+    """Every label set on disk, and what each one collapses.
+
+    A label set is a file in `src/crop_classifier/config/labels/`. Adding one needs no code
+    change — copy the nearest file, edit `collapse:`, and it appears here.
+    """
+    from crop_classifier.label_sets import CONFIG_DIR, available, load
+
+    typer.echo(f"label sets in {CONFIG_DIR}\n")
+    for name in available():
+        ls = load(name)
+        typer.echo(f"── {name}  ({len(ls.classes)} classes: {', '.join(ls.classes)})")
+        if not ls.rules_compatible:
+            typer.echo("   ⚠️  the `rules` baseline is refused here — it would return a "
+                       "meaningless number rather than an error")
+        for src, dst in sorted(ls.collapse.items()):
+            typer.echo(f"   {src:<16} -> {'(dropped)' if dst is None else dst}")
+        if not ls.collapse:
+            typer.echo("   (no collapse — the full recorded label space)")
+        if ls.about:
+            for line in _wrap(ls.about, 74):
+                typer.echo(f"   {line}")
+        typer.echo("")
+    typer.echo("⚠️  macro-F1 is NOT comparable across these — collapsing classes raises it "
+               "and raises\n    the majority-class floor further. `cc evaluate` prints both. "
+               "docs/RESULTS.md §8.2c.")
+
+
 @splits_app.command("assign")
 def splits_assign(config: Path | None = None):
     """1 km blocks, autocorrelation audit, locked test, CV folds, buffers (§5)."""

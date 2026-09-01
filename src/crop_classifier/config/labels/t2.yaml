@@ -1,0 +1,21 @@
+name: t2
+about: >-
+  The research question reduced to its one distinction: is this parcel a perennial crop or
+  not. Everything the classifier confuses inside the non-perennial side stops counting as an
+  error, so the ceiling rises.
+  ⛔ CLOSED as a modelling choice (docs/RESULTS.md §8.2c). macro-F1 rises to 0.769 and the
+  floor rises further, from 0.171 to 0.467; normalised, this is the LOWEST-skill arm in the
+  study, and it buys +0.004 of PERENNIAL F1 over the 3-class model. To get a binary output,
+  sum the probabilities of a 3-class model instead of training this.
+  The positive class is PERENNIAL and the negative NON_PERENNIAL — deliberately not OTHER,
+  which in the 3-to-5 class targets means the specific state "farmable ground not currently
+  cropped". Reusing that name here would silently redefine a class across workspaces.
+collapse:
+  ANNUAL: NON_PERENNIAL
+  OTHER: NON_PERENNIAL
+  NON_AGRICULTURE: NON_PERENNIAL
+  WOODY_NON_CROP: NON_PERENNIAL
+# The `rules` baseline maps three SEMANTIC groups onto label ids; in a two-class space its
+# fallback resolves PASTURE_FALLOW to id 1, which here is PERENNIAL. It would run, return a
+# number, and the number would be meaningless — so it is refused rather than allowed.
+rules_compatible: false

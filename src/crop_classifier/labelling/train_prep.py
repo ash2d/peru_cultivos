@@ -31,46 +31,26 @@ from crop_classifier.paths import ROOT
 # ---------------------------------------------------------------------------------
 # Targets
 # ---------------------------------------------------------------------------------
-# The campaign's five real classes against the Landsat model's three. `None` drops the
-# class outright.
+# The label spaces live in `config/labels/*.yaml`, one file each, with the reasoning for
+# the choice written next to it. They used to be a literal here, which made adding one —
+# the thing most likely to be needed when new labels arrive — a Python edit inside a module
+# that must never be imported alongside torch.
 #
-# `t3` is the only target the existing Landsat model can be scored against, because its
-# label space is `ANNUAL / PASTURE_FALLOW / PERENNIAL` and neither `WOODY_NON_CROP` nor
-# `NON_AGRICULTURE` has a counterpart there. Two readings of `WOODY_NON_CROP` are both
-# defensible and they are kept as separate targets rather than resolved:
-#
-#   * `t3`  drops it — the clean head-to-head, at the cost of a quarter of the data;
-#   * `t3w` folds it into `PERENNIAL` — what a Landsat model with no woody class will do
-#     with those parcels anyway, so it is the *generous* reading of the baseline.
-#
-# Reporting both is the point: the gap between them is the size of the decision.
-#
-# `t2`/`t2w` collapse the question to the only distinction the research question turns on:
-# **is this parcel a perennial crop or not.** Everything the classifier confuses inside the
-# non-perennial side — annual vs fallow vs road — stops being an error, so the ceiling should
-# rise. The point of running them is to find out by how much, and whether the gain survives
-# holding out a department. The two differ only in which side `WOODY_NON_CROP` lands on, for
-# the same reason `t3`/`t3w` do, and that is again the size of the decision.
-#
-# ⚠️ The positive class is named `PERENNIAL` and the negative `NON_PERENNIAL` rather than
-# reusing `OTHER`, which in the 3–5 class targets means the *specific* state "farmable ground
-# not currently cropped". Reusing it here would silently redefine a class name across
-# workspaces.
-TARGETS: dict[str, dict[str, str | None]] = {
-    "t5": {},
-    "t4": {"NON_AGRICULTURE": "OTHER"},
-    "t3": {"NON_AGRICULTURE": None, "WOODY_NON_CROP": None},
-    "t3w": {"NON_AGRICULTURE": "OTHER", "WOODY_NON_CROP": "PERENNIAL"},
-    "t2": {"ANNUAL": "NON_PERENNIAL", "OTHER": "NON_PERENNIAL",
-           "NON_AGRICULTURE": "NON_PERENNIAL", "WOODY_NON_CROP": "NON_PERENNIAL"},
-    "t2w": {"ANNUAL": "NON_PERENNIAL", "OTHER": "NON_PERENNIAL",
-            "NON_AGRICULTURE": "NON_PERENNIAL", "WOODY_NON_CROP": "PERENNIAL"},
-}
-# Targets the `rules` model cannot be run on. Its rule maps three *semantic* groups
-# (PERENNIAL / ANNUAL / PASTURE_FALLOW) onto label ids, and with a two-class space its
-# fallback for the missing names resolves `PASTURE_FALLOW` to id 1 — which is `PERENNIAL`.
-# It would run and return a number, and the number would be meaningless.
-RULES_INCOMPATIBLE = {"t2", "t2w"}
+# `TARGETS` and `RULES_INCOMPATIBLE` are resolved on every access rather than bound at
+# import, so a label set added to that directory is usable immediately, with no reload and
+# no code change. See `crop_classifier/label_sets.py` and the README beside the configs.
+
+
+def __getattr__(name: str):                     # PEP 562
+    if name == "TARGETS":
+        from crop_classifier.label_sets import targets
+        return targets()
+    if name == "RULES_INCOMPATIBLE":
+        from crop_classifier.label_sets import rules_incompatible
+        return rules_incompatible()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
 # `OTHER` is "farmable land not currently a crop" — the codebook narrowed it to exactly
 # that — which is what `PASTURE_FALLOW` means in the Landsat label space.
 TO_LANDSAT = {"PERENNIAL": "PERENNIAL", "ANNUAL": "ANNUAL", "OTHER": "PASTURE_FALLOW"}
@@ -150,8 +130,8 @@ def _buffer_columns(df: gpd.GeoDataFrame, cfg: dict) -> pd.DataFrame:
 def build_workspace(target: str, include_pilot: bool = False,
                     verbose: bool = True) -> Path:
     """``labelled_parcels.parquet`` -> a ``CC_PROC`` workspace for one label target."""
-    if target not in TARGETS:
-        raise SystemExit(f"unknown target {target!r}; expected one of {sorted(TARGETS)}")
+    from crop_classifier.label_sets import load as load_label_set
+    label_set = load_label_set(target)          # raises, naming the config dir, if unknown
     cfg = load_yaml_config(SPLIT_CFG)
 
     lab = gpd.read_parquet(LABELS_DIR / "labelled_parcels.parquet")
@@ -162,8 +142,7 @@ def build_workspace(target: str, include_pilot: bool = False,
     df = lab.merge(sample[extra], on="COD_PREDIO", how="left")
 
     # ---- label mapping ----
-    mapping = TARGETS[target]
-    df["label"] = df["label"].map(lambda v: mapping.get(v, v))
+    df["label"] = label_set.apply(df["label"])
     n_before = len(df)
     df = df[df["label"].notna()].copy()
 

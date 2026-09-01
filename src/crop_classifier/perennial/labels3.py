@@ -284,6 +284,29 @@ def build(config_path: Path | None = None, save: bool = True) -> gpd.GeoDataFram
     print(f"lexicon: {len(audit):,} distinct tokens; "
           f"{len(unassigned):,} unassigned `crop` tokens -> {cfg['crop_fallback']} "
           f"({unassigned['n_records'].sum():,} records, {frac:.2%})")
+
+    # ⚠️ Print the tail, sorted by frequency, top ten — always, not only on failure.
+    #
+    # An unmapped-token catch-all is never uniformly distributed, and the budget check
+    # cannot see that. Mapping the 2012 census vocabulary onto these classes left 4.09 % of
+    # tokens falling to a blanket ANNUAL, of which **80 % was the single token
+    # `VERGEL FRUTICOLA`** — "fruit orchard", a perennial. The headline moved from +2.4 pp
+    # to +12.5 pp when it was fixed, and the budget check had passed either way.
+    #
+    # The tail was already being written to unassigned_tokens.csv. It was written and not
+    # read, which for this purpose is the same as not written. (RESULTS.md §8.5)
+    if len(unassigned):
+        top = unassigned.sort_values("n_records", ascending=False).head(10)
+        share = top["n_records"].to_numpy() / max(unassigned["n_records"].sum(), 1)
+        print(f"  the tail, most frequent first -> all becoming {cfg['crop_fallback']}:")
+        for (_, row), sh in zip(top.iterrows(), share, strict=False):
+            print(f"    {str(row['crop'])[:32]:<32} {int(row['n_records']):>8,} records "
+                  f"({sh:6.1%} of the tail)")
+        if len(unassigned) > 10:
+            print(f"    ... and {len(unassigned) - 10:,} more, in unassigned_tokens.csv")
+        print("  ⚠️  read these. A catch-all is never uniformly distributed, and one token "
+              "at\n      80 % of the tail once moved a headline from +2.4 pp to +12.5 pp.")
+
     if frac > cfg["max_unassigned_frac"]:
         raise AssertionError(
             f"unassigned tokens cover {frac:.2%} of records, over the "

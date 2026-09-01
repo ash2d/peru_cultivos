@@ -1,0 +1,10 @@
+name: t2w
+about: >-
+  t2 with WOODY_NON_CROP on the PERENNIAL side instead of the negative side — the same
+  bracket t3/t3w draw, at two classes. ⛔ Closed for the same reason as t2.
+collapse:
+  ANNUAL: NON_PERENNIAL
+  OTHER: NON_PERENNIAL
+  NON_AGRICULTURE: NON_PERENNIAL
+  WOODY_NON_CROP: PERENNIAL
+rules_compatible: false

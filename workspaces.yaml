@@ -1,0 +1,85 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  The one file you edit to run this project on your machine.
+#
+#  A "workspace" is a named set of three directories. Every command takes
+#  `--workspace NAME` (or `-w NAME`) and reads/writes only inside that
+#  workspace's directories:
+#
+#      proc  label tables, splits, sampled parcel sets   (small, per-analysis)
+#      feat  the satellite pixel/feature store           (large, shared)
+#      runs  trained models, predictions, metrics
+#
+#  Run `uv run cc workspaces` to see these resolved on your machine, and which
+#  inputs actually exist.
+#
+#  ⚠️ Two workspaces may deliberately SHARE a feature store: the 12-class and
+#  the 3-class perennial work use exactly the same parcels, years and pixels —
+#  only the label column differs. Sharing is intended; pointing a new analysis
+#  at an existing `feat` by accident is not. `cc workspaces` prints the sharing
+#  so you can see it.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Where the data lives. Relative paths are resolved from this file's directory.
+# Point this somewhere else if your data sits on an external drive.
+data_root: ./data
+
+# Where trained models and metrics are written.
+runs_root: ./runs
+
+# Your own Google Cloud project id, needed for any Earth Engine extraction.
+# Run `uv run earthengine authenticate` first. Another user CANNOT use the
+# project below — create your own and put its id here.
+gee_project: peru-crop-classifier
+
+# The 25 CENAGRO 2012 department .dta files (~18 GB), used only by
+# `cc data cenagro-extract`. Leave null unless you have the UDEP OneDrive share
+# mounted; see docs/DATA_ACCESS.md.
+cenagro_source_dir: null
+
+# ── The workspaces ───────────────────────────────────────────────────────────
+# `proc` and `feat` are relative to data_root; `runs` to runs_root.
+workspaces:
+
+  demo:
+    proc: demo
+    feat: demo/features
+    runs: demo
+    about: >-
+      Tiny committed sample that runs with no raw data and no Earth Engine
+      account. Start here. Metrics from it are not research results.
+
+  piura:
+    proc: processed
+    feat: processed/features
+    runs: .                           # the historical location: runs/ itself
+    about: >-
+      The original single-department build: 12-class crop classifier and the
+      3-class perennial work share this pixel store.
+
+  perennial:
+    proc: processed/perennial
+    feat: processed/features          # shared with `piura` on purpose
+    runs: perennial
+    about: 3-class PERENNIAL/ANNUAL/PASTURE_FALLOW labels over the Piura pixels.
+
+  national:
+    proc: processed/all_peru
+    feat: processed/all_peru/features
+    runs: all_peru
+    about: >-
+      The national Landsat extension — 14 linkable departments, 946,872 linked
+      polygons. The default workspace.
+
+  national_s2:
+    proc: processed/all_peru
+    feat: processed/all_peru/features_s2
+    runs: s2_labels
+    about: >-
+      The Sentinel-2 store over the same national parcels; median 47 clear
+      dates per parcel-year against 13-24 for Landsat.
+
+  tenure_did:
+    proc: processed/all_peru_did
+    feat: processed/all_peru_did/features
+    runs: did
+    about: The two-period tenure difference-in-differences sample.

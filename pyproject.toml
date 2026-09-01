@@ -30,6 +30,10 @@ dependencies = [
     "xarray>=2026.7.0",
 ]
 
+# `uv run cc ...` instead of `uv run python -m crop_classifier.cli ...`
+[project.scripts]
+cc = "crop_classifier.cli:app"
+
 [dependency-groups]
 dev = [
     "ipykernel>=7.3.0",
@@ -53,6 +57,10 @@ markers = [
 [tool.ruff]
 line-length = 100
 src = ["src", "tests"]
+# The notebooks are exploratory and historical (notebooks/README.md); linting them would
+# make `ruff check .` fail on 143 pre-existing style errors in code nothing imports, which
+# turns the gate into noise. `src/` and `tests/` are the code that must stay clean.
+extend-exclude = ["notebooks"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]

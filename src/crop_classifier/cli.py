@@ -36,6 +36,96 @@ app.add_typer(allperu_app, name="allperu")
 allperu_app.add_typer(closed_app, name="closed")
 
 
+# ── the active workspace ─────────────────────────────────────────────────────────────────
+# `-w NAME` replaces the three exports (CC_PROC / CC_FEAT / CC_RUNS) that every recipe used
+# to start with. It resolves the name against `workspaces.yaml` and sets those same three
+# variables, so nothing downstream changes: paths.py still resolves at call time, which is
+# still the rule that keeps one workspace from overwriting another's tables.
+#
+# Omitting -w leaves the environment exactly as it was, so an explicit CC_PROC still wins.
+
+
+@app.callback()
+def main(
+    workspace: str = typer.Option(
+        None, "--workspace", "-w",
+        help="named workspace from workspaces.yaml (e.g. demo, national, national_s2). "
+             "Sets CC_PROC/CC_FEAT/CC_RUNS for this command. Run `cc workspaces` to list "
+             "them. Omit to use whatever the environment already says."),
+    quiet: bool = typer.Option(False, "--quiet", "-q",
+                               help="do not print the resolved workspace banner"),
+):
+    """Peru crop classifier. Start with `cc workspaces`, then `docs/howto/`."""
+    if workspace is None:
+        return
+    from crop_classifier import workspace as W
+    ws = W.activate(workspace)
+    if not quiet:
+        # print it on stderr so piping a command's output stays clean, and print it at all
+        # because silently targeting the wrong store is this project's oldest footgun
+        typer.echo(f"workspace={ws.name}  proc={ws.proc}  feat={ws.feat}  runs={ws.runs}",
+                   err=True)
+
+
+@app.command("workspaces")
+def workspaces_cmd(
+    check: bool = typer.Option(True, help="also report which inputs exist on this machine"),
+):
+    """List the configured workspaces and what of each one is present locally.
+
+    The first command to run on a new machine. A workspace is three directories; this shows
+    where they resolve to, whether they exist, and whether two of them deliberately share a
+    feature store.
+    """
+    from crop_classifier import workspace as W
+
+    cfg = W.load_config()
+    typer.echo(f"config     {W.config_path()}")
+    typer.echo(f"gee project {cfg.get('gee_project') or '(unset)'}")
+    typer.echo("")
+
+    feat_users: dict[str, list[str]] = {}
+    for name in W.names():
+        feat_users.setdefault(str(W.resolve(name).feat), []).append(name)
+
+    for name in W.names():
+        ws = W.resolve(name)
+        typer.echo(f"── {name} " + "─" * max(0, 60 - len(name)))
+        if ws.about:
+            for line in _wrap(ws.about, 76):
+                typer.echo(f"   {line}")
+        for role, path in (("proc", ws.proc), ("feat", ws.feat), ("runs", ws.runs)):
+            mark = "" if not check else ("[ok]  " if path.exists() else "[--]  ")
+            note = ""
+            if check and path.exists():
+                n = sum(1 for _ in path.iterdir())
+                note = f"  ({n} item{'s' if n != 1 else ''})"
+            if role == "feat":
+                shared = [o for o in feat_users[str(path)] if o != name]
+                if shared:
+                    note += f"  shared with: {', '.join(shared)}"
+            typer.echo(f"   {mark}{role}  {path}{note}")
+        typer.echo("")
+
+    env = W.active()
+    if W.activated():
+        typer.echo(f"active: {W.activated()} (selected with -w)")
+    elif any(env.values()):
+        typer.echo("active: set by the environment, NOT by workspaces.yaml —")
+        for k, v in env.items():
+            if v:
+                typer.echo(f"   {k}={v}")
+        typer.echo("   unset these, or pass -w, to use a named workspace.")
+    else:
+        typer.echo("active: none — commands will use the built-in default "
+                   "(the `piura` layout). Pass -w to choose one.")
+
+
+def _wrap(text: str, width: int) -> list[str]:
+    import textwrap
+    return textwrap.wrap(" ".join(text.split()), width=width)
+
+
 @labels_app.command("build")
 def labels_build(config: Path | None = None):
     """Label table: category policy + merge map + area/year gates (§7)."""
@@ -623,7 +713,20 @@ def allperu_s2_train(
         model_kw: str = typer.Option(
             "", help="fit: JSON of model hyper-parameters, e.g. "
                      "'{\"batch_size\": 32, \"epochs\": 300}'. The registry defaults "
-                     "were tuned on 50k Landsat parcels; this campaign trains on ~200")):
+                     "were tuned on 50k Landsat parcels; this campaign trains on ~200"),
+        climate: str = typer.Option(
+            "none", help="climate covariate arm: none|temp|rain|both. Adds the WorldClim "
+                         "normals (tmean_c / precip_mm_yr) as extra inputs — flat columns "
+                         "for lightgbm, a static embedding for ltae, threshold strata for "
+                         "rules. `prep` builds every arm; `report` with --climate all "
+                         "tabulates them"),
+        eval_test: bool = typer.Option(
+            False, "--eval-test",
+            help="⚠️ ONE-WAY: also score the LOCKED TEST (161 usable parcels, 14 depts) "
+                 "after the refit. Every use contaminates it for model selection, so pass "
+                 "it only for a configuration already chosen on CV/LODO, and record the "
+                 "result in RESULTS.md. Refuses any model but the one you name — there is "
+                 "no sweep behind this flag")):
     """Train and compare models on the returned S2 endpoint labels (docs/s2_labelling/plan.md).
 
     ⚠️ **One arm per process.** LightGBM and torch each bundle their own libomp and
@@ -631,9 +734,11 @@ def allperu_s2_train(
     `fit --model lightgbm`. The steps are separate commands for that reason; drive them from
     a shell loop, not a Python one.
 
-    ⚠️ The locked test set is **never** touched here. There is no `--eval-test`: at the
-    coverage reached so far it is 58 labelled parcels, and spending it buys a +/-13 pp
-    interval on the project's only endpoint accuracy number.
+    ⚠️ The locked test set is untouched by `prep`, `lodo`, `baseline` and `report`, and by
+    `fit` unless **`--eval-test`** is passed. That flag is one-way: 161 usable parcels over
+    14 departments, so a macro-F1 from it carries roughly a +/-7 pp interval, and every
+    configuration scored on it is one the test can no longer independently confirm. Spend it
+    on an arm already selected on CV/LODO (RESULTS.md §8.8b), and write the number down.
     """
     import json
     import os
@@ -641,6 +746,10 @@ def allperu_s2_train(
     from crop_classifier.labelling import train_prep as P
 
     if step == "prep":
+        if climate != "none":
+            from crop_classifier.labelling import climate_arms as C
+            C.build_all(target or "t4", include_pilot=pilot)
+            return
         for t in P.TARGETS:
             for inc in (False, True):
                 P.build_workspace(t, include_pilot=inc)
@@ -648,10 +757,21 @@ def allperu_s2_train(
         return
 
     if step == "report":
+        if climate != "none":
+            from crop_classifier.labelling import climate_arms as C
+            C.report(target or "t4", include_pilot=pilot)
+            return
         P.report(target=target or None, include_pilot=pilot or None)
         return
 
-    ws = P.ws_dir(target or "t4", pilot)
+    if climate != "none":
+        from crop_classifier.labelling import climate_arms as C
+        if climate not in C.CLIMATE_SETS:
+            raise typer.BadParameter(f"unknown climate arm {climate!r}; "
+                                     f"expected one of {C.ARMS}")
+        ws = C.ws_dir(target or "t4", climate, pilot)
+    else:
+        ws = P.ws_dir(target or "t4", pilot)
     if not (ws / "modeling_parcels.parquet").exists():
         raise SystemExit(f"{ws} not built - run `allperu s2-train prep` first")
     os.environ["CC_PROC"] = str(ws)
@@ -664,17 +784,34 @@ def allperu_s2_train(
             f"resolves PASTURE_FALLOW to PERENNIAL. It would return a meaningless number "
             f"rather than an error. Use lightgbm or ltae.")
 
+    kw = json.loads(model_kw) if model_kw else {}
+    if climate != "none" and model == "rules":
+        # the rule has no coefficient to give a covariate; climate enters it as a
+        # median split of the training set with its own thresholds either side
+        from crop_classifier.labelling import climate_arms as C
+        kw["climate_features"] = C.CLIMATE_SETS[climate]
+
     if step == "fit":
         from crop_classifier.train import train as _train
+        if eval_test and model == "rules":
+            # the rule is a floor exercise, not a candidate; §8.8/§8.8b never proposes it
+            raise SystemExit("--eval-test is for a selected model; `rules` is a control.")
+        if eval_test:
+            print(f"⚠️  SPENDING THE LOCKED TEST on {model}/{target or 't4'}"
+                  f"/climate={climate}. This is one-way — record it in RESULTS.md.")
         os.environ["CC_RUNS"] = str(Path("runs/s2_labels") / ws.name)
-        kw = json.loads(model_kw) if model_kw else None
-        _train(model_name=model, run_name=model, eval_test=False, model_kw=kw)
+        _train(model_name=model, run_name=model, eval_test=eval_test,
+               model_kw=kw or None)
     elif step == "baseline":
         out = P.landsat_baseline(run, target=target or "t4", include_pilot=pilot)
         P.report_baseline(out, ws)
     elif step == "lodo":
+        # the climate arms address their workspace explicitly; the plain arm keeps the
+        # historical behaviour (pilot always folded in) so its numbers stay comparable
+        # with the LODO CSVs already on disk
+        extra = {"ws": ws, "tag": f"_clim_{climate}"} if climate != "none" else {}
         P.dept_transfer(target=target or "t4", model_name=model,
-                        model_kw=json.loads(model_kw) if model_kw else None)
+                        model_kw=kw or None, **extra)
     else:
         raise typer.BadParameter(f"unknown step {step!r}")
 
@@ -736,7 +873,8 @@ def allperu_cenagro_link(
 
 @allperu_app.command("cenagro-shift")
 def allperu_cenagro_shift(
-        dept: str = typer.Option("all", help="restrict to one department, or 'all'")):
+        dept: str = typer.Option("all", help="restrict to one department, or 'all'"),
+        figure: bool = typer.Option(False, help="only redraw the figure, skip the tables")):
     """⭐ PETT → CENAGRO 2012 → photo-interpreted 2019+, nationally, split by tenure.
 
     Perennial share of parcels and of **cadastral** area at each of the three observations,
@@ -747,7 +885,11 @@ def allperu_cenagro_shift(
     design-weighted because the labelling campaign over-sampled PERENNIAL.
     """
     from crop_classifier.allperu import cenagro_shift as S
+    if figure:
+        S.figure()
+        return
     S.build(None if dept == "all" else [dept])
+    S.figure()
 
 
 @allperu_app.command("climate")

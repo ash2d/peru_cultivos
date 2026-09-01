@@ -1081,6 +1081,61 @@ app.add_typer(labelling_app, name="labelling")
 app.add_typer(advanced_app, name="advanced")
 
 # ── data: raw archive -> linked parcels with a crop, a year and a tenure status ────────
+@data_app.command("verify")
+def data_verify(
+    what: str = typer.Argument("", help="one capability name, or blank for all"),
+    verbose: bool = typer.Option(False, "-v", help="list every file, not just the gaps"),
+):
+    """⭐ What can this clone actually do? Run this first, and after obtaining any data.
+
+    A missing input usually does not crash here — four of the raw datasets return a
+    plausible EMPTY or column-less result instead of an error (docs/DATA.md §4), so
+    "start the job and see" is not a check. This is.
+
+    Each capability is one of:
+
+      ok          everything it needs is present
+      derivable   the gap is rebuildable by a command, named in the output
+      needs-data  the gap is the licensed archive or a fresh GEE extraction
+    """
+    from crop_classifier.manifest import CAPABILITIES, ROOT, check, status
+
+    caps = [c for c in CAPABILITIES if not what or c.name == what]
+    if not caps:
+        raise typer.BadParameter(
+            f"unknown capability {what!r}; expected one of "
+            f"{', '.join(c.name for c in CAPABILITIES)}")
+
+    mark = {"ok": "[ok]        ", "derivable": "[derivable] ", "needs-data": "[needs data]"}
+    tally: dict[str, int] = {}
+    for cap in caps:
+        st = status(cap)
+        tally[st] = tally.get(st, 0) + 1
+        typer.echo(f"{mark[st]} {cap.name}")
+        for line in _wrap(cap.about, 72):
+            typer.echo(f"             {line}")
+        for need, ok in check(cap):
+            if ok and not verbose:
+                continue
+            size = ""
+            if ok:
+                path = ROOT / need.path
+                n = (sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
+                     if path.is_dir() else path.stat().st_size)
+                size = f"  ({n / 1e6:.1f} MB)"
+            typer.echo(f"    {'✓' if ok else '✗'} {need.path}{size}")
+            if not ok:
+                typer.echo(f"        {need.provenance}: {need.note or 'see docs/DATA_ACCESS.md'}")
+        if st != "ok" and cap.doc:
+            typer.echo(f"      -> {cap.doc}")
+        typer.echo("")
+
+    typer.echo("  ".join(f"{v} {k}" for k, v in sorted(tally.items())))
+    if tally.get("needs-data"):
+        typer.echo("`needs-data` gaps are the licensed raw archive or a fresh Earth Engine "
+                   "extraction:\n  docs/DATA_ACCESS.md")
+
+
 data_app.command("link")(allperu_labels)
 data_app.command("sample")(allperu_sample)
 data_app.command("tenure")(allperu_tenure)

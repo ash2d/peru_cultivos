@@ -36,14 +36,130 @@ reports/*.toc
 reports/*.bbl
 reports/*.blg
 
-# Data & credentials
-data/
-# ...except the demo workspace, which is committed so that a fresh clone runs something.
-# A 1,302-parcel real sample (~2 MB) drawn from the national build by
-# tools/make_demo_workspace.py. Redistributing this sample is permitted; the full archive is
-# not — see docs/DATA_ACCESS.md.
+# ── Data ─────────────────────────────────────────────────────────────────────────────
+#
+# `data/` is ~33 GB and mostly stays out. What is committed is an explicit ALLOWLIST: the
+# tables needed to reproduce this project's published results without re-running a
+# multi-hour Earth Engine extraction, and without the licensed raw archive.
+#
+# The shape below is git's allowlist idiom — ignore `dir/*`, then re-include named children,
+# level by level. It is verbose on purpose: what data ships publicly should be readable in
+# one place rather than inferred from a pattern.
+#
+# ⚠️ Redistributing the DERIVED tables was confirmed as permitted. The raw archive
+# (BD_SSET, Grafica_Tabular, QGIS, the full CENAGRO .dta files) is NOT redistributed and is
+# not allowlisted here. See docs/DATA_ACCESS.md.
+#
+# Check what a clone actually has with:  uv run cc data verify
+
+data/*
+
+# ── the committed demo (see data/demo/README.md) ─────────────────────────────────────
 !data/demo/
 !data/demo/**
+
+# ── raw: only the slimmed CENAGRO 2012 parquet extract ───────────────────────────────
+!data/raw/
+data/raw/*
+!data/raw/Cenagro_IV/
+data/raw/Cenagro_IV/*
+# the 14 linkable departments; the other 11 have no PETT counterpart and cannot be joined
+!data/raw/Cenagro_IV/Ancash.parquet
+!data/raw/Cenagro_IV/Arequipa.parquet
+!data/raw/Cenagro_IV/Ayacucho.parquet
+!data/raw/Cenagro_IV/Cajamarca.parquet
+!data/raw/Cenagro_IV/Huancavelica.parquet
+!data/raw/Cenagro_IV/Ica.parquet
+!data/raw/Cenagro_IV/La_Libertad.parquet
+!data/raw/Cenagro_IV/Lambayeque.parquet
+!data/raw/Cenagro_IV/Lima.parquet
+!data/raw/Cenagro_IV/Moquegua.parquet
+!data/raw/Cenagro_IV/Pasco.parquet
+!data/raw/Cenagro_IV/Piura.parquet
+!data/raw/Cenagro_IV/Tacna.parquet
+!data/raw/Cenagro_IV/Tumbes.parquet
+!data/raw/Cenagro_IV/_extract_audit.csv
+
+!data/processed/
+data/processed/*
+
+# ── the Piura strand: 12-class (closed) and 3-class ──────────────────────────────────
+!data/processed/modeling_parcels.parquet
+!data/processed/pett_polygons.parquet
+!data/processed/pett_crop_year.parquet
+!data/processed/pett_crop_year_distinct.parquet
+!data/processed/crop_records.parquet
+!data/processed/crop_normalization_map.csv
+!data/processed/label_map.json
+!data/processed/label_exclusions.csv
+!data/processed/splits_meta.json
+!data/processed/class_block_counts.csv
+!data/processed/features/
+data/processed/features/*
+!data/processed/features/features_lightgbm.parquet
+!data/processed/features/feature_meta.parquet
+!data/processed/perennial/
+data/processed/perennial/*
+!data/processed/perennial/*.parquet
+!data/processed/perennial/*.csv
+!data/processed/perennial/*.json
+
+# ── the national extension: parcels, Landsat features, tenure, evaluation record ─────
+!data/processed/all_peru/
+data/processed/all_peru/*
+!data/processed/all_peru/modeling_parcels.parquet
+!data/processed/all_peru/tenure_by_predio.parquet
+!data/processed/all_peru/tenure_two_period.parquet
+!data/processed/all_peru/panel_parcels.parquet
+!data/processed/all_peru/panel_predictions*.parquet
+# the LODO / LOYO / LODYO metrics and summaries — small, and hours to recompute
+!data/processed/all_peru/*.csv
+!data/processed/all_peru/*.json
+!data/processed/all_peru/features/
+data/processed/all_peru/features/*
+!data/processed/all_peru/features/features_lightgbm.parquet
+!data/processed/all_peru/features/features_lightgbm_degraded.parquet
+!data/processed/all_peru/features/feature_meta.parquet
+
+# ── the Sentinel-2 store and the photo-interpreted label set ─────────────────────────
+!data/processed/all_peru/features_s2/
+data/processed/all_peru/features_s2/*
+!data/processed/all_peru/features_s2/*.parquet
+!data/processed/all_peru/features_s2/tensor_perdate.npz
+!data/processed/all_peru/labels_s2/
+data/processed/all_peru/labels_s2/*
+!data/processed/all_peru/labels_s2/labelled_parcels.parquet
+!data/processed/all_peru/labels_s2/label_sample.parquet
+!data/processed/all_peru/labels_s2/*.csv
+!data/processed/all_peru/labels_s2/*.json
+
+# ── the tenure difference-in-differences: its sample and its predictions, not its panel
+!data/processed/all_peru_did/
+data/processed/all_peru_did/*
+!data/processed/all_peru_did/modeling_parcels.parquet
+!data/processed/all_peru_did/panel_parcels.parquet
+!data/processed/all_peru_did/panel_predictions*.parquet
+!data/processed/all_peru_did/did2_*.parquet
+!data/processed/all_peru_did/*.csv
+!data/processed/all_peru_did/*.json
+
+# ── the CENAGRO crosswalk and national panel, and the climate covariates ─────────────
+!data/processed/cenagro/
+!data/processed/cenagro/**
+!data/processed/climate/
+!data/processed/climate/**
+
+# ⛔ NOT committed, and why:
+#   data/raw/{BD_SSET,Grafica_Tabular,QGIS}   5.0 GB, licensed — docs/DATA_ACCESS.md
+#   data/raw/worldclim                         10 GB, re-downloadable from worldclim.org
+#   */features/pixels_*.parquet, pixels_chunks the raw pixel store; re-extract from GEE
+#   */features/panel/                          the multi-year panel extraction, 20+ h
+#   */features/tensor_pixelset.npz             PSE-LTAE input; rebuild with `satellite assemble`
+#   labels_s2/{tiles,chips,html,html_es}       4.0 GB of labelling-UI imagery
+#   labels_s2/label_universe.parquet           391 MB draw frame; rebuilt by `campaign universe`
+#   labels_s2/ws_*/                            per-arm workspaces; rebuilt by `labelling train prep`
+
+# credentials
 *.tif
 *.tiff
 .env

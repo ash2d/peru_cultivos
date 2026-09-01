@@ -1,0 +1,50 @@
+{
+  "tag": "nolat_fit",
+  "run": "runs/all_peru/lightgbm_nometa_nolat",
+  "years": [
+    2015,
+    2019,
+    2022
+  ],
+  "n_paired_parcel_years": 12940,
+  "median_abs_dp": 0.029753628810422213,
+  "mean_dp": 0.008398163245750214,
+  "p95_abs_dp": 0.6413984880214633,
+  "class_agreement": 0.645208655332303,
+  "control_mean_dp": 0.03596057957684878,
+  "at_risk_mean_dp": -0.00033253274141019346,
+  "mean_n_valid_obs_l7": 13.147604327666151,
+  "mean_n_valid_obs_oli": 21.846367851622876,
+  "per_year": [
+    {
+      "year": 2015,
+      "n": 4200,
+      "median_abs_dp": 0.02004033264557184,
+      "mean_dp": 0.016201398587157342,
+      "agreement": 0.6823809523809524
+    },
+    {
+      "year": 2019,
+      "n": 4261,
+      "median_abs_dp": 0.03136757140899629,
+      "mean_dp": -0.01956251164820718,
+      "agreement": 0.6486740201830556
+    },
+    {
+      "year": 2022,
+      "n": 4479,
+      "median_abs_dp": 0.04096231162125413,
+      "mean_dp": 0.027680781528679997,
+      "agreement": 0.6070551462379995
+    }
+  ],
+  "criteria": {
+    "max_median_abs_dp": 0.05,
+    "min_class_agreement": 0.95,
+    "max_control_shift": 0.02
+  },
+  "pass_median_dp": true,
+  "pass_agreement": false,
+  "pass_control": false,
+  "pass": false
+}

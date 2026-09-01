@@ -1,0 +1,373 @@
+{
+  "tag": "did2_negcontrol_ltae_cohort2004",
+  "preds": "data/processed/all_peru_did/panel_predictions_ltae.parquet",
+  "cohort_min_year": 2004,
+  "control_policy": "no_inscrito",
+  "restrictions": {
+    "n_start": 14625,
+    "n_after_abstain": 14473,
+    "n_R1_at_risk": 14473,
+    "n_R2_dated": 14473,
+    "n_R3_ordered": 14473,
+    "n_R4_clean_pre": 14473,
+    "control_policy": "no_inscrito",
+    "cohort_min_year": 2004,
+    "n_final": 14473,
+    "n_treated": 6520,
+    "n_control": 7953
+  },
+  "M": 7.0,
+  "M_derivation": "headline horizon / placebo horizon, from window midpoints",
+  "placebo": {
+    "coef": -0.002644183073582825,
+    "se": 0.010062906067215435,
+    "p": 0.7927314409863531,
+    "n_treated": 6461,
+    "n_control": 7782,
+    "n_obs": 28486,
+    "n_clusters": 653,
+    "contrast": "P1->P2",
+    "horizon_years": 2.5,
+    "band": 0.0025,
+    "band_per_decade": 0.01,
+    "ci_low": -0.022367478965325076,
+    "ci_high": 0.017079112818159426,
+    "coef_per_decade": -0.0105767322943313,
+    "verdict": "INCONCLUSIVE"
+  },
+  "headline": {
+    "coef": -0.015374543847983676,
+    "se": 0.00799869701216446,
+    "p": 0.0545892705774303,
+    "n_treated": 6503,
+    "n_control": 7870,
+    "n_obs": 43019,
+    "n_clusters": 663
+  },
+  "headline_by_post_window": {
+    "W14": {
+      "coef": -0.025172056500287737,
+      "se": 0.009165139886299455,
+      "p": 0.006023488996882025,
+      "n_treated": 6495,
+      "n_control": 7863,
+      "n_obs": 28716,
+      "n_clusters": 663
+    },
+    "W19": {
+      "coef": -0.005274839108721424,
+      "se": 0.008749603045596802,
+      "p": 0.5465977661207706,
+      "n_treated": 6498,
+      "n_control": 7790,
+      "n_obs": 28576,
+      "n_clusters": 662
+    }
+  },
+  "corrected": {
+    "m": 7.0,
+    "coef": 0.003134737667096101,
+    "se": 0.0708930250536318,
+    "ci_low": -0.13581559143802224,
+    "ci_high": 0.14208506677221444,
+    "z": 0.04421785732411076,
+    "p": 0.9647307478884013,
+    "excludes_zero": false,
+    "cov_used": 0.0,
+    "headline_coef": -0.015374543847983676,
+    "headline_se": 0.00799869701216446,
+    "placebo_coef": -0.002644183073582825,
+    "placebo_se": 0.010062906067215435
+  },
+  "sensitivity_curve": [
+    {
+      "m": 0.0,
+      "coef": -0.015374543847983676,
+      "se": 0.00799869701216446,
+      "ci_low": -0.03105198999182602,
+      "ci_high": 0.0003029022958586664,
+      "z": -1.9221310451692308,
+      "p": 0.05458927057743024,
+      "excludes_zero": false,
+      "cov_used": 0.0,
+      "headline_coef": -0.015374543847983676,
+      "headline_se": 0.00799869701216446,
+      "placebo_coef": -0.002644183073582825,
+      "placebo_se": 0.010062906067215435
+    },
+    {
+      "m": 1.0,
+      "coef": -0.01273036077440085,
+      "se": 0.012854619107931975,
+      "ci_low": -0.03792541422594752,
+      "ci_high": 0.01246469267714582,
+      "z": -0.9903335655076352,
+      "p": 0.32201110555919943,
+      "excludes_zero": false,
+      "cov_used": 0.0,
+      "headline_coef": -0.015374543847983676,
+      "headline_se": 0.00799869701216446,
+      "placebo_coef": -0.002644183073582825,
+      "placebo_se": 0.010062906067215435
+    },
+    {
+      "m": 3.0,
+      "coef": -0.0074419946272352,
+      "se": 0.03123039962201604,
+      "ci_low": -0.06865357788638664,
+      "ci_high": 0.053769588631916235,
+      "z": -0.23829328850434964,
+      "p": 0.8116536264426448,
+      "excludes_zero": false,
+      "cov_used": 0.0,
+      "headline_coef": -0.015374543847983676,
+      "headline_se": 0.00799869701216446,
+      "placebo_coef": -0.002644183073582825,
+      "placebo_se": 0.010062906067215435
+    },
+    {
+      "m": 5.0,
+      "coef": -0.0021536284800695495,
+      "se": 0.05094635528506862,
+      "ci_low": -0.10200848483880404,
+      "ci_high": 0.09770122787866495,
+      "z": -0.04227247401740505,
+      "p": 0.9662814882170621,
+      "excludes_zero": false,
+      "cov_used": 0.0,
+      "headline_coef": -0.015374543847983676,
+      "headline_se": 0.00799869701216446,
+      "placebo_coef": -0.002644183073582825,
+      "placebo_se": 0.010062906067215435
+    },
+    {
+      "m": 7.0,
+      "coef": 0.003134737667096101,
+      "se": 0.0708930250536318,
+      "ci_low": -0.13581559143802224,
+      "ci_high": 0.14208506677221444,
+      "z": 0.04421785732411076,
+      "p": 0.9647307478884013,
+      "excludes_zero": false,
+      "cov_used": 0.0,
+      "headline_coef": -0.015374543847983676,
+      "headline_se": 0.00799869701216446,
+      "placebo_coef": -0.002644183073582825,
+      "placebo_se": 0.010062906067215435
+    }
+  ],
+  "decision": {
+    "decision": "NOT-SEPARABLE",
+    "rule": "95 % CI of (headline - M * placebo) excludes zero",
+    "m": 7.0,
+    "coef": 0.003134737667096101,
+    "ci": [
+      -0.13581559143802224,
+      0.14208506677221444
+    ],
+    "se": 0.0708930250536318
+  },
+  "secondary_thresholded_share": {
+    "placebo": {
+      "coef": -0.0032510127241074313,
+      "se": 0.006216016785391007,
+      "p": 0.6009702291002145,
+      "n_treated": 6461,
+      "n_control": 7782,
+      "n_obs": 28486,
+      "n_clusters": 653
+    },
+    "headline": {
+      "coef": -0.010991976940154899,
+      "se": 0.006296554479998636,
+      "p": 0.08086083695105435,
+      "n_treated": 6503,
+      "n_control": 7870,
+      "n_obs": 43019,
+      "n_clusters": 663
+    },
+    "corrected": {
+      "m": 7.0,
+      "coef": 0.01176511212859712,
+      "se": 0.04396533825022236,
+      "ci_low": -0.07440695084183871,
+      "ci_high": 0.09793717509903296,
+      "z": 0.2675997182516301,
+      "p": 0.7890074478574207,
+      "excludes_zero": false,
+      "cov_used": 0.0,
+      "headline_coef": -0.010991976940154899,
+      "headline_se": 0.006296554479998636,
+      "placebo_coef": -0.0032510127241074313,
+      "placebo_se": 0.006216016785391007
+    }
+  },
+  "robustness_cohort_post_fe": {
+    "pre_post": {
+      "coef": -0.014621546811672301,
+      "se": 0.007496318820431534,
+      "p": 0.05111691947679428,
+      "n_treated": 6503,
+      "n_control": 7870,
+      "n_obs": 43019,
+      "n_clusters": 663
+    },
+    "placebo": {
+      "coef": -0.002572314810637816,
+      "se": 0.009356437211341006,
+      "p": 0.7833741627135815,
+      "n_treated": 6461,
+      "n_control": 7782,
+      "n_obs": 28486,
+      "n_clusters": 653
+    },
+    "corrected": {
+      "m": 7.0,
+      "coef": 0.00338465686279241,
+      "se": 0.06592266486616058,
+      "ci_low": -0.12582376627488231,
+      "ci_high": 0.13259308000046713,
+      "z": 0.0513428404277058,
+      "p": 0.9590523313761075,
+      "excludes_zero": false,
+      "cov_used": 0.0,
+      "headline_coef": -0.014621546811672301,
+      "headline_se": 0.007496318820431534,
+      "placebo_coef": -0.002572314810637816,
+      "placebo_se": 0.009356437211341006
+    }
+  },
+  "export_discounted": {
+    "export_only_share": 0.573,
+    "export_plus_mixed_share": 0.772,
+    "coef_export_only": 0.0017962046832460657,
+    "ci_export_only": [
+      -0.07782233389398674,
+      0.08141474326047887
+    ],
+    "coef_export_plus_mixed": 0.00242001747899819,
+    "note": "\u00a76.4: PERENNIAL is 57.3 % export / 19.9 % mixed / 22.8 % domestic. No sentence about export crops may use the undiscounted number."
+  },
+  "G2_integrity_diagnostic": {
+    "n_treated": 6520,
+    "n_control": 7953,
+    "smd": {
+      "log_area": 0.3728062452257416,
+      "reg_year": 0.01677259265189068,
+      "exposure_gap": 0.2835847516456119,
+      "dept_max": 0.40933785327691
+    },
+    "max_smd": 0.40933785327691,
+    "pass_common_support": false,
+    "attrition": {
+      "W99": {
+        "treated": 0.9978527607361963,
+        "control": 0.990569596378725,
+        "gap": 0.007283164357471339
+      },
+      "W14": {
+        "treated": 0.996319018404908,
+        "control": 0.9932101093926821,
+        "gap": 0.0031089090122259355
+      },
+      "W19": {
+        "treated": 0.9969325153374233,
+        "control": 0.9827737960518044,
+        "gap": 0.01415871928561896
+      }
+    },
+    "max_attrition_gap": 0.01415871928561896,
+    "pass_attrition": true,
+    "train_membership": {
+      "treated": 0.05138036809815951,
+      "control": 0.048786621400729285,
+      "gap": 0.0025937466974302256
+    },
+    "pass_train_membership": true,
+    "shared_region_share": 0.8488219443100946,
+    "pass_shared_regions": true,
+    "baseline_p_mean": {
+      "treated": 0.10018794983625412,
+      "control": 0.1004844456911087,
+      "gap": -0.00029649585485458374
+    },
+    "pass": false
+  },
+  "bootstrap_covariance_diagnostic": {
+    "n_boot_ok": 0,
+    "cov": NaN,
+    "corr": NaN
+  },
+  "series": [
+    {
+      "window": "P1",
+      "treat": 0.0,
+      "p_mean": 0.08319315915755408,
+      "share_thresholded_weighted": 0.011381773614600327,
+      "n": 7929.0
+    },
+    {
+      "window": "P1",
+      "treat": 1.0,
+      "p_mean": 0.09809157978306575,
+      "share_thresholded_weighted": 0.021819299323909035,
+      "n": 6508.0
+    },
+    {
+      "window": "P2",
+      "treat": 0.0,
+      "p_mean": 0.13439272398222354,
+      "share_thresholded_weighted": 0.04665545881448944,
+      "n": 7785.0
+    },
+    {
+      "window": "P2",
+      "treat": 1.0,
+      "p_mean": 0.10183824791827922,
+      "share_thresholded_weighted": 0.03358613217768147,
+      "n": 6461.0
+    },
+    {
+      "window": "W14",
+      "treat": 0.0,
+      "p_mean": 0.18447309267479942,
+      "share_thresholded_weighted": 0.06371956042991654,
+      "n": 7899.0
+    },
+    {
+      "window": "W14",
+      "treat": 1.0,
+      "p_mean": 0.1294053194009193,
+      "share_thresholded_weighted": 0.02355295566502463,
+      "n": 6496.0
+    },
+    {
+      "window": "W19",
+      "treat": 0.0,
+      "p_mean": 0.22580791018515192,
+      "share_thresholded_weighted": 0.08785307313281988,
+      "n": 7816.0
+    },
+    {
+      "window": "W19",
+      "treat": 1.0,
+      "p_mean": 0.193167950845841,
+      "share_thresholded_weighted": 0.06876923076923076,
+      "n": 6500.0
+    },
+    {
+      "window": "W99",
+      "treat": 0.0,
+      "p_mean": 0.11266192249933143,
+      "share_thresholded_weighted": 0.011314116569724936,
+      "n": 7878.0
+    },
+    {
+      "window": "W99",
+      "treat": 1.0,
+      "p_mean": 0.10018795640089154,
+      "share_thresholded_weighted": 0.014140793114048571,
+      "n": 6506.0
+    }
+  ]
+}

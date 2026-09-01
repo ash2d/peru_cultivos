@@ -1,0 +1,22 @@
+{
+  "primary": {
+    "band": 0.0025,
+    "required_n_per_arm": 25202.295900526686,
+    "required_effective_n": 12601.147950263343,
+    "available_treated": 6559,
+    "available_control": 25840,
+    "available_effective_n": 5231.166394024507,
+    "shortfall_factor": 2.408860089913689,
+    "feasible": false
+  },
+  "literal_band_0.005_sensitivity": {
+    "band": 0.0025,
+    "required_n_per_arm": 6300.573975131671,
+    "required_effective_n": 3150.2869875658357,
+    "available_treated": 6559,
+    "available_control": 25840,
+    "available_effective_n": 5231.166394024507,
+    "shortfall_factor": 0.6022150224784223,
+    "feasible": true
+  }
+}

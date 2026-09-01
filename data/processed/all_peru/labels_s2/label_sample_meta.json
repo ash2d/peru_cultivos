@@ -1,0 +1,44 @@
+{
+  "seed": 20260812,
+  "total_target": 1000,
+  "n_main": 992,
+  "n_pilot": 120,
+  "n_overlap": 100,
+  "dept_floor": 55,
+  "class_ratio": {
+    "PERENNIAL": 2,
+    "ANNUAL": 1,
+    "PASTURE_FALLOW": 1
+  },
+  "max_per_region": 2,
+  "max_crop_share": 0.4,
+  "min_area_ha": 0.15,
+  "region_km": 5.0,
+  "n_universe_eligible": 3957,
+  "n_regions_used": 742,
+  "class_mix_sweep": [
+    {
+      "annual_to_perennial": 0.05,
+      "PERENNIAL": 0.4417,
+      "ANNUAL": 0.26,
+      "OTHER": 0.2983
+    },
+    {
+      "annual_to_perennial": 0.15,
+      "PERENNIAL": 0.475,
+      "ANNUAL": 0.235,
+      "OTHER": 0.29
+    },
+    {
+      "annual_to_perennial": 0.3,
+      "PERENNIAL": 0.525,
+      "ANNUAL": 0.1975,
+      "OTHER": 0.2775
+    }
+  ],
+  "declared_mix_main": {
+    "PERENNIAL": 0.5101,
+    "ANNUAL": 0.254,
+    "PASTURE_FALLOW": 0.2359
+  }
+}

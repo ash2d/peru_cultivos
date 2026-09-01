@@ -1,0 +1,5 @@
+filter,n
+start,726808
+cod_predio non-null,726808
+valid 2D areal geometry,726808
+area_ha >= 0.15,614876

@@ -1,0 +1,10 @@
+{
+  "tag": "nolat_aug",
+  "n_cohorts": 14,
+  "mean_macro_f1": 0.5148753097827917,
+  "std_macro_f1": 0.05893596659409446,
+  "pooled_macro_f1": 0.5369125838004711,
+  "worst_cohort_macro_f1_excl_elnino": 0.35594757677082134,
+  "worst_cohort_macro_f1_min_support": 0.4300603631067132,
+  "min_support_for_worst": 1000
+}

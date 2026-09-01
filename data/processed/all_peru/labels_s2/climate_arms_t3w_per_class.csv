@@ -1,0 +1,16 @@
+model,arm,ANNUAL,OTHER,PERENNIAL
+lightgbm,none,0.6906,0.7937,0.7679
+lightgbm,temp,0.7055,0.8028,0.789
+lightgbm,rain,0.7336,0.81,0.772
+lightgbm,both,0.7234,0.7973,0.7826
+lightgbm,latlon,0.7168,0.795,0.7709
+ltae,none,0.7829,0.8333,0.8063
+ltae,temp,0.81,0.8324,0.8049
+ltae,rain,0.7746,0.8175,0.793
+ltae,both,0.7724,0.82,0.8048
+ltae,latlon,0.7586,0.8089,0.7973
+rules,none,0.6667,0.7457,0.6288
+rules,temp,0.637,0.7465,0.7439
+rules,rain,0.664,0.7677,0.7306
+rules,both,0.6538,0.7779,0.7488
+rules,latlon,0.6454,0.7288,0.6393

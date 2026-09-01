@@ -1,0 +1,7 @@
+arm,feature,gain_rank,of_n_features,gain_share
+temp,tmean_c,2,138,0.0821
+rain,precip_mm_yr,3,138,0.0591
+both,tmean_c,3,139,0.0724
+both,precip_mm_yr,4,139,0.0416
+latlon,centroid_lat,5,139,0.0366
+latlon,centroid_lon,8,139,0.0238

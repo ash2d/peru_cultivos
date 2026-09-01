@@ -1,0 +1,4 @@
+comparison,tenure,n,before_pct,after_pct,change_pp,ci95_pp
+1→2 post-stratified,INSCRITO,40161,15.1,24.2,9.2,0.4
+1→2 post-stratified,NO INSCRITO,23605,19.2,30.5,11.3,0.5
+1→2 post-stratified,difference (INSCRITO − NO INSCRITO),63766,-4.1,-6.3,-2.1,0.6

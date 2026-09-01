@@ -1,0 +1,17 @@
+{
+  "ok": 1112,
+  "failed": [],
+  "n_files": 2224,
+  "median_bytes": 18436,
+  "total_mb": 41.6,
+  "zoom_context": {
+    "17": 994,
+    "18": 95,
+    "19": 23
+  },
+  "context_extent_m": {
+    "median": 400.0,
+    "min": 400.0,
+    "max": 2726.7
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "tag": "nolat_yleak10",
+  "n_cohorts": 14,
+  "mean_macro_f1": 0.5135185577414527,
+  "std_macro_f1": 0.05826355287165036,
+  "pooled_macro_f1": 0.5360333880014436,
+  "worst_cohort_macro_f1_excl_elnino": 0.35592198581560286,
+  "worst_cohort_macro_f1_min_support": 0.43286128399796225,
+  "min_support_for_worst": 1000
+}

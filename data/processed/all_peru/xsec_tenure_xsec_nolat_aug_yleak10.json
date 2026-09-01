@@ -1,0 +1,166 @@
+{
+  "tag": "xsec_nolat_aug_yleak10",
+  "preds": "data/processed/all_peru/panel_predictions_nolat_aug_yleak10.parquet",
+  "windows": [
+    "W99",
+    "W19"
+  ],
+  "national": [
+    {
+      "window": "W19",
+      "tenure": "NO INSCRITO",
+      "n": 920,
+      "prob_mean": 0.14485832462567944,
+      "share_thresholded": 0.07435359219221692
+    },
+    {
+      "window": "W19",
+      "tenure": "INSCRITO",
+      "n": 1063,
+      "prob_mean": 0.12324824389997491,
+      "share_thresholded": 0.053944534004162735
+    },
+    {
+      "window": "W99",
+      "tenure": "NO INSCRITO",
+      "n": 920,
+      "prob_mean": 0.10428611827832618,
+      "share_thresholded": 0.022948583333677677
+    },
+    {
+      "window": "W99",
+      "tenure": "INSCRITO",
+      "n": 1063,
+      "prob_mean": 0.06143182343308087,
+      "share_thresholded": 0.014471549528032182
+    }
+  ],
+  "gaps": {
+    "prob_mean": {
+      "W99": -0.042854294845245305,
+      "W19": -0.021610080725704528,
+      "change": 0.021244214119540777
+    },
+    "share_thresholded": {
+      "W99": -0.008477033805645495,
+      "W19": -0.020409058188054184,
+      "change": -0.01193202438240869
+    }
+  },
+  "by_dept": [
+    {
+      "dept": "CAJAMARCA",
+      "n_parcels": 365,
+      "W99_gap": 0.002220467369416085,
+      "W19_gap": -0.004227833045584606,
+      "gap_change": -0.006448300415000691
+    },
+    {
+      "dept": "LIMA",
+      "n_parcels": 252,
+      "W99_gap": 0.11008506744839558,
+      "W19_gap": 0.1263510650457673,
+      "gap_change": 0.016265997597371712
+    },
+    {
+      "dept": "LA_LIBERTAD",
+      "n_parcels": 234,
+      "W99_gap": 0.0028539518288812765,
+      "W19_gap": -0.019556356883740043,
+      "gap_change": -0.02241030871262132
+    },
+    {
+      "dept": "ANCASH",
+      "n_parcels": 231,
+      "W99_gap": -0.032058126060473986,
+      "W19_gap": 0.01218398415271911,
+      "gap_change": 0.044242110213193096
+    },
+    {
+      "dept": "AREQUIPA",
+      "n_parcels": 176,
+      "W99_gap": -0.033808660487583304,
+      "W19_gap": -0.03469948444797903,
+      "gap_change": -0.0008908239603957271
+    },
+    {
+      "dept": "ICA",
+      "n_parcels": 149,
+      "W99_gap": -0.010281482686902044,
+      "W19_gap": -0.03307574058488112,
+      "gap_change": -0.02279425789797908
+    },
+    {
+      "dept": "PIURA",
+      "n_parcels": 149,
+      "W99_gap": -0.0806395274906507,
+      "W19_gap": -0.026325659148271147,
+      "gap_change": 0.054313868342379557
+    },
+    {
+      "dept": "AYACUCHO",
+      "n_parcels": 96,
+      "W99_gap": -0.1856782751986,
+      "W19_gap": -0.1454700496307403,
+      "gap_change": 0.04020822556785969
+    },
+    {
+      "dept": "LAMBAYEQUE",
+      "n_parcels": 80,
+      "W99_gap": 0.019784873388539348,
+      "W19_gap": -0.0673035253763016,
+      "gap_change": -0.08708839876484095
+    },
+    {
+      "dept": "HUANCAVELICA",
+      "n_parcels": 75,
+      "W99_gap": -0.008159435351482964,
+      "W19_gap": -0.02878219917686322,
+      "gap_change": -0.020622763825380256
+    },
+    {
+      "dept": "PASCO",
+      "n_parcels": 58,
+      "W99_gap": -0.06266169533032495,
+      "W19_gap": 0.05262470668849617,
+      "gap_change": 0.11528640201882112
+    },
+    {
+      "dept": "TACNA",
+      "n_parcels": 53,
+      "W99_gap": -0.16388957102585797,
+      "W19_gap": -0.11422668339309394,
+      "gap_change": 0.049662887632764025
+    },
+    {
+      "dept": "MOQUEGUA",
+      "n_parcels": 35,
+      "W99_gap": -0.1810442965455339,
+      "W19_gap": -0.3568116943563415,
+      "gap_change": -0.17576739781080764
+    },
+    {
+      "dept": "TUMBES",
+      "n_parcels": 32,
+      "W99_gap": 0.07566866875447452,
+      "W19_gap": 0.2895265666685347,
+      "gap_change": 0.21385789791406018
+    }
+  ],
+  "n_depts": 14,
+  "n_depts_inscrito_higher": {
+    "W99": 5,
+    "W19": 4
+  },
+  "n_depts_gap_moves_to_inscrito": 7,
+  "parcel_fe_did_on_tenure_at_declaration": {
+    "coef": 0.005491269268552103,
+    "se": 0.012227774034812702,
+    "p": 0.653372737780175,
+    "n_treated": 1061,
+    "n_control": 920,
+    "n_obs": 3962,
+    "n_clusters": 576
+  },
+  "IS_NOT_CAUSAL": "Descriptive only. The W99 gap among at-risk parcels is the classifier's differential false-positive rate (\u00a78.5), not agronomy; registration at declaration is not random; and the endpoint level is where observation density is worst. The sign is department-specific \u2014 read by_dept, not the pooled row."
+}

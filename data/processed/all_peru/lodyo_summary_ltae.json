@@ -1,0 +1,10 @@
+{
+  "tag": "ltae",
+  "n_cohorts": 14,
+  "mean_macro_f1": 0.49649602832719325,
+  "std_macro_f1": 0.06062133230499414,
+  "pooled_macro_f1": 0.5084952785325864,
+  "worst_cohort_macro_f1_excl_elnino": 0.38647348723654734,
+  "worst_cohort_macro_f1_min_support": 0.4047194427952021,
+  "min_support_for_worst": 1000
+}

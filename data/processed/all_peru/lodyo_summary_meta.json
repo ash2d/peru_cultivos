@@ -1,0 +1,10 @@
+{
+  "tag": "meta",
+  "n_cohorts": 14,
+  "mean_macro_f1": 0.5082677892510148,
+  "std_macro_f1": 0.06370531305322302,
+  "pooled_macro_f1": 0.5388864625897,
+  "worst_cohort_macro_f1_excl_elnino": 0.40310542943618666,
+  "worst_cohort_macro_f1_min_support": 0.40310542943618666,
+  "min_support_for_worst": 1000
+}

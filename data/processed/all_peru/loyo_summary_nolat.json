@@ -1,0 +1,30 @@
+{
+  "model": "lightgbm",
+  "drop_features": [
+    "frac_l7",
+    "n_valid_obs",
+    "n_dates",
+    "max_gap",
+    "n_valid_pixels",
+    "centroid_lat"
+  ],
+  "buffer_m": 1500.0,
+  "shared_regions_only": true,
+  "min_cohorts_per_region": 2,
+  "mean_macro_f1": 0.5236382320415472,
+  "std_macro_f1": 0.05684178645733793,
+  "pooled_macro_f1": 0.5422771603632345,
+  "worst_cohort_macro_f1_excl_elnino": 0.40632429996060343,
+  "worst_cohort_recall_PERENNIAL_excl_elnino": 0.3695652173913043,
+  "n_cohorts": 14,
+  "tolerance": 0.1,
+  "verdict": {
+    "cv_macro_f1": 0.5812821284337252,
+    "gap_macro_f1": 0.17495782847312175,
+    "pass_macro_f1": false,
+    "cv_recall_PERENNIAL": 0.6743811168681635,
+    "gap_recall": 0.30481589947685916,
+    "pass_recall": false,
+    "pass": false
+  }
+}

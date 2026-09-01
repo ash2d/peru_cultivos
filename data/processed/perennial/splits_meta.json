@@ -1,0 +1,83 @@
+{
+  "config": {
+    "block_km": 1.0,
+    "region_km": 5.0,
+    "buffer_m": 1500,
+    "n_folds": 5,
+    "test_frac": 0.15,
+    "seed": 42,
+    "audit_max_dist_m": 5000,
+    "audit_sample": 30000
+  },
+  "audit": {
+    "baseline_agreement": 0.476964603854433,
+    "curve": [
+      {
+        "lo_m": 0.0,
+        "hi_m": 100.0,
+        "n_pairs": 2864,
+        "agreement": 0.8446229050279329
+      },
+      {
+        "lo_m": 100.0,
+        "hi_m": 250.0,
+        "n_pairs": 11499,
+        "agreement": 0.8034611705365684
+      },
+      {
+        "lo_m": 250.0,
+        "hi_m": 500.0,
+        "n_pairs": 28684,
+        "agreement": 0.7663854413610375
+      },
+      {
+        "lo_m": 500.0,
+        "hi_m": 1000.0,
+        "n_pairs": 74763,
+        "agreement": 0.7185506199590707
+      },
+      {
+        "lo_m": 1000.0,
+        "hi_m": 1500.0,
+        "n_pairs": 88810,
+        "agreement": 0.683312690012386
+      },
+      {
+        "lo_m": 1500.0,
+        "hi_m": 2000.0,
+        "n_pairs": 100117,
+        "agreement": 0.6643227423914021
+      },
+      {
+        "lo_m": 2000.0,
+        "hi_m": 3000.0,
+        "n_pairs": 233645,
+        "agreement": 0.6354854587087247
+      },
+      {
+        "lo_m": 3000.0,
+        "hi_m": 4000.0,
+        "n_pairs": 283874,
+        "agreement": 0.6100206429613139
+      },
+      {
+        "lo_m": 4000.0,
+        "hi_m": 5000.0,
+        "n_pairs": 355554,
+        "agreement": 0.6099523560415577
+      }
+    ],
+    "decorrelation_range_m": null
+  },
+  "n_blocks": 2360,
+  "n_regions": 256,
+  "n_test_regions": 29,
+  "buffer_excluded_test": 11888,
+  "buffer_excluded_folds": [
+    7160,
+    8667,
+    6119,
+    7296,
+    7540
+  ]
+}

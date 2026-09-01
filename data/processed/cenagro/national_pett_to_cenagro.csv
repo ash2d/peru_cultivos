@@ -1,0 +1,4 @@
+class,before_pct,after_pct,change_pp,ci95_pp,ratio,n_left,n_joined
+PERENNIAL,16.6,26.9,10.3,0.2,1.62,2104,11945
+ANNUAL,52.6,66.8,14.2,0.4,1.27,9533,23176
+PASTURE_FALLOW,30.8,6.3,-24.5,0.3,0.2,26131,2647

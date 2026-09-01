@@ -1,0 +1,7 @@
+reason,n_parcels
+dropped_category (land_prep/unspecified),999
+multicrop not in merge map,4577
+dropped class (config drop_classes),355
+area outside 0.09-50 ha,9040
+missing year,0
+rare crop (<300) dropped,1733

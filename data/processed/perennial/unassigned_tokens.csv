@@ -1,0 +1,510 @@
+crop,category,n_records,group,source
+PAHUALQUE,crop,16,ANNUAL,crop_fallback
+NODILLO,crop,8,ANNUAL,crop_fallback
+APICULTURA,crop,6,ANNUAL,crop_fallback
+DESARROLLO APICOLA,crop,4,ANNUAL,crop_fallback
+ANGO,crop,3,ANNUAL,crop_fallback
+HUAYAQUIL,crop,3,ANNUAL,crop_fallback
+SAMBUMBA,crop,3,ANNUAL,crop_fallback
+TERRENO EN DEESCANSO,crop,2,ANNUAL,crop_fallback
+PLATANOP,crop,2,ANNUAL,crop_fallback
+GARNADILLA,crop,2,ANNUAL,crop_fallback
+ARRACACHA,crop,2,ANNUAL,crop_fallback
+PLATANP,crop,2,ANNUAL,crop_fallback
+PLATANO CAÑA DE AZUCAR,crop,2,ANNUAL,crop_fallback
+AROOZ,crop,2,ANNUAL,crop_fallback
+TERRENO EN DESCAMNSO,crop,2,ANNUAL,crop_fallback
+CAÑA DE AUCAR,crop,2,ANNUAL,crop_fallback
+CEFETO,crop,2,ANNUAL,crop_fallback
+ALGODONDERO,crop,2,ANNUAL,crop_fallback
+VEGETACION PRIMITIVA DEL LUGAR,crop,2,ANNUAL,crop_fallback
+CEREZO,crop,2,ANNUAL,crop_fallback
+FRIJOL DE PALO MAIZ,crop,2,ANNUAL,crop_fallback
+CFE,crop,2,ANNUAL,crop_fallback
+MONGO,crop,2,ANNUAL,crop_fallback
+PLATO,crop,2,ANNUAL,crop_fallback
+PLATYANO,crop,2,ANNUAL,crop_fallback
+ARROXZ,crop,2,ANNUAL,crop_fallback
+CASUARINA,crop,2,ANNUAL,crop_fallback
+FREJOL BAYO,crop,2,ANNUAL,crop_fallback
+FREJO DE PALO,crop,2,ANNUAL,crop_fallback
+VCAFE,crop,2,ANNUAL,crop_fallback
+GRANA GATEADORA,crop,2,ANNUAL,crop_fallback
+ARBOL,crop,2,ANNUAL,crop_fallback
+CAGE,crop,2,ANNUAL,crop_fallback
+LUCUMA,crop,2,ANNUAL,crop_fallback
+SIN TIPO DE PLANTACION,crop,2,ANNUAL,crop_fallback
+SIN INFORMACION,crop,2,ANNUAL,crop_fallback
+MACANIZADO,crop,2,ANNUAL,crop_fallback
+MAIIZ,crop,2,ANNUAL,crop_fallback
+MAIOZ,crop,2,ANNUAL,crop_fallback
+PATANO,crop,2,ANNUAL,crop_fallback
+TERRENO EN DESCNASO,crop,2,ANNUAL,crop_fallback
+PLATANIO,crop,2,ANNUAL,crop_fallback
+SUDAN,crop,2,ANNUAL,crop_fallback
+MAIZ FRIJOL DE PALO,crop,2,ANNUAL,crop_fallback
+CAÑADE AZUCAR,crop,2,ANNUAL,crop_fallback
+HORATLIZAS,crop,2,ANNUAL,crop_fallback
+HABILITADO PARA CITRICOS,crop,2,ANNUAL,crop_fallback
+TERRENO EN DESCAMSO,crop,2,ANNUAL,crop_fallback
+ALLGODON,crop,2,ANNUAL,crop_fallback
+UCA,crop,2,ANNUAL,crop_fallback
+ARBERJAS,crop,2,ANNUAL,crop_fallback
+FREJO,crop,2,ANNUAL,crop_fallback
+MNAGO,crop,2,ANNUAL,crop_fallback
+PSTO NATURAL,crop,2,ANNUAL,crop_fallback
+DESXANSO,crop,2,ANNUAL,crop_fallback
+NO LA CULTIVAN,crop,2,ANNUAL,crop_fallback
+ALAGAODON,crop,2,ANNUAL,crop_fallback
+AJI PAPRIKA,crop,2,ANNUAL,crop_fallback
+CAMPAÑA ANTERIOR CULTIVO DE ALGODON,crop,2,ANNUAL,crop_fallback
+PRIMER RIEGO,crop,2,ANNUAL,crop_fallback
+PALLAR,crop,2,ANNUAL,crop_fallback
+PAJUL,crop,2,ANNUAL,crop_fallback
+DRESCANSO,crop,2,ANNUAL,crop_fallback
+DIAS,crop,2,ANNUAL,crop_fallback
+PSTO,crop,2,ANNUAL,crop_fallback
+CACACO,crop,2,ANNUAL,crop_fallback
+AIZ,crop,2,ANNUAL,crop_fallback
+ASLGODON,crop,2,ANNUAL,crop_fallback
+DESDCANSO,crop,2,ANNUAL,crop_fallback
+AXRROZ,crop,2,ANNUAL,crop_fallback
+OVERAL,crop,2,ANNUAL,crop_fallback
+DESCAANSO,crop,2,ANNUAL,crop_fallback
+TERRENO DESOCUPADO,crop,2,ANNUAL,crop_fallback
+ARRPZ,crop,2,ANNUAL,crop_fallback
+ARROZD,crop,2,ANNUAL,crop_fallback
+ALGARROBINA,crop,2,ANNUAL,crop_fallback
+ARROZX,crop,2,ANNUAL,crop_fallback
+ARROZ´,crop,2,ANNUAL,crop_fallback
+PAPA CHILENA,crop,1,ANNUAL,crop_fallback
+TRRIGO,crop,1,ANNUAL,crop_fallback
+TUCA,crop,1,ANNUAL,crop_fallback
+ZONA PANTANOSA,crop,1,ANNUAL,crop_fallback
+YUYO,crop,1,ANNUAL,crop_fallback
+TASTROJOS DE MAIZ,crop,1,ANNUAL,crop_fallback
+ZONA BOSCOSA,crop,1,ANNUAL,crop_fallback
+SURCADO,crop,1,ANNUAL,crop_fallback
+YTRIGO,crop,1,ANNUAL,crop_fallback
+PARA ALGODON,crop,1,ANNUAL,crop_fallback
+´LATANO,crop,1,ANNUAL,crop_fallback
+TROGO,crop,1,ANNUAL,crop_fallback
+SORGO,crop,1,ANNUAL,crop_fallback
+PAPYA,crop,1,ANNUAL,crop_fallback
+PARA CULTIVO,crop,1,ANNUAL,crop_fallback
+ZUDAN,crop,1,ANNUAL,crop_fallback
+ZRROZ,crop,1,ANNUAL,crop_fallback
+SOSO,crop,1,ANNUAL,crop_fallback
+PARA INSTALACION DE MAIZ,crop,1,ANNUAL,crop_fallback
+PARA INSTALAR MAIZ AMARILLO DURO,crop,1,ANNUAL,crop_fallback
+TUMA,crop,1,ANNUAL,crop_fallback
+ZANBUMBA,crop,1,ANNUAL,crop_fallback
+TAMARIS,crop,1,ANNUAL,crop_fallback
+PARA SEMBRAR MAIZ,crop,1,ANNUAL,crop_fallback
+TAMARINDOY MANGO,crop,1,ANNUAL,crop_fallback
+ZAMBUMBA,crop,1,ANNUAL,crop_fallback
+PASTIS NATURALES,crop,1,ANNUAL,crop_fallback
+PASTADO,crop,1,ANNUAL,crop_fallback
+PAN LLEVAR FRIJOL,crop,1,ANNUAL,crop_fallback
+ZANAORIA,crop,1,ANNUAL,crop_fallback
+PAST NATURAL,crop,1,ANNUAL,crop_fallback
+PALTP,crop,1,ANNUAL,crop_fallback
+PARA SIMBRA,crop,1,ANNUAL,crop_fallback
+PASNO NATURAL,crop,1,ANNUAL,crop_fallback
+PARCIALMENTE CULTIVADO,crop,1,ANNUAL,crop_fallback
+VEGETACION NATIVA,crop,1,ANNUAL,crop_fallback
+VETERRAGA,crop,1,ANNUAL,crop_fallback
+PARA SEMBRAR ALGODON,crop,1,ANNUAL,crop_fallback
+TERRENO EN DESANSO,crop,1,ANNUAL,crop_fallback
+SUTIL,crop,1,ANNUAL,crop_fallback
+ZONA ARBOREA,crop,1,ANNUAL,crop_fallback
+PARA LA CAMPAÑA,crop,1,ANNUAL,crop_fallback
+TUMBO,crop,1,ANNUAL,crop_fallback
+PARA MAIZ,crop,1,ANNUAL,crop_fallback
+PARA MAIZZ,crop,1,ANNUAL,crop_fallback
+YUVCA,crop,1,ANNUAL,crop_fallback
+PARA SEMBRAR,crop,1,ANNUAL,crop_fallback
+TAMARAINDO,crop,1,ANNUAL,crop_fallback
+RASTROIJOS DE TRIGO,crop,1,ANNUAL,crop_fallback
+SABILA,crop,1,ANNUAL,crop_fallback
+TERRENO INUNDADO,crop,1,ANNUAL,crop_fallback
+TERRENO POTRERO,crop,1,ANNUAL,crop_fallback
+PREAPRACION,crop,1,ANNUAL,crop_fallback
+POZO,crop,1,ANNUAL,crop_fallback
+SABUMBA,crop,1,ANNUAL,crop_fallback
+POMAROSA,crop,1,ANNUAL,crop_fallback
+PLZATANO,crop,1,ANNUAL,crop_fallback
+PLTANAO,crop,1,ANNUAL,crop_fallback
+PLSTSNO,crop,1,ANNUAL,crop_fallback
+PLAYTANO,crop,1,ANNUAL,crop_fallback
+PLAYANO,crop,1,ANNUAL,crop_fallback
+PLATTANO,crop,1,ANNUAL,crop_fallback
+PLATOS,crop,1,ANNUAL,crop_fallback
+SAMBUMBA OLLUCO,crop,1,ANNUAL,crop_fallback
+PLATNAO,crop,1,ANNUAL,crop_fallback
+TERRENO INNUNDABLE,crop,1,ANNUAL,crop_fallback
+ROZADO DE CAMPO,crop,1,ANNUAL,crop_fallback
+TERRENO EN DESCASNO,crop,1,ANNUAL,crop_fallback
+RASTRIJOS DE ARROZ,crop,1,ANNUAL,crop_fallback
+RATROJOS DE ALGODON,crop,1,ANNUAL,crop_fallback
+RECUPERACION DE EXCESO SALES,crop,1,ANNUAL,crop_fallback
+RASTREJO DE TRIGO,crop,1,ANNUAL,crop_fallback
+TERRENO EN DESCNSO,crop,1,ANNUAL,crop_fallback
+RASTRA MECANICA,crop,1,ANNUAL,crop_fallback
+RECUPERACION POR EXCESO DE SALES,crop,1,ANNUAL,crop_fallback
+REFOPRESTACION,crop,1,ANNUAL,crop_fallback
+RASTORJOS DE ARROZ,crop,1,ANNUAL,crop_fallback
+REPOLLOO,crop,1,ANNUAL,crop_fallback
+RESIDUOS DE MAIZ,crop,1,ANNUAL,crop_fallback
+RESIDUOS EN COSECHA,crop,1,ANNUAL,crop_fallback
+RICACHA,crop,1,ANNUAL,crop_fallback
+TERRENO EN DESCCANSO,crop,1,ANNUAL,crop_fallback
+PÑLATANOS,crop,1,ANNUAL,crop_fallback
+P´LATANO,crop,1,ANNUAL,crop_fallback
+P`LATANO,crop,1,ANNUAL,crop_fallback
+ROBEL,crop,1,ANNUAL,crop_fallback
+PRODUCCION,crop,1,ANNUAL,crop_fallback
+PROCESO DE REHABILITACION FISICA,crop,1,ANNUAL,crop_fallback
+PREPARRACION,crop,1,ANNUAL,crop_fallback
+PREPARCION,crop,1,ANNUAL,crop_fallback
+PLATINO,crop,1,ANNUAL,crop_fallback
+PLATAO COCOTERO,crop,1,ANNUAL,crop_fallback
+SARANDANGA,crop,1,ANNUAL,crop_fallback
+PLATANPO,crop,1,ANNUAL,crop_fallback
+PLANATANO,crop,1,ANNUAL,crop_fallback
+PLAATANO,crop,1,ANNUAL,crop_fallback
+TRANSPLANTE DE ARROZ,crop,1,ANNUAL,crop_fallback
+PL,crop,1,ANNUAL,crop_fallback
+PINO,crop,1,ANNUAL,crop_fallback
+PIMIENTO CHILENO,crop,1,ANNUAL,crop_fallback
+SIMBRA DE ALGODON,crop,1,ANNUAL,crop_fallback
+PIMIEMTOS,crop,1,ANNUAL,crop_fallback
+PERMANENTES,crop,1,ANNUAL,crop_fallback
+PEPINO,crop,1,ANNUAL,crop_fallback
+PATE,crop,1,ANNUAL,crop_fallback
+PASTURA PARA GANADERIA,crop,1,ANNUAL,crop_fallback
+SIN CULTIVAR,crop,1,ANNUAL,crop_fallback
+PASTPO,crop,1,ANNUAL,crop_fallback
+TRIGO ARBERJA,crop,1,ANNUAL,crop_fallback
+SLGODON,crop,1,ANNUAL,crop_fallback
+TRIJO,crop,1,ANNUAL,crop_fallback
+TROG,crop,1,ANNUAL,crop_fallback
+PLANATNO,crop,1,ANNUAL,crop_fallback
+SHUSPO,crop,1,ANNUAL,crop_fallback
+PLATANNO,crop,1,ANNUAL,crop_fallback
+PLATANOY CAÑA DE AZUCAR,crop,1,ANNUAL,crop_fallback
+PLATANOSY CAÑA DE AZUCAR,crop,1,ANNUAL,crop_fallback
+PLATANOPO,crop,1,ANNUAL,crop_fallback
+SDE ALGODON,crop,1,ANNUAL,crop_fallback
+PLATANOI,crop,1,ANNUAL,crop_fallback
+PLATANO DE SEDA,crop,1,ANNUAL,crop_fallback
+PLATANO CAA DE AZUCAR,crop,1,ANNUAL,crop_fallback
+SE APRECIA PODA DE ARBOLES,crop,1,ANNUAL,crop_fallback
+PLARANO,crop,1,ANNUAL,crop_fallback
+PLATANBO,crop,1,ANNUAL,crop_fallback
+TIGO,crop,1,ANNUAL,crop_fallback
+PLATAN,crop,1,ANNUAL,crop_fallback
+TOMANTE,crop,1,ANNUAL,crop_fallback
+SEBADA,crop,1,ANNUAL,crop_fallback
+PLATAANO,crop,1,ANNUAL,crop_fallback
+PLATA NO,crop,1,ANNUAL,crop_fallback
+PLATA,crop,1,ANNUAL,crop_fallback
+TRABAJO,crop,1,ANNUAL,crop_fallback
+PLASTO,crop,1,ANNUAL,crop_fallback
+PERIMETRO,crop,1,ANNUAL,crop_fallback
+AARROZ,crop,1,ANNUAL,crop_fallback
+CHALEO,crop,1,ANNUAL,crop_fallback
+CAÑA DE ZAUCAR,crop,1,ANNUAL,crop_fallback
+CAÑA DEAZCAR,crop,1,ANNUAL,crop_fallback
+CAÑANDE AZUCAR,crop,1,ANNUAL,crop_fallback
+CEBADO,crop,1,ANNUAL,crop_fallback
+CEFA,crop,1,ANNUAL,crop_fallback
+CERBADA,crop,1,ANNUAL,crop_fallback
+CFAÑA DE AZUCAR,crop,1,ANNUAL,crop_fallback
+CHALA,crop,1,ANNUAL,crop_fallback
+CHILENO,crop,1,ANNUAL,crop_fallback
+PAHUAGUE,crop,1,ANNUAL,crop_fallback
+CIPRES,crop,1,ANNUAL,crop_fallback
+CIPREZ,crop,1,ANNUAL,crop_fallback
+CIRUEL,crop,1,ANNUAL,crop_fallback
+COBERTURA AEREA,crop,1,ANNUAL,crop_fallback
+COBERTURA ARBOREA ALGARROBO,crop,1,ANNUAL,crop_fallback
+COBERTURA FORESTAL,crop,1,ANNUAL,crop_fallback
+COBRTURA ARBOREA,crop,1,ANNUAL,crop_fallback
+COC,crop,1,ANNUAL,crop_fallback
+CAÑA DE CAÑA,crop,1,ANNUAL,crop_fallback
+CAÑA DE AZUVCAR,crop,1,ANNUAL,crop_fallback
+CAÑA DE AZUICAR,crop,1,ANNUAL,crop_fallback
+CAÑA DE AZUCARº,crop,1,ANNUAL,crop_fallback
+CANCHA DE FUTBOL,crop,1,ANNUAL,crop_fallback
+CARRIZO,crop,1,ANNUAL,crop_fallback
+CASA HACIENDA,crop,1,ANNUAL,crop_fallback
+CASERIO LA ESPERANZA S,crop,1,ANNUAL,crop_fallback
+CASTILLA,crop,1,ANNUAL,crop_fallback
+CATEADORA,crop,1,ANNUAL,crop_fallback
+CAÑ DE AZUCAR,crop,1,ANNUAL,crop_fallback
+CAÑA D E AZUCAR,crop,1,ANNUAL,crop_fallback
+CAÑA DE AXUCAR,crop,1,ANNUAL,crop_fallback
+CAÑA DE AZUCAR (,crop,1,ANNUAL,crop_fallback
+CAÑA DE AZUCAR ALVERJA,crop,1,ANNUAL,crop_fallback
+CAÑA DE AZUCAR NARANJA,crop,1,ANNUAL,crop_fallback
+CAÑA DE AZUCAR SARANDAJA,crop,1,ANNUAL,crop_fallback
+CAÑA DE AZUCAR TRIGO,crop,1,ANNUAL,crop_fallback
+CAÑA DE AZUCAR YZANAHORIA,crop,1,ANNUAL,crop_fallback
+CAÑA DE AZUCARA,crop,1,ANNUAL,crop_fallback
+COCALES,crop,1,ANNUAL,crop_fallback
+COCOA,crop,1,ANNUAL,crop_fallback
+COCOTEROMANGO,crop,1,ANNUAL,crop_fallback
+DESHIRBO,crop,1,ANNUAL,crop_fallback
+DESSCANSO,crop,1,ANNUAL,crop_fallback
+DETRIGL,crop,1,ANNUAL,crop_fallback
+DEWSCANSO,crop,1,ANNUAL,crop_fallback
+DSECANSO,crop,1,ANNUAL,crop_fallback
+DXESCANSO,crop,1,ANNUAL,crop_fallback
+EDLEFANTE,crop,1,ANNUAL,crop_fallback
+EDSCANSO,crop,1,ANNUAL,crop_fallback
+EISTEN RASTRIJOS DE ARROZ,crop,1,ANNUAL,crop_fallback
+ELACION,crop,1,ANNUAL,crop_fallback
+ESCANSO,crop,1,ANNUAL,crop_fallback
+ESPAREAGOS,crop,1,ANNUAL,crop_fallback
+ETC,crop,1,ANNUAL,crop_fallback
+DESDCAANSO,crop,1,ANNUAL,crop_fallback
+COLMENAS,crop,1,ANNUAL,crop_fallback
+CORTE,crop,1,ANNUAL,crop_fallback
+CRISPILLO,crop,1,ANNUAL,crop_fallback
+CRUZ DE CAÑA,crop,1,ANNUAL,crop_fallback
+CUPRESº,crop,1,ANNUAL,crop_fallback
+CURRIHUELA,crop,1,ANNUAL,crop_fallback
+CXAFE,crop,1,ANNUAL,crop_fallback
+DATIL,crop,1,ANNUAL,crop_fallback
+DEAZUCAR,crop,1,ANNUAL,crop_fallback
+DEDSCANSO,crop,1,ANNUAL,crop_fallback
+DENCANSO,crop,1,ANNUAL,crop_fallback
+DESACANSO,crop,1,ANNUAL,crop_fallback
+DESARROLO AGRIOCOLA,crop,1,ANNUAL,crop_fallback
+DESC ANSO,crop,1,ANNUAL,crop_fallback
+DESCABSO,crop,1,ANNUAL,crop_fallback
+CAMPAÑA ANTERIOR FREJOL,crop,1,ANNUAL,crop_fallback
+CAMOTE),crop,1,ANNUAL,crop_fallback
+CAMOPTE,crop,1,ANNUAL,crop_fallback
+ALGGDON,crop,1,ANNUAL,crop_fallback
+ALGODOD,crop,1,ANNUAL,crop_fallback
+ALGODOIN,crop,1,ANNUAL,crop_fallback
+ALGODON FRIJOL DE PALO,crop,1,ANNUAL,crop_fallback
+ALGODOSN,crop,1,ANNUAL,crop_fallback
+ALGONONERO,crop,1,ANNUAL,crop_fallback
+ALGOODON,crop,1,ANNUAL,crop_fallback
+ALGUNOS FRUTALES,crop,1,ANNUAL,crop_fallback
+ALLUCO,crop,1,ANNUAL,crop_fallback
+ALMACIGO ARROZ,crop,1,ANNUAL,crop_fallback
+ALMACIGOS DE ARROZ,crop,1,ANNUAL,crop_fallback
+ALVREJA,crop,1,ANNUAL,crop_fallback
+AMAIZ,crop,1,ANNUAL,crop_fallback
+ANTERIOR MAIZ,crop,1,ANNUAL,crop_fallback
+APERTURA HOYOS INSTALACION PLATANOS,crop,1,ANNUAL,crop_fallback
+APERTURA HOYSO INSTALACION PLATANOS,crop,1,ANNUAL,crop_fallback
+AQRADO,crop,1,ANNUAL,crop_fallback
+AQRROZ,crop,1,ANNUAL,crop_fallback
+ALGODDON,crop,1,ANNUAL,crop_fallback
+ALGDON,crop,1,ANNUAL,crop_fallback
+ALGARROBO OVERAL,crop,1,ANNUAL,crop_fallback
+ACAFE,crop,1,ANNUAL,crop_fallback
+ACELGA,crop,1,ANNUAL,crop_fallback
+ACFE,crop,1,ANNUAL,crop_fallback
+ACHIOTE,crop,1,ANNUAL,crop_fallback
+ACHOTE,crop,1,ANNUAL,crop_fallback
+AEEOZ,crop,1,ANNUAL,crop_fallback
+AEROZ,crop,1,ANNUAL,crop_fallback
+AGODON,crop,1,ANNUAL,crop_fallback
+AJI ESCABECHE,crop,1,ANNUAL,crop_fallback
+AJIO,crop,1,ANNUAL,crop_fallback
+ALBERJATRIGO,crop,1,ANNUAL,crop_fallback
+ALBERTO,crop,1,ANNUAL,crop_fallback
+ALFVERJAS,crop,1,ANNUAL,crop_fallback
+ALG,crop,1,ANNUAL,crop_fallback
+ALGARROBA,crop,1,ANNUAL,crop_fallback
+ALGARROBALES,crop,1,ANNUAL,crop_fallback
+ALGARROBO FAIQUE OVERAL,crop,1,ANNUAL,crop_fallback
+ARAADO,crop,1,ANNUAL,crop_fallback
+CAMMOTE,crop,1,ANNUAL,crop_fallback
+AXRRXOZ,crop,1,ANNUAL,crop_fallback
+AÑGODON,crop,1,ANNUAL,crop_fallback
+BERBECHO,crop,1,ANNUAL,crop_fallback
+CABALLO PARA ARROZ,crop,1,ANNUAL,crop_fallback
+CACO,crop,1,ANNUAL,crop_fallback
+CAE,crop,1,ANNUAL,crop_fallback
+CAFE NARANJA PLATANOI,crop,1,ANNUAL,crop_fallback
+CAFE NARANJO HUABAL,crop,1,ANNUAL,crop_fallback
+CAFE PLATANO NARANJAN,crop,1,ANNUAL,crop_fallback
+CAFE PLATANOS PLATA,crop,1,ANNUAL,crop_fallback
+CAFETA,crop,1,ANNUAL,crop_fallback
+CAFEW,crop,1,ANNUAL,crop_fallback
+CAGFE,crop,1,ANNUAL,crop_fallback
+CAIGUA,crop,1,ANNUAL,crop_fallback
+CALA,crop,1,ANNUAL,crop_fallback
+CAM,crop,1,ANNUAL,crop_fallback
+CAMIOTE,crop,1,ANNUAL,crop_fallback
+AXRROZX,crop,1,ANNUAL,crop_fallback
+ARVERJITA,crop,1,ANNUAL,crop_fallback
+ARTEMISA,crop,1,ANNUAL,crop_fallback
+ARARDURA,crop,1,ANNUAL,crop_fallback
+ARBOLES FRUTALES MANGO,crop,1,ANNUAL,crop_fallback
+ARBVERJA,crop,1,ANNUAL,crop_fallback
+AREA CULTIBABLE,crop,1,ANNUAL,crop_fallback
+AREA CULTIVABLE,crop,1,ANNUAL,crop_fallback
+ARLBERJA,crop,1,ANNUAL,crop_fallback
+ARRAYAN,crop,1,ANNUAL,crop_fallback
+ARRO Z,crop,1,ANNUAL,crop_fallback
+ARRO<,crop,1,ANNUAL,crop_fallback
+ARROX,crop,1,ANNUAL,crop_fallback
+ARROZ O MAIZ,crop,1,ANNUAL,crop_fallback
+ARROZ PAN LLEVAR,crop,1,ANNUAL,crop_fallback
+ARROZ|,crop,1,ANNUAL,crop_fallback
+ARRTOZ,crop,1,ANNUAL,crop_fallback
+EUCALIPO,crop,1,ANNUAL,crop_fallback
+EXISTENCIA DE ALGARROBO,crop,1,ANNUAL,crop_fallback
+EXIXSTEN RASTROJOS DE ARROZ,crop,1,ANNUAL,crop_fallback
+MALEZA,crop,1,ANNUAL,crop_fallback
+ABA,crop,1,ANNUAL,crop_fallback
+MANFO,crop,1,ANNUAL,crop_fallback
+MANG,crop,1,ANNUAL,crop_fallback
+MANGO CIERUELOA,crop,1,ANNUAL,crop_fallback
+MANGO EDWARD,crop,1,ANNUAL,crop_fallback
+MANGO INSTALADO,crop,1,ANNUAL,crop_fallback
+MANGO LIMON SUTIL,crop,1,ANNUAL,crop_fallback
+MANGOI,crop,1,ANNUAL,crop_fallback
+MANUAL,crop,1,ANNUAL,crop_fallback
+MAONGO,crop,1,ANNUAL,crop_fallback
+MARACULLA,crop,1,ANNUAL,crop_fallback
+MARIGIL,crop,1,ANNUAL,crop_fallback
+MATE,crop,1,ANNUAL,crop_fallback
+MAUZ,crop,1,ANNUAL,crop_fallback
+MAWIZ,crop,1,ANNUAL,crop_fallback
+MAZ,crop,1,ANNUAL,crop_fallback
+MECAN,crop,1,ANNUAL,crop_fallback
+MAMAEY,crop,1,ANNUAL,crop_fallback
+MAIZY YUCA,crop,1,ANNUAL,crop_fallback
+MAIZY FRUTALES,crop,1,ANNUAL,crop_fallback
+LIOMON,crop,1,ANNUAL,crop_fallback
+LMON,crop,1,ANNUAL,crop_fallback
+LOMA,crop,1,ANNUAL,crop_fallback
+LUIMON,crop,1,ANNUAL,crop_fallback
+M AIZ,crop,1,ANNUAL,crop_fallback
+MAGO,crop,1,ANNUAL,crop_fallback
+MAI,crop,1,ANNUAL,crop_fallback
+MAIUZ,crop,1,ANNUAL,crop_fallback
+MAIZ CHILENO,crop,1,ANNUAL,crop_fallback
+MAIZ FREJOL BAYO,crop,1,ANNUAL,crop_fallback
+MAIZ FRIJOL BAYO,crop,1,ANNUAL,crop_fallback
+MAIZ HIBRIDO,crop,1,ANNUAL,crop_fallback
+MAIZI,crop,1,ANNUAL,crop_fallback
+MECANIADO,crop,1,ANNUAL,crop_fallback
+NIEVALCION,crop,1,ANNUAL,crop_fallback
+NIV,crop,1,ANNUAL,crop_fallback
+O$,crop,1,ANNUAL,crop_fallback
+OACAS,crop,1,ANNUAL,crop_fallback
+OASTOS,crop,1,ANNUAL,crop_fallback
+ODON,crop,1,ANNUAL,crop_fallback
+OLGODON,crop,1,ANNUAL,crop_fallback
+OLUCO,crop,1,ANNUAL,crop_fallback
+OTE,crop,1,ANNUAL,crop_fallback
+OTRO,crop,1,ANNUAL,crop_fallback
+OTROA,crop,1,ANNUAL,crop_fallback
+OYUCO,crop,1,ANNUAL,crop_fallback
+P CHILENA,crop,1,ANNUAL,crop_fallback
+PAASTO,crop,1,ANNUAL,crop_fallback
+PAASTO ELFANTE,crop,1,ANNUAL,crop_fallback
+NIO ESPECIFICA,crop,1,ANNUAL,crop_fallback
+NATURA,crop,1,ANNUAL,crop_fallback
+MECNIZADO,crop,1,ANNUAL,crop_fallback
+NATANJO,crop,1,ANNUAL,crop_fallback
+MEIZ,crop,1,ANNUAL,crop_fallback
+MELOM,crop,1,ANNUAL,crop_fallback
+MIZ,crop,1,ANNUAL,crop_fallback
+MONTAÑOSO,crop,1,ANNUAL,crop_fallback
+MSNGO,crop,1,ANNUAL,crop_fallback
+N CANCHAQUE HUANCABAMBA PIURA,crop,1,ANNUAL,crop_fallback
+NANARNJA,crop,1,ANNUAL,crop_fallback
+NANRANJO,crop,1,ANNUAL,crop_fallback
+NAPA FREATICA ALTA,crop,1,ANNUAL,crop_fallback
+NARAJA,crop,1,ANNUAL,crop_fallback
+NARAJO,crop,1,ANNUAL,crop_fallback
+NARAMJO,crop,1,ANNUAL,crop_fallback
+NARANJA ´,crop,1,ANNUAL,crop_fallback
+NARANJAA,crop,1,ANNUAL,crop_fallback
+NARANJO U GRANADILLA,crop,1,ANNUAL,crop_fallback
+NARNJO,crop,1,ANNUAL,crop_fallback
+NATANAJA,crop,1,ANNUAL,crop_fallback
+EXPLOTACION APICOLA,crop,1,ANNUAL,crop_fallback
+FRIJOIL,crop,1,ANNUAL,crop_fallback
+FRIJOL CASTILLO,crop,1,ANNUAL,crop_fallback
+FRIJOL CHIELNO,crop,1,ANNUAL,crop_fallback
+FRIJOL CHILENIO,crop,1,ANNUAL,crop_fallback
+FRIJOL CHIMU,crop,1,ANNUAL,crop_fallback
+FRIJOL DE CASTILLA,crop,1,ANNUAL,crop_fallback
+FRIJOL DE PALAO,crop,1,ANNUAL,crop_fallback
+FRIJOL DE PALO CASTILLA MAIZ,crop,1,ANNUAL,crop_fallback
+FRIJOL PANAMITO,crop,1,ANNUAL,crop_fallback
+FRIJOLDE PALO,crop,1,ANNUAL,crop_fallback
+FRIJOLSARANDAJA,crop,1,ANNUAL,crop_fallback
+FRIJOO,crop,1,ANNUAL,crop_fallback
+FRIJOPL CASTILLA,crop,1,ANNUAL,crop_fallback
+FRUATELS,crop,1,ANNUAL,crop_fallback
+FURTALES,crop,1,ANNUAL,crop_fallback
+GRADIO,crop,1,ANNUAL,crop_fallback
+GRAEO,crop,1,ANNUAL,crop_fallback
+FRIJOL BAYO MAIZ,crop,1,ANNUAL,crop_fallback
+FRIJO ALUBIA,crop,1,ANNUAL,crop_fallback
+FRIJIOL,crop,1,ANNUAL,crop_fallback
+FAJAS,crop,1,ANNUAL,crop_fallback
+FGREJOL,crop,1,ANNUAL,crop_fallback
+FILTRACION DE AGUA,crop,1,ANNUAL,crop_fallback
+FRAJOL CHILENO,crop,1,ANNUAL,crop_fallback
+FRAMINEAS,crop,1,ANNUAL,crop_fallback
+FREJIOL,crop,1,ANNUAL,crop_fallback
+FREJJOL,crop,1,ANNUAL,crop_fallback
+FREJOL BAYO MAIZ,crop,1,ANNUAL,crop_fallback
+FREJOL CASTILA,crop,1,ANNUAL,crop_fallback
+FREJOL CASTILLO,crop,1,ANNUAL,crop_fallback
+FREJOL CHILENO CUARENTA,crop,1,ANNUAL,crop_fallback
+FREJOL POPOLO,crop,1,ANNUAL,crop_fallback
+FREJOLÑ,crop,1,ANNUAL,crop_fallback
+FRIFOL,crop,1,ANNUAL,crop_fallback
+FRIJ,crop,1,ANNUAL,crop_fallback
+LIMON MANGO CAÑA DE AZUCAR,crop,1,ANNUAL,crop_fallback
+II CAMAPAÑA AGRICOLA,crop,1,ANNUAL,crop_fallback
+II CAMPAÑ AGRICOLA,crop,1,ANNUAL,crop_fallback
+II CAMPIÑA AGRICOLA,crop,1,ANNUAL,crop_fallback
+IMPLEMANTACION RECIENTE DE PLANTAION DE LIMON,crop,1,ANNUAL,crop_fallback
+INSTALACION DE UVA,crop,1,ANNUAL,crop_fallback
+INUNDADA,crop,1,ANNUAL,crop_fallback
+IVELACION,crop,1,ANNUAL,crop_fallback
+L LIMON,crop,1,ANNUAL,crop_fallback
+LADRILLERA,crop,1,ANNUAL,crop_fallback
+LAGARROBO,crop,1,ANNUAL,crop_fallback
+LAVERJA,crop,1,ANNUAL,crop_fallback
+LEGUMBRES,crop,1,ANNUAL,crop_fallback
+LELIPE,crop,1,ANNUAL,crop_fallback
+LIM,crop,1,ANNUAL,crop_fallback
+LIMION,crop,1,ANNUAL,crop_fallback
+LIMOMERO,crop,1,ANNUAL,crop_fallback
+LIMON ETC,crop,1,ANNUAL,crop_fallback
+II CAMAPÑ AGRICOLA,crop,1,ANNUAL,crop_fallback
+II CAMAPAÑ AGRICOLA,crop,1,ANNUAL,crop_fallback
+GRAMINIAS,crop,1,ANNUAL,crop_fallback
+HUERTO FAMILIAR,crop,1,ANNUAL,crop_fallback
+GRANALOTE,crop,1,ANNUAL,crop_fallback
+GRMA GATEADORA,crop,1,ANNUAL,crop_fallback
+GUAMABANA,crop,1,ANNUAL,crop_fallback
+GUAYABA,crop,1,ANNUAL,crop_fallback
+GUAYAQUIIL,crop,1,ANNUAL,crop_fallback
+GUYAQUIL,crop,1,ANNUAL,crop_fallback
+HA,crop,1,ANNUAL,crop_fallback
+HAVA,crop,1,ANNUAL,crop_fallback
+HIERBADO,crop,1,ANNUAL,crop_fallback
+HIORTALIZAS,crop,1,ANNUAL,crop_fallback
+HORNO,crop,1,ANNUAL,crop_fallback
+HORNO LADRILLERA,crop,1,ANNUAL,crop_fallback
+HUANVO,crop,1,ANNUAL,crop_fallback
+HUEQUIADO PARA LIMON,crop,1,ANNUAL,crop_fallback
+´PLATANO,crop,1,ANNUAL,crop_fallback

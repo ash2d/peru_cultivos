@@ -1,0 +1,27 @@
+{
+  "n_parcels": 47597,
+  "n_cohorts": 14,
+  "drop_features": [
+    "frac_l7",
+    "n_valid_obs",
+    "n_dates",
+    "max_gap",
+    "n_valid_pixels",
+    "centroid_lat"
+  ],
+  "shared_regions_only": true,
+  "cohort_accuracy_heldout": 0.508035611053301,
+  "cohort_majority_baseline": 0.1553936871314603,
+  "top10_within_region": [
+    "R_amp",
+    "G_amp",
+    "SWIR2_amp",
+    "NIR_amp",
+    "R_max",
+    "G_max",
+    "SWIR1_amp",
+    "R_std",
+    "B_amp",
+    "NDWI_amp"
+  ]
+}

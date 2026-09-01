@@ -1,0 +1,3 @@
+class,pett_class_pct,cen_class_pct,change_pp,ci95_pp,ratio,n_left_class,n_joined_class
+PERENNIAL,28.2,40.7,12.5,0.9,1.44,174,1255
+ANNUAL,71.8,59.3,-12.5,0.9,0.83,1255,174

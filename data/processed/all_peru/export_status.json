@@ -1,0 +1,13 @@
+{
+  "weighted_share": {
+    "DOMESTIC": 0.22754043937054014,
+    "EXPORT": 0.5732285567825643,
+    "MIXED": 0.19923100384689554
+  },
+  "n_parcels": {
+    "EXPORT": 6122,
+    "MIXED": 3149,
+    "DOMESTIC": 2104
+  },
+  "note": "EXPORT = any crop in the export basket; MIXED = crops that are materially both (banana, lime, unspecified orchard); DOMESTIC = the rest. Judgement call, see module docstring."
+}

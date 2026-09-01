@@ -1,0 +1,254 @@
+{
+  "source": "data/processed/all_peru_full",
+  "tenure": "data/processed/all_peru/tenure_two_period.parquet",
+  "model_sample": "data/processed/all_peru/modeling_parcels.parquet",
+  "cohort_min_year": 2004,
+  "control_ratio": 2.0,
+  "max_per_region": 220,
+  "seed": 42,
+  "population_steps": {},
+  "n_population": 32399,
+  "n_sampled": 14625,
+  "n_treated": 6559,
+  "n_control": 8066,
+  "achieved_ratio": 1.229760634243025,
+  "shared_region_share": 0.8508034188034188,
+  "deff": 1.645939873625951,
+  "shortfall_strata": [
+    {
+      "dept": "ANCASH",
+      "cohort": 2005,
+      "n_treated": 31,
+      "quota": 62,
+      "drawn": 44
+    },
+    {
+      "dept": "ANCASH",
+      "cohort": 2007,
+      "n_treated": 27,
+      "quota": 54,
+      "drawn": 53
+    },
+    {
+      "dept": "AREQUIPA",
+      "cohort": 2009,
+      "n_treated": 38,
+      "quota": 76,
+      "drawn": 6
+    },
+    {
+      "dept": "AREQUIPA",
+      "cohort": 2010,
+      "n_treated": 40,
+      "quota": 80,
+      "drawn": 12
+    },
+    {
+      "dept": "HUANCAVELICA",
+      "cohort": 2009,
+      "n_treated": 5,
+      "quota": 10,
+      "drawn": 0
+    },
+    {
+      "dept": "ICA",
+      "cohort": 2005,
+      "n_treated": 4,
+      "quota": 8,
+      "drawn": 3
+    },
+    {
+      "dept": "ICA",
+      "cohort": 2006,
+      "n_treated": 46,
+      "quota": 92,
+      "drawn": 3
+    },
+    {
+      "dept": "ICA",
+      "cohort": 2010,
+      "n_treated": 4,
+      "quota": 8,
+      "drawn": 1
+    },
+    {
+      "dept": "LAMBAYEQUE",
+      "cohort": 2009,
+      "n_treated": 142,
+      "quota": 284,
+      "drawn": 170
+    },
+    {
+      "dept": "LA_LIBERTAD",
+      "cohort": 2006,
+      "n_treated": 2849,
+      "quota": 5698,
+      "drawn": 2000
+    },
+    {
+      "dept": "LIMA",
+      "cohort": 2004,
+      "n_treated": 3,
+      "quota": 6,
+      "drawn": 5
+    },
+    {
+      "dept": "LIMA",
+      "cohort": 2009,
+      "n_treated": 24,
+      "quota": 48,
+      "drawn": 23
+    },
+    {
+      "dept": "LIMA",
+      "cohort": 2010,
+      "n_treated": 1,
+      "quota": 2,
+      "drawn": 0
+    },
+    {
+      "dept": "PASCO",
+      "cohort": 2009,
+      "n_treated": 12,
+      "quota": 24,
+      "drawn": 3
+    },
+    {
+      "dept": "PIURA",
+      "cohort": 2004,
+      "n_treated": 44,
+      "quota": 88,
+      "drawn": 22
+    },
+    {
+      "dept": "PIURA",
+      "cohort": 2005,
+      "n_treated": 64,
+      "quota": 128,
+      "drawn": 79
+    },
+    {
+      "dept": "PIURA",
+      "cohort": 2006,
+      "n_treated": 348,
+      "quota": 696,
+      "drawn": 157
+    },
+    {
+      "dept": "PIURA",
+      "cohort": 2007,
+      "n_treated": 28,
+      "quota": 56,
+      "drawn": 7
+    },
+    {
+      "dept": "PIURA",
+      "cohort": 2008,
+      "n_treated": 16,
+      "quota": 32,
+      "drawn": 4
+    },
+    {
+      "dept": "PIURA",
+      "cohort": 2009,
+      "n_treated": 40,
+      "quota": 80,
+      "drawn": 38
+    },
+    {
+      "dept": "TACNA",
+      "cohort": 2009,
+      "n_treated": 1,
+      "quota": 2,
+      "drawn": 1
+    },
+    {
+      "dept": "TUMBES",
+      "cohort": 2004,
+      "n_treated": 4,
+      "quota": 8,
+      "drawn": 0
+    },
+    {
+      "dept": "TUMBES",
+      "cohort": 2005,
+      "n_treated": 2,
+      "quota": 4,
+      "drawn": 0
+    },
+    {
+      "dept": "TUMBES",
+      "cohort": 2006,
+      "n_treated": 9,
+      "quota": 18,
+      "drawn": 5
+    },
+    {
+      "dept": "TUMBES",
+      "cohort": 2007,
+      "n_treated": 45,
+      "quota": 90,
+      "drawn": 3
+    },
+    {
+      "dept": "TUMBES",
+      "cohort": 2008,
+      "n_treated": 15,
+      "quota": 30,
+      "drawn": 1
+    },
+    {
+      "dept": "TUMBES",
+      "cohort": 2009,
+      "n_treated": 4,
+      "quota": 8,
+      "drawn": 0
+    }
+  ],
+  "by_dept_arm": {
+    "ANCASH|control": 257,
+    "ANCASH|treated": 138,
+    "AREQUIPA|control": 414,
+    "AREQUIPA|treated": 276,
+    "CAJAMARCA|control": 4108,
+    "CAJAMARCA|treated": 2054,
+    "HUANCAVELICA|control": 8,
+    "HUANCAVELICA|treated": 9,
+    "ICA|control": 57,
+    "ICA|treated": 79,
+    "LAMBAYEQUE|control": 786,
+    "LAMBAYEQUE|treated": 450,
+    "LA_LIBERTAD|control": 2020,
+    "LA_LIBERTAD|treated": 2859,
+    "LIMA|control": 50,
+    "LIMA|treated": 39,
+    "MOQUEGUA|control": 2,
+    "MOQUEGUA|treated": 1,
+    "PASCO|control": 39,
+    "PASCO|treated": 30,
+    "PIURA|control": 311,
+    "PIURA|treated": 542,
+    "TACNA|control": 5,
+    "TACNA|treated": 3,
+    "TUMBES|control": 9,
+    "TUMBES|treated": 79
+  },
+  "by_cohort_arm": {
+    "2004|control": 699,
+    "2004|treated": 387,
+    "2005|control": 838,
+    "2005|treated": 457,
+    "2006|control": 4505,
+    "2006|treated": 4422,
+    "2007|control": 859,
+    "2007|treated": 498,
+    "2008|control": 773,
+    "2008|treated": 415,
+    "2009|control": 301,
+    "2009|treated": 296,
+    "2010|control": 85,
+    "2010|treated": 81,
+    "2011|control": 6,
+    "2011|treated": 3
+  }
+}

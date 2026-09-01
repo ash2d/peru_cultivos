@@ -1,0 +1,3 @@
+estimator,n,before_pct,after_pct,change_pp,ci95_pp
+raw (linked panel),63766,24.6,33.0,8.4,0.3
+post-stratified to national,63766,16.5,26.4,9.9,0.3

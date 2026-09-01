@@ -1,0 +1,10 @@
+{
+  "model": "ltae",
+  "drop_features": [],
+  "train_years": null,
+  "buffer_m": 1500.0,
+  "mean_macro_f1": 0.4422379907227185,
+  "std_macro_f1": 0.05612259129233733,
+  "pooled_macro_f1": 0.5084952785325864,
+  "n_departments": 14
+}

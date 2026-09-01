@@ -1,0 +1,60 @@
+{
+  "registered_on": "2026-08-11",
+  "plan": "docs/all_peru/tenure_did_plan.md \u00a79 (the v3 reopening)",
+  "primary_decision_rule": "An effect is REPORTED only if the 95 % CI of (headline - M * placebo) excludes zero, at the derived M. Otherwise the outcome is NOT-SEPARABLE: the effect cannot be separated from pre-existing trend. NOT-SEPARABLE is a complete, publishable outcome and is written up to the same standard.",
+  "primary_outcome": "window-mean prob_PERENNIAL (W-D9 \u2014 the probability, not the thresholded class). Thresholded share is secondary.",
+  "primary_contrast": {
+    "pre": "W99",
+    "post": [
+      "W14",
+      "W19"
+    ],
+    "also_reported_separately": [
+      "W14",
+      "W19"
+    ]
+  },
+  "placebo": {
+    "pre": "P1",
+    "post": "P2",
+    "years": {
+      "P1": [
+        1999,
+        2000
+      ],
+      "P2": [
+        2001,
+        2003
+      ]
+    },
+    "why": "both windows lie entirely before the declaration year of the reg_year >= 2004 cohort (R4)"
+  },
+  "amplification_factor_M": 7.0,
+  "M_derivation": "headline horizon / placebo horizon, from window midpoints \u2014 17.5 y / 2.5 y",
+  "correction": "corrected = headline - M * placebo; se = sqrt(se_h^2 + M^2 * se_p^2)  [cov assumed 0]",
+  "sensitivity_curve_M": [
+    0.0,
+    1.0,
+    3.0,
+    5.0,
+    7.0
+  ],
+  "sensitivity_curve_is_always_reported": true,
+  "restrictions": [
+    "R1 at-risk (PETT ANNUAL)",
+    "R2 both observations dated",
+    "R3 cadastre after declaration and before the post-windows",
+    "R4 pre-window entirely before declaration (reg_year >= 2004)",
+    "R5 compared within department x declaration-year cohort"
+  ],
+  "control_definition": "no_inscrito",
+  "estimator": "parcel FE + window FE + department x POST, SEs clustered by 5 km region_id",
+  "model": "runs/all_peru/selected_model.json -> lightgbm_nometa_nolat_aug_yleak10",
+  "sensitivity_model_arms": [
+    "lightgbm_nometa_nolat",
+    "ltae (negative control only)"
+  ],
+  "G2_is_a_diagnostic_not_a_gate": "common support, training-set membership and shared-region coverage are known to fail on the existing panel (RESULTS.md \u00a710.3). They are measured and reported, not remedied by redesigning the sample.",
+  "shares_use_sample_weight": true,
+  "locked_test": "UNSPENT \u2014 not touched by this study"
+}

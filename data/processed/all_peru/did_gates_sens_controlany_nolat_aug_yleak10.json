@@ -1,0 +1,178 @@
+{
+  "tag": "sens_controlany_nolat_aug_yleak10",
+  "preds": "data/processed/all_peru/panel_predictions_nolat_aug_yleak10.parquet",
+  "apply_r4": true,
+  "cohort_min_year": 2004,
+  "control_policy": "any",
+  "restrictions": {
+    "n_start": 4565,
+    "n_after_abstain": 4535,
+    "n_R1_at_risk": 1990,
+    "n_R2_dated": 1392,
+    "n_R3_ordered": 1392,
+    "n_R4_clean_pre": 449,
+    "control_policy": "any",
+    "cohort_min_year": 2004,
+    "n_final": 449,
+    "n_treated": 60,
+    "n_control": 389
+  },
+  "G1_placebo": {
+    "coef": 0.0066442000668515576,
+    "se": 0.018146037118978352,
+    "p": 0.7142519744947846,
+    "n_treated": 60,
+    "n_control": 387,
+    "n_obs": 894,
+    "n_clusters": 155,
+    "contrast": "P1->P2",
+    "horizon_years": 2.5,
+    "band": 0.0025,
+    "band_per_decade": 0.01,
+    "ci_low": -0.02892203268634601,
+    "ci_high": 0.042210432820049125,
+    "coef_per_decade": 0.02657680026740623,
+    "verdict": "INCONCLUSIVE"
+  },
+  "G2_integrity": {
+    "n_treated": 60,
+    "n_control": 389,
+    "smd": {
+      "log_area": 0.6571372062235858,
+      "reg_year": 0.271025315498828,
+      "exposure_gap": 0.25361920667327426,
+      "dept_max": 0.6655738752906625
+    },
+    "max_smd": 0.6655738752906625,
+    "pass_common_support": false,
+    "attrition": {
+      "W99": {
+        "treated": 1.0,
+        "control": 0.9948586118251928,
+        "gap": 0.005141388174807249
+      },
+      "W14": {
+        "treated": 1.0,
+        "control": 0.9974293059125964,
+        "gap": 0.0025706940874036244
+      },
+      "W19": {
+        "treated": 1.0,
+        "control": 0.9974293059125964,
+        "gap": 0.0025706940874036244
+      }
+    },
+    "max_attrition_gap": 0.005141388174807249,
+    "pass_attrition": true,
+    "train_membership": {
+      "treated": 0.26666666666666666,
+      "control": 0.2750642673521851,
+      "gap": -0.008397600685518425
+    },
+    "pass_train_membership": true,
+    "shared_region_share": 0.30734966592427615,
+    "pass_shared_regions": false,
+    "baseline_p_mean": {
+      "treated": 0.20246447931095074,
+      "control": 0.13492106519136662,
+      "gap": 0.06754341411958412
+    },
+    "pass": false
+  },
+  "G3a_precision": {
+    "n_pairs": 447,
+    "sd_delta": 0.11157176130259258,
+    "mean_parcels_per_region": 2.8838709677419354,
+    "icc": 0.962076880444257,
+    "deff_cluster": 2.812428703804665,
+    "horizon_years": 2.5,
+    "band": 0.0025,
+    "ladder": [
+      {
+        "n_per_arm": 1300,
+        "expected_se": 0.00733902507537399,
+        "ci_half_width": 0.01438448914773302,
+        "fits_band": false
+      },
+      {
+        "n_per_arm": 2000,
+        "expected_se": 0.005916911177889129,
+        "ci_half_width": 0.011597145908662693,
+        "fits_band": false
+      },
+      {
+        "n_per_arm": 4000,
+        "expected_se": 0.004183888017563886,
+        "ci_half_width": 0.008200420514425218,
+        "fits_band": false
+      },
+      {
+        "n_per_arm": 6500,
+        "expected_se": 0.0032821117914223516,
+        "ci_half_width": 0.006432939111187809,
+        "fits_band": false
+      },
+      {
+        "n_per_arm": 10000,
+        "expected_se": 0.0026461231221176886,
+        "ci_half_width": 0.005186401319350669,
+        "fits_band": false
+      },
+      {
+        "n_per_arm": 20000,
+        "expected_se": 0.0018710916035039364,
+        "ci_half_width": 0.003667339542867715,
+        "fits_band": false
+      }
+    ],
+    "n_per_arm_required": 43038.013832579796,
+    "max_se_allowed": 0.0012755102040816328
+  },
+  "G3b_power": {
+    "mde": 0.02,
+    "se_headline": 0.02058504330279883,
+    "powered": false
+  },
+  "headline_W99_to_post": {
+    "coef": 0.015645458407741723,
+    "se": 0.02058504330279883,
+    "p": 0.44723061458815894,
+    "n_treated": 60,
+    "n_control": 387,
+    "n_obs": 1341,
+    "n_clusters": 155
+  },
+  "per_window_means": [
+    {
+      "window": "P1",
+      "control": 0.14022950251651148,
+      "treated": 0.20488851653222126,
+      "difference": 0.06465901401570978
+    },
+    {
+      "window": "P2",
+      "control": 0.13114490571472667,
+      "treated": 0.2012710004730389,
+      "difference": 0.07012609475831222
+    },
+    {
+      "window": "W14",
+      "control": 0.147904575185589,
+      "treated": 0.23736163594130844,
+      "difference": 0.08945706075571944
+    },
+    {
+      "window": "W19",
+      "control": 0.18113232737070148,
+      "treated": 0.279613924015398,
+      "difference": 0.0984815966446965
+    },
+    {
+      "window": "W99",
+      "control": 0.13492106519136662,
+      "treated": 0.20246447931095074,
+      "difference": 0.06754341411958412
+    }
+  ],
+  "estimate_licensed": false
+}

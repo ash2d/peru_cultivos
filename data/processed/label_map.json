@@ -1,0 +1,14 @@
+{
+  "ALGODON": 0,
+  "ARROZ": 1,
+  "CAFE": 2,
+  "CAÑA DE AZUCAR": 3,
+  "FALLOW": 4,
+  "FRIJOL": 5,
+  "MAIZ": 6,
+  "MANGO_LIMON": 7,
+  "PASTURE": 8,
+  "PLATANO": 9,
+  "TRIGO": 10,
+  "ZARANDAJA": 11
+}

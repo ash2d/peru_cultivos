@@ -1,0 +1,10 @@
+target,model,arm,lodo_arm,lodo_latlon,arm_minus_control,depts_beating_control,paired_p
+t3w,lightgbm,temp,0.7241,0.6995,0.0245,10/14,0.1159
+t3w,lightgbm,rain,0.6963,0.6995,-0.0032,8/14,0.6002
+t3w,lightgbm,both,0.7171,0.6995,0.0176,8/14,0.3454
+t3w,ltae,temp,0.6869,0.6669,0.02,8/14,0.173
+t3w,ltae,rain,0.6777,0.6669,0.0108,9/14,0.3109
+t3w,ltae,both,0.6775,0.6669,0.0106,7/14,0.5303
+t3w,rules,temp,0.6477,0.5712,0.0765,12/14,0.0067
+t3w,rules,rain,0.6784,0.5712,0.1072,13/14,0.0052
+t3w,rules,both,0.6676,0.5712,0.0964,11/14,0.0295

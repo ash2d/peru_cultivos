@@ -1,0 +1,8 @@
+{
+  "source": "/Users/ash/phd/PERU/Coding/data/processed/all_peru_full",
+  "n_declared_woody_noncrop": 20835,
+  "n_eligible_parcels": 726808,
+  "share_of_eligible_plus_woody": 0.027867578510064297,
+  "perennial_share_of_eligible": 0.09893396880606707,
+  "note": "LOWER bound: counts declared woody non-crop only. If every such parcel reads PERENNIAL at inference it adds this much to the predicted perennial pool \u2014 compare against the ~2 pp differential the design is powered for."
+}

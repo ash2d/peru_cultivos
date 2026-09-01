@@ -1,0 +1,117 @@
+{
+  "tag": "nolat_cv",
+  "target": "PERENNIAL",
+  "n_with_tenure": 43419,
+  "n_total": 43419,
+  "tenure_coverage": 1.0,
+  "marginal": [
+    {
+      "tenure": "INSCRITO",
+      "n": 26614,
+      "true_share": 0.19636281656271135,
+      "pred_share": 0.22649733223115653,
+      "sensitivity": 0.6794871794871795,
+      "fpr": 0.1158126051991771,
+      "specificity": 0.8841873948008229,
+      "accuracy": 0.5763132186067483,
+      "mean_area_ha": 1.5588148772771127
+    },
+    {
+      "tenure": "NO INSCRITO",
+      "n": 16805,
+      "true_share": 0.20583159773876822,
+      "pred_share": 0.25783992859268073,
+      "sensitivity": 0.6666666666666666,
+      "fpr": 0.15188071332234376,
+      "specificity": 0.8481192866776562,
+      "accuracy": 0.5749479321630467,
+      "mean_area_ha": 2.123534048503152
+    }
+  ],
+  "at_risk_false_positive": [
+    {
+      "tenure": "INSCRITO",
+      "n": 11159,
+      "fp_rate": 0.11138990949009768
+    },
+    {
+      "tenure": "NO INSCRITO",
+      "n": 7188,
+      "fp_rate": 0.1553978853644964
+    }
+  ],
+  "at_risk_fp_gap_INSCRITO_minus_NO": -0.04400797587439871,
+  "at_risk_fp_gap_conditional": -0.017465438937502367,
+  "at_risk_fp_gap_conditional_se": 0.007226557871937684,
+  "at_risk_fp_gap_conditional_p": 0.0156558685838035,
+  "by_area_quartile": [
+    {
+      "area_q": "q1",
+      "tenure": "INSCRITO",
+      "n": 7504,
+      "sensitivity": 0.7093105899076049,
+      "fpr": 0.0974249630966049
+    },
+    {
+      "area_q": "q1",
+      "tenure": "NO INSCRITO",
+      "n": 3351,
+      "sensitivity": 0.760806916426513,
+      "fpr": 0.15016936394429808
+    },
+    {
+      "area_q": "q2",
+      "tenure": "INSCRITO",
+      "n": 7061,
+      "sensitivity": 0.6452131938857603,
+      "fpr": 0.08765898934341698
+    },
+    {
+      "area_q": "q2",
+      "tenure": "NO INSCRITO",
+      "n": 3794,
+      "sensitivity": 0.6798245614035088,
+      "fpr": 0.14758842443729903
+    },
+    {
+      "area_q": "q3",
+      "tenure": "INSCRITO",
+      "n": 6502,
+      "sensitivity": 0.6443007275666937,
+      "fpr": 0.10788224121557455
+    },
+    {
+      "area_q": "q3",
+      "tenure": "NO INSCRITO",
+      "n": 4352,
+      "sensitivity": 0.6579234972677596,
+      "fpr": 0.15216758801280186
+    },
+    {
+      "area_q": "q4",
+      "tenure": "INSCRITO",
+      "n": 5547,
+      "sensitivity": 0.7124719940253921,
+      "fpr": 0.1913022813688213
+    },
+    {
+      "area_q": "q4",
+      "tenure": "NO INSCRITO",
+      "n": 5308,
+      "sensitivity": 0.6097770154373928,
+      "fpr": 0.1559633027522936
+    }
+  ],
+  "max_abs_dsensitivity_within_area_q": 0.10269497858799925,
+  "lpm_tenure_coef": 0.012644797538143323,
+  "lpm_tenure_se": 0.007841000649456684,
+  "lpm_tenure_p": 0.10682035171349663,
+  "lpm_n": 43419,
+  "lpm_n_regions": 549,
+  "logit_tenure_coef": 0.0322647666367416,
+  "logit_tenure_p": 0.1331667944461702,
+  "pass_accuracy": true,
+  "pass_sensitivity": false,
+  "pass_false_positive": false,
+  "pass": false
+}

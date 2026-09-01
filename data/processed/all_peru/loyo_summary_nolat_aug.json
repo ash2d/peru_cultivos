@@ -1,0 +1,22 @@
+{
+  "model": "lightgbm",
+  "drop_features": [
+    "frac_l7",
+    "n_valid_obs",
+    "n_dates",
+    "max_gap",
+    "n_valid_pixels",
+    "centroid_lat"
+  ],
+  "buffer_m": 1500.0,
+  "augment_feat": "data/processed/all_peru/features/features_lightgbm_degraded.parquet",
+  "shared_regions_only": true,
+  "min_cohorts_per_region": 2,
+  "mean_macro_f1": 0.5290511633614727,
+  "std_macro_f1": 0.057574269349394955,
+  "pooled_macro_f1": 0.5498572390009486,
+  "worst_cohort_macro_f1_excl_elnino": 0.3933732633514941,
+  "worst_cohort_recall_PERENNIAL_excl_elnino": 0.36363636363636365,
+  "n_cohorts": 14,
+  "tolerance": 0.1
+}

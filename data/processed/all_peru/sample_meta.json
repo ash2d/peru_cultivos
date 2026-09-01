@@ -1,0 +1,15 @@
+{
+  "source": "data/processed/all_peru_full",
+  "target_n": 56419,
+  "sampled_n": 56419,
+  "region_km": 5.0,
+  "max_per_region": 220,
+  "floor": 800,
+  "seed": 42,
+  "source_n": 726808,
+  "class_mix": {
+    "ANNUAL": 0.4284,
+    "PASTURE_FALLOW": 0.37,
+    "PERENNIAL": 0.2016
+  }
+}

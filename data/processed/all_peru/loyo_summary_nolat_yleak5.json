@@ -1,0 +1,30 @@
+{
+  "model": "lightgbm",
+  "drop_features": [
+    "frac_l7",
+    "n_valid_obs",
+    "n_dates",
+    "max_gap",
+    "n_valid_pixels",
+    "centroid_lat",
+    "R_amp",
+    "G_amp",
+    "SWIR2_amp",
+    "NIR_amp",
+    "R_max"
+  ],
+  "buffer_m": 1500.0,
+  "augment_feat": null,
+  "shared_regions_only": true,
+  "min_cohorts_per_region": 2,
+  "mean_macro_f1": 0.5245461392109478,
+  "std_macro_f1": 0.05023854815661684,
+  "pooled_macro_f1": 0.5426334644212384,
+  "worst_cohort_macro_f1_excl_elnino": 0.42148904221618316,
+  "worst_cohort_recall_PERENNIAL_excl_elnino": 0.38405797101449274,
+  "min_support_for_worst": 1000,
+  "worst_cohort_macro_f1_min_support": 0.42401228418464926,
+  "worst_cohort_recall_PERENNIAL_min_support": 0.415929203539823,
+  "n_cohorts": 14,
+  "tolerance": 0.1
+}

@@ -1,0 +1,7 @@
+comparison,tenure,n,before_pct,after_pct,change_pp,ci95_pp
+1→2 all parcels,INSCRITO,62464,15.0,24.5,9.5,0.3
+1→2 all parcels,NO INSCRITO,33477,19.7,31.4,11.7,0.4
+1→2 all parcels,difference (INSCRITO − NO INSCRITO),95941,-4.7,-6.9,-2.2,0.5
+1→2 crop-on-both-sides,INSCRITO,40161,22.8,30.6,7.8,0.4
+1→2 crop-on-both-sides,NO INSCRITO,23605,27.6,37.0,9.4,0.5
+1→2 crop-on-both-sides,difference (INSCRITO − NO INSCRITO),63766,-4.8,-6.4,-1.6,0.6

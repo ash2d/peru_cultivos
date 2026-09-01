@@ -1,0 +1,17 @@
+{
+  "model": "lightgbm",
+  "drop_features": [
+    "frac_l7",
+    "n_valid_obs",
+    "n_dates",
+    "max_gap",
+    "n_valid_pixels",
+    "centroid_lat"
+  ],
+  "train_years": null,
+  "buffer_m": 1500.0,
+  "mean_macro_f1": 0.4764745880356221,
+  "std_macro_f1": 0.08202225679437178,
+  "pooled_macro_f1": 0.5373994128240204,
+  "n_departments": 14
+}

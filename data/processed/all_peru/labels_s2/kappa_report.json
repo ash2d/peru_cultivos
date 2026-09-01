@@ -1,0 +1,38 @@
+{
+  "kappa": {
+    "n_overlap": 0,
+    "kappa_called": null,
+    "kappa_perennial": null,
+    "note": "no double-labelled parcels found"
+  },
+  "gates": {
+    "G1_kappa_called": {
+      "value": null,
+      "criterion": ">= 0.75",
+      "pass": false,
+      "note": "on parcels BOTH labellers called; kappa_all (abstains included) is in the kappa report"
+    },
+    "G2_unsure_share": {
+      "value": 0.1393,
+      "criterion": "< 0.25",
+      "pass": true
+    },
+    "G3_min_per_dept": {
+      "value": 48,
+      "criterion": ">= 35",
+      "pass": true,
+      "departments_below": {}
+    },
+    "G3_min_per_class": {
+      "value": 54,
+      "criterion": ">= 150",
+      "pass": false,
+      "classes_below": {
+        "PERENNIAL": 115,
+        "ANNUAL": 141,
+        "NON_AGRICULTURE": 54
+      },
+      "note": "over the five real classes; UNSURE is an abstain, not a class with a quota. NON_AGRICULTURE was split out of OTHER after the draw was fixed, so it has no stratum of its own and may well land below the floor \u2014 `classes_below` says which, and a class under it is a decision to pool at training time, not a reason to re-draw"
+    }
+  }
+}

@@ -1,0 +1,314 @@
+{
+  "gate_pass": false,
+  "S4": {
+    "criterion": "S4",
+    "tolerance": 0.1,
+    "accuracy_at_k0": 0.6904892798240791,
+    "n_at_k0": 1819,
+    "worst_k_within_3": -3,
+    "worst_accuracy_within_3": 0.6141304347826086,
+    "max_abs_deviation_within_3": 0.0763588450414705,
+    "signed_drop_at_worst": 0.0763588450414705,
+    "max_degradation_within_3": 0.0763588450414705,
+    "pass": true,
+    "degradation_only_pass": true,
+    "supplementary_per_k": [
+      {
+        "k": -5,
+        "n": 423,
+        "acc_raw": 0.6879432624113475,
+        "acc_std_k0prior": 0.5590062558053771,
+        "bal_acc": 0.5557116117874062,
+        "recall_ANNUAL": 0.6338028169014085,
+        "recall_PASTURE_FALLOW": 0.0891089108910891,
+        "recall_PERENNIAL": 0.9442231075697212
+      },
+      {
+        "k": -4,
+        "n": 466,
+        "acc_raw": 0.7145922746781116,
+        "acc_std_k0prior": 0.6422359068479477,
+        "bal_acc": 0.6212632787826586,
+        "recall_ANNUAL": 0.76,
+        "recall_PASTURE_FALLOW": 0.18518518518518517,
+        "recall_PERENNIAL": 0.9186046511627907
+      },
+      {
+        "k": -3,
+        "n": 368,
+        "acc_raw": 0.6141304347826086,
+        "acc_std_k0prior": 0.630201805731506,
+        "bal_acc": 0.5923201890415005,
+        "recall_ANNUAL": 0.8,
+        "recall_PASTURE_FALLOW": 0.10810810810810811,
+        "recall_PERENNIAL": 0.8688524590163934
+      },
+      {
+        "k": -2,
+        "n": 540,
+        "acc_raw": 0.6907407407407408,
+        "acc_std_k0prior": 0.6516830665785671,
+        "bal_acc": 0.6119563358635616,
+        "recall_ANNUAL": 0.8205128205128205,
+        "recall_PASTURE_FALLOW": 0.1694915254237288,
+        "recall_PERENNIAL": 0.8458646616541353
+      },
+      {
+        "k": -1,
+        "n": 709,
+        "acc_raw": 0.6431593794076164,
+        "acc_std_k0prior": 0.6260079141387528,
+        "bal_acc": 0.5788516261040773,
+        "recall_ANNUAL": 0.8032128514056225,
+        "recall_PASTURE_FALLOW": 0.21768707482993196,
+        "recall_PERENNIAL": 0.7156549520766773
+      },
+      {
+        "k": 0,
+        "n": 1819,
+        "acc_raw": 0.6904892798240791,
+        "acc_std_k0prior": 0.6904892798240791,
+        "bal_acc": 0.6655048698992377,
+        "recall_ANNUAL": 0.7897042716319824,
+        "recall_PASTURE_FALLOW": 0.4364754098360656,
+        "recall_PERENNIAL": 0.7703349282296651
+      },
+      {
+        "k": 1,
+        "n": 3545,
+        "acc_raw": 0.7362482369534555,
+        "acc_std_k0prior": 0.6677951425202915,
+        "bal_acc": 0.5960396439623021,
+        "recall_ANNUAL": 0.928511354079058,
+        "recall_PASTURE_FALLOW": 0.10960757780784844,
+        "recall_PERENNIAL": 0.75
+      },
+      {
+        "k": 2,
+        "n": 3478,
+        "acc_raw": 0.738355376653249,
+        "acc_std_k0prior": 0.6627036965102773,
+        "bal_acc": 0.5867632617673955,
+        "recall_ANNUAL": 0.9336993243243243,
+        "recall_PASTURE_FALLOW": 0.10679611650485436,
+        "recall_PERENNIAL": 0.7197943444730077
+      },
+      {
+        "k": 3,
+        "n": 3435,
+        "acc_raw": 0.7403202328966522,
+        "acc_std_k0prior": 0.6703951232929212,
+        "bal_acc": 0.5972408130808485,
+        "recall_ANNUAL": 0.9312123817712812,
+        "recall_PASTURE_FALLOW": 0.13655172413793104,
+        "recall_PERENNIAL": 0.7239583333333334
+      },
+      {
+        "k": 4,
+        "n": 3489,
+        "acc_raw": 0.7153912295786758,
+        "acc_std_k0prior": 0.6470008647964821,
+        "bal_acc": 0.5773894369543577,
+        "recall_ANNUAL": 0.8963310580204779,
+        "recall_PASTURE_FALLOW": 0.1309192200557103,
+        "recall_PERENNIAL": 0.7049180327868853
+      },
+      {
+        "k": 5,
+        "n": 3384,
+        "acc_raw": 0.7390661938534279,
+        "acc_std_k0prior": 0.672157126329015,
+        "bal_acc": 0.6033244103563957,
+        "recall_ANNUAL": 0.9131010145566828,
+        "recall_PASTURE_FALLOW": 0.20142857142857143,
+        "recall_PERENNIAL": 0.6954436450839329
+      }
+    ],
+    "supplementary_max_dev_prior_standardised": 0.06448136568532636,
+    "supplementary_prior_standardised_pass": true,
+    "supplementary_max_dev_balanced_accuracy": 0.08665324379516048,
+    "supplementary_balanced_accuracy_pass": true,
+    "supplementary_note": "Which parcels have a panel year at distance k depends on their label year, and label year is confounded with label (\u00a78) \u2014 so k bins are not the same parcel mix. `prior_standardised` re-weights per-class recalls to the k=0 class prior; `balanced_accuracy` weights all classes equally. Diagnosis only: the criterion is defined on raw accuracy.",
+    "note": "Real land-use change also contributes to the decay, so this is a lower bound on model stability. A cliff at one specific year is a sensor artefact, not land use. `pass` is the criterion as written (two-sided); `degradation_only_pass` ignores accuracy that rises above k=0, which is odd but is not a transfer failure."
+  },
+  "S5": {
+    "criterion": "S5",
+    "threshold": 0.15,
+    "flicker_PERENNIAL": 0.39686924493554326,
+    "n_PERENNIAL": 1086,
+    "flicker_ALL": 0.3020806241872562,
+    "pass": false,
+    "supplementary_smoothed": {
+      "ANNUAL": 0.07573916565411097,
+      "PASTURE_FALLOW": 0.2617046818727491,
+      "PERENNIAL": 0.20349907918968693,
+      "ALL": 0.13407022106631988
+    },
+    "supplementary_flagged_years_dropped": {
+      "ANNUAL": 0.18448764682057514,
+      "PASTURE_FALLOW": 0.531812725090036,
+      "PERENNIAL": 0.40791896869244937,
+      "ALL": 0.29128738621586475
+    },
+    "note": "Flicker is computed on the RAW series. If it fails, the minimum-duration rule would be hiding the problem, not solving it. The two supplementary views are diagnosis only and do not change the verdict."
+  },
+  "elnino": {
+    "model": "lightgbm",
+    "model_kw": {},
+    "input_kind": "flat",
+    "shared_regions": 24,
+    "n_parcels_in_shared_regions": 24425,
+    "n_train_1999_2000": 4996,
+    "n_val_1999_2000": 1259,
+    "n_control_1999_2000": 2095,
+    "n_test_1998": 15408,
+    "drop_features": [
+      "frac_l7",
+      "n_valid_obs",
+      "n_dates",
+      "max_gap",
+      "n_valid_pixels"
+    ],
+    "train_label_mix": {
+      "ANNUAL": 3203,
+      "PASTURE_FALLOW": 1540,
+      "PERENNIAL": 253
+    },
+    "test_arm_1998": {
+      "ANNUAL": {
+        "n": 13319,
+        "recall": 0.9082513702229897
+      },
+      "PASTURE_FALLOW": {
+        "n": 2028,
+        "recall": 0.14201183431952663
+      },
+      "PERENNIAL": {
+        "n": 61,
+        "recall": 0.01639344262295082
+      },
+      "_accuracy": 0.8038681204569055,
+      "_n": 15408
+    },
+    "control_arm_1999_2000": {
+      "ANNUAL": {
+        "n": 1403,
+        "recall": 0.8325017818959373
+      },
+      "PASTURE_FALLOW": {
+        "n": 589,
+        "recall": 0.6264855687606112
+      },
+      "PERENNIAL": {
+        "n": 103,
+        "recall": 0.5436893203883495
+      },
+      "_accuracy": 0.760381861575179,
+      "_n": 2095
+    },
+    "delta_recall_test_minus_control": {
+      "ANNUAL": 0.07574958832705248,
+      "PASTURE_FALLOW": -0.4844737344410846,
+      "PERENNIAL": -0.5272958777653987
+    },
+    "delta_accuracy": 0.043486258881726525,
+    "reading": "SMOKING GUN \u2014 ANNUAL recall holds while PASTURE recall collapses: 1998 flood/bare radiometry is being read as the ANNUAL signature.",
+    "limit": "One year cannot separate '1998 is a different year' from '1998 is an El Nino year' \u2014 they are collinear here (1996, the natural non-El-Nino L5-only comparator, has only 4 labelled parcels)."
+  },
+  "drift": {
+    "balanced_n_parcels": 3434,
+    "n_boundary_steps_over_2x_yoy": 0,
+    "n_boundary_steps": 30,
+    "dispersion_by_era": [
+      {
+        "kind": "index",
+        "L5 only": 0.2729745851208767,
+        "L5 + L7": 0.32366622342378837,
+        "L7 only": 0.35368498012310634,
+        "ratio_last_over_first": 1.295669997873575
+      },
+      {
+        "kind": "raw_band_amp",
+        "L5 only": 0.10610657340536517,
+        "L5 + L7": 0.1105104413786621,
+        "L7 only": 0.14514430253343155,
+        "ratio_last_over_first": 1.3679105627031065
+      },
+      {
+        "kind": "raw_band_median",
+        "L5 only": 0.07845899046709141,
+        "L5 + L7": 0.08753564901875728,
+        "L7 only": 0.08602518177393713,
+        "ratio_last_over_first": 1.0964349816611425
+      }
+    ],
+    "worst": [
+      {
+        "feature": "NIR_amp",
+        "boundary": "L5 + L7 -> L7 only (2011/2012)",
+        "era_mean_before": 0.11707626283168793,
+        "era_mean_after": 0.14375438812104138,
+        "step": 0.026678125289353455,
+        "within_era_yoy": 0.019092217087745667,
+        "step_over_yoy": 1.397329873568052,
+        "kind": "raw_band"
+      },
+      {
+        "feature": "SWIR1_median",
+        "boundary": "L5 only -> L5 + L7 (1998/1999)",
+        "era_mean_before": 0.20445280894637108,
+        "era_mean_after": 0.21439406377348033,
+        "step": 0.009941254827109253,
+        "within_era_yoy": 0.009832967445254326,
+        "step_over_yoy": 1.011012685891398,
+        "kind": "raw_band"
+      },
+      {
+        "feature": "SWIR1_amp",
+        "boundary": "L5 + L7 -> L7 only (2011/2012)",
+        "era_mean_before": 0.11391125077551062,
+        "era_mean_after": 0.12992688539353284,
+        "step": 0.016015634618022218,
+        "within_era_yoy": 0.01615350730717182,
+        "step_over_yoy": 0.9914648449697119,
+        "kind": "raw_band"
+      },
+      {
+        "feature": "G_amp",
+        "boundary": "L5 + L7 -> L7 only (2011/2012)",
+        "era_mean_before": 0.05746749991720373,
+        "era_mean_after": 0.06552937830036337,
+        "step": 0.008061878383159644,
+        "within_era_yoy": 0.008242439106106758,
+        "step_over_yoy": 0.9780937753227273,
+        "kind": "raw_band"
+      },
+      {
+        "feature": "R_amp",
+        "boundary": "L5 + L7 -> L7 only (2011/2012)",
+        "era_mean_before": 0.08159125189889561,
+        "era_mean_after": 0.09107562425461682,
+        "step": 0.009484372355721207,
+        "within_era_yoy": 0.00985015332698822,
+        "step_over_yoy": 0.962865454056962,
+        "kind": "raw_band"
+      },
+      {
+        "feature": "B_amp",
+        "boundary": "L5 + L7 -> L7 only (2011/2012)",
+        "era_mean_before": 0.050281873819502915,
+        "era_mean_after": 0.05757374858314341,
+        "step": 0.007291874763640495,
+        "within_era_yoy": 0.007888033986091614,
+        "step_over_yoy": 0.9244223308999071,
+        "kind": "raw_band"
+      }
+    ]
+  },
+  "flagged_years": {
+    "1997": "El Nino, 48.3 % gate",
+    "2009": "49.2 % gate",
+    "2011": "43.3 % gate",
+    "2012": "83.6 % gate, L7 SLC-off alone"
+  }
+}

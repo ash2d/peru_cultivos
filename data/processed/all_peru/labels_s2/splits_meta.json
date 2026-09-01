@@ -1,0 +1,88 @@
+{
+  "config": {
+    "metric_crs": 32718,
+    "block_km": 1.0,
+    "region_km": 5.0,
+    "buffer_m": 3000,
+    "n_folds": 5,
+    "test_frac": 0.2,
+    "seed": 42,
+    "balance_test_on": [
+      "dept",
+      "label"
+    ],
+    "n_test_candidates": 200,
+    "audit_max_dist_m": 5000,
+    "audit_sample": 30000
+  },
+  "audit": {
+    "baseline_agreement": 0.38166373376119256,
+    "curve": [
+      {
+        "lo_m": 0.0,
+        "hi_m": 100.0,
+        "n_pairs": 2,
+        "agreement": 0.5
+      },
+      {
+        "lo_m": 100.0,
+        "hi_m": 250.0,
+        "n_pairs": 22,
+        "agreement": 0.8636363636363636
+      },
+      {
+        "lo_m": 250.0,
+        "hi_m": 500.0,
+        "n_pairs": 42,
+        "agreement": 0.8095238095238095
+      },
+      {
+        "lo_m": 500.0,
+        "hi_m": 1000.0,
+        "n_pairs": 122,
+        "agreement": 0.7622950819672131
+      },
+      {
+        "lo_m": 1000.0,
+        "hi_m": 1500.0,
+        "n_pairs": 142,
+        "agreement": 0.676056338028169
+      },
+      {
+        "lo_m": 1500.0,
+        "hi_m": 2000.0,
+        "n_pairs": 160,
+        "agreement": 0.73125
+      },
+      {
+        "lo_m": 2000.0,
+        "hi_m": 3000.0,
+        "n_pairs": 327,
+        "agreement": 0.6146788990825688
+      },
+      {
+        "lo_m": 3000.0,
+        "hi_m": 4000.0,
+        "n_pairs": 373,
+        "agreement": 0.579088471849866
+      },
+      {
+        "lo_m": 4000.0,
+        "hi_m": 5000.0,
+        "n_pairs": 377,
+        "agreement": 0.5782493368700266
+      }
+    ],
+    "decorrelation_range_m": null
+  },
+  "n_test_regions": 150,
+  "n_regions": 742,
+  "buffer_excluded_test": 78,
+  "buffer_excluded_frac": 0.0986,
+  "split_counts": {
+    "trainval": 791,
+    "test": 201,
+    "pilot": 120
+  },
+  "frozen": "before labelling \u2014 do not redraw"
+}

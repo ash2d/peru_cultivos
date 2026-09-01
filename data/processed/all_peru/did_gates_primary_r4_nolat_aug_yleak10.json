@@ -1,0 +1,178 @@
+{
+  "tag": "primary_r4_nolat_aug_yleak10",
+  "preds": "data/processed/all_peru/panel_predictions_nolat_aug_yleak10.parquet",
+  "apply_r4": true,
+  "cohort_min_year": 2004,
+  "control_policy": "no_inscrito",
+  "restrictions": {
+    "n_start": 4565,
+    "n_after_abstain": 4535,
+    "n_R1_at_risk": 1990,
+    "n_R2_dated": 1392,
+    "n_R3_ordered": 1392,
+    "n_R4_clean_pre": 449,
+    "control_policy": "no_inscrito",
+    "cohort_min_year": 2004,
+    "n_final": 191,
+    "n_treated": 60,
+    "n_control": 131
+  },
+  "G1_placebo": {
+    "coef": 0.004892335996124044,
+    "se": 0.01584026772980116,
+    "p": 0.7574323042013328,
+    "n_treated": 60,
+    "n_control": 131,
+    "n_obs": 382,
+    "n_clusters": 84,
+    "contrast": "P1->P2",
+    "horizon_years": 2.5,
+    "band": 0.0025,
+    "band_per_decade": 0.01,
+    "ci_low": -0.026154588754286223,
+    "ci_high": 0.035939260746534314,
+    "coef_per_decade": 0.019569343984496175,
+    "verdict": "INCONCLUSIVE"
+  },
+  "G2_integrity": {
+    "n_treated": 60,
+    "n_control": 131,
+    "smd": {
+      "log_area": 0.608922462701981,
+      "reg_year": 0.295894425600546,
+      "exposure_gap": 0.36402389016993925,
+      "dept_max": 0.5766766284164478
+    },
+    "max_smd": 0.608922462701981,
+    "pass_common_support": false,
+    "attrition": {
+      "W99": {
+        "treated": 1.0,
+        "control": 1.0,
+        "gap": 0.0
+      },
+      "W14": {
+        "treated": 1.0,
+        "control": 1.0,
+        "gap": 0.0
+      },
+      "W19": {
+        "treated": 1.0,
+        "control": 1.0,
+        "gap": 0.0
+      }
+    },
+    "max_attrition_gap": 0.0,
+    "pass_attrition": true,
+    "train_membership": {
+      "treated": 0.26666666666666666,
+      "control": 0.3282442748091603,
+      "gap": -0.061577608142493634
+    },
+    "pass_train_membership": false,
+    "shared_region_share": 0.36649214659685864,
+    "pass_shared_regions": false,
+    "baseline_p_mean": {
+      "treated": 0.20246447931095074,
+      "control": 0.15350532910218767,
+      "gap": 0.04895915020876307
+    },
+    "pass": false
+  },
+  "G3a_precision": {
+    "n_pairs": 191,
+    "sd_delta": 0.12249471424296442,
+    "mean_parcels_per_region": 2.2738095238095237,
+    "icc": 0.2875557487346247,
+    "deff_cluster": 1.3662912513643433,
+    "horizon_years": 2.5,
+    "band": 0.0025,
+    "ladder": [
+      {
+        "n_per_arm": 1300,
+        "expected_se": 0.005616067439804179,
+        "ci_half_width": 0.011007492182016191,
+        "fits_band": false
+      },
+      {
+        "n_per_arm": 2000,
+        "expected_se": 0.004527818323152844,
+        "ci_half_width": 0.008874523913379574,
+        "fits_band": false
+      },
+      {
+        "n_per_arm": 4000,
+        "expected_se": 0.0032016510402820787,
+        "ci_half_width": 0.006275236038952874,
+        "fits_band": false
+      },
+      {
+        "n_per_arm": 6500,
+        "expected_se": 0.0025115817123250706,
+        "ci_half_width": 0.004922700156157138,
+        "fits_band": false
+      },
+      {
+        "n_per_arm": 10000,
+        "expected_se": 0.0020249019120677737,
+        "ci_half_width": 0.003968807747652837,
+        "fits_band": false
+      },
+      {
+        "n_per_arm": 20000,
+        "expected_se": 0.0014318218732607291,
+        "ci_half_width": 0.0028063708715910293,
+        "fits_band": false
+      }
+    ],
+    "n_per_arm_required": 25202.295900526686,
+    "max_se_allowed": 0.0012755102040816328
+  },
+  "G3b_power": {
+    "mde": 0.02,
+    "se_headline": 0.024809923348163624,
+    "powered": false
+  },
+  "headline_W99_to_post": {
+    "coef": 0.03378944480477719,
+    "se": 0.024809923348163624,
+    "p": 0.17321913909080233,
+    "n_treated": 60,
+    "n_control": 131,
+    "n_obs": 573,
+    "n_clusters": 84
+  },
+  "per_window_means": [
+    {
+      "window": "P1",
+      "control": 0.15993948813503583,
+      "treated": 0.20488851653222126,
+      "difference": 0.044949028397185425
+    },
+    {
+      "window": "P2",
+      "control": 0.14856803425092285,
+      "treated": 0.2012710004730389,
+      "difference": 0.05270296622211604
+    },
+    {
+      "window": "W14",
+      "control": 0.16117043349341623,
+      "treated": 0.23736163594130844,
+      "difference": 0.07619120244789221
+    },
+    {
+      "window": "W19",
+      "control": 0.21595973292729914,
+      "treated": 0.279613924015398,
+      "difference": 0.06365419108809883
+    },
+    {
+      "window": "W99",
+      "control": 0.1535053291021877,
+      "treated": 0.20246447931095074,
+      "difference": 0.04895915020876304
+    }
+  ],
+  "estimate_licensed": false
+}

@@ -1,0 +1,4 @@
+comparison,tenure,n,before_pct,after_pct,change_pp,ci95_pp
+1→3 WOODY_NON_CROP excluded,INSCRITO,82,10.5,13.9,3.3,13.3
+1→3 WOODY_NON_CROP excluded,NO INSCRITO,132,13.9,18.2,4.3,9.8
+1→3 WOODY_NON_CROP excluded,difference (INSCRITO − NO INSCRITO),214,-3.4,-4.3,-1.0,16.5

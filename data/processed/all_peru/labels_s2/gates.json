@@ -1,0 +1,30 @@
+{
+  "G0_esri_eligible_share": {
+    "value": 0.8756,
+    "criterion": ">= 0.80",
+    "pass": true,
+    "by_department": {
+      "ANCASH": 0.96,
+      "AREQUIPA": 1.0,
+      "AYACUCHO": 1.0,
+      "CAJAMARCA": 0.598,
+      "HUANCAVELICA": 1.0,
+      "ICA": 1.0,
+      "LAMBAYEQUE": 1.0,
+      "LA_LIBERTAD": 0.965,
+      "LIMA": 1.0,
+      "MOQUEGUA": 1.0,
+      "PASCO": 0.39,
+      "PIURA": 0.612,
+      "TACNA": 1.0,
+      "TUMBES": 0.997
+    },
+    "n_probed": 4519
+  },
+  "draw_size": {
+    "value": 992,
+    "criterion": "== 1000",
+    "pass": true,
+    "note": "shortfalls are eligible-pool or region-cap limits, reported per cell in the draw log"
+  }
+}

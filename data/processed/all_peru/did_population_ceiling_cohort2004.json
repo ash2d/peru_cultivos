@@ -1,0 +1,27 @@
+{
+  "cohort_min_year": 2004,
+  "steps": {
+    "R1_at_risk": 363529,
+    "R2_dated": 254209,
+    "R3_ordered": 254033,
+    "R4_clean_pre": 80868
+  },
+  "n_treated_max": 6559,
+  "n_control_max": 25840,
+  "effective_n_max": 5231.166394024507,
+  "by_dept": {
+    "LA_LIBERTAD": 2859,
+    "CAJAMARCA": 2054,
+    "PIURA": 542,
+    "LAMBAYEQUE": 450,
+    "AREQUIPA": 276,
+    "ANCASH": 138,
+    "ICA": 79,
+    "TUMBES": 79,
+    "LIMA": 39,
+    "PASCO": 30,
+    "HUANCAVELICA": 9,
+    "TACNA": 3,
+    "MOQUEGUA": 1
+  }
+}

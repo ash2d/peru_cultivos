@@ -1,0 +1,4 @@
+label,n_parcels,n_blocks,n_regions,n_test,n_test_regions
+ANNUAL,36102,1755,230,6839,26
+PASTURE_FALLOW,12218,1091,161,2123,16
+PERENNIAL,8099,1088,188,1199,20

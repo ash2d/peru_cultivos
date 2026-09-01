@@ -1,0 +1,3 @@
+class,before_pct,after_pct,change_pp,ci95_pp,ratio,n_left,n_joined
+PERENNIAL,24.6,33.0,8.4,0.3,1.34,1832,7158
+ANNUAL,75.4,67.0,-8.4,0.3,0.89,7158,1832

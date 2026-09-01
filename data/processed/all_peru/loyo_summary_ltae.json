@@ -1,0 +1,18 @@
+{
+  "model": "ltae",
+  "drop_features": [],
+  "buffer_m": 1500.0,
+  "augment_feat": null,
+  "shared_regions_only": true,
+  "min_cohorts_per_region": 2,
+  "mean_macro_f1": 0.4784214205880109,
+  "std_macro_f1": 0.06199628710112234,
+  "pooled_macro_f1": 0.49389821113177296,
+  "worst_cohort_macro_f1_excl_elnino": 0.3624343007060539,
+  "worst_cohort_recall_PERENNIAL_excl_elnino": 0.2727272727272727,
+  "min_support_for_worst": 1000,
+  "worst_cohort_macro_f1_min_support": 0.43257457061997084,
+  "worst_cohort_recall_PERENNIAL_min_support": 0.41719342604298354,
+  "n_cohorts": 14,
+  "tolerance": 0.1
+}

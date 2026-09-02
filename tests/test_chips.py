@@ -1,10 +1,8 @@
 """Unit tests for the labelling chip panels.
 
-The panel geometry had no coverage until the left panel became a *context* view. What is
-pinned here is the thing that would fail silently: a context panel narrower than the zoom
-panel it is supposed to give context for, or a neighbour lookup that does not reach as far
-as the panel it feeds. Neither raises anything — both just render a picture that quietly
-misleads the labeller.
+What is pinned here is what would fail silently: a context panel narrower than the zoom
+panel it gives context for, or a neighbour lookup that does not reach as far as the panel it
+feeds. Neither raises — both just render a picture that misleads the labeller.
 """
 
 from __future__ import annotations

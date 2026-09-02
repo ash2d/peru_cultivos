@@ -132,9 +132,9 @@ class TestSample:
     def test_population_weights_expand_to_population(self, tmp_path, monkeypatch):
         """weight = stratum population / stratum sample, so weights recover the total.
 
-        Named `population_weight`, not `sample_weight`: `perennial/panel.py` computes its own
-        `sample_weight` for a different stratification, and the two must compose rather than
-        collide (they did — `build_panel` raised KeyError on the suffixed columns)."""
+        Named `population_weight` not `sample_weight`: `perennial/panel.py` has its own
+        `sample_weight` for a different stratification, and the two must compose not collide
+        (they did — `build_panel` raised KeyError on the suffixed columns)."""
         monkeypatch.setenv("CC_PROC", str(tmp_path))
         src = tmp_path / "src"
         src.mkdir()
@@ -155,10 +155,9 @@ class TestSample:
 
 
 class TestCleanGeometry:
-    """La Libertad's cadastre is 3D and Earth Engine rejects 3D GeoJSON outright —
-    `EEException: Invalid GeoJSON geometry` — 5,411 parcels' worth, three chunks into a
-    multi-hour extraction. Shapely calls those polygons perfectly valid, so nothing
-    upstream catches it."""
+    """La Libertad's cadastre is 3D and Earth Engine rejects 3D GeoJSON outright
+    (`EEException: Invalid GeoJSON geometry`) — 5,411 parcels, three chunks into a multi-hour
+    extraction. Shapely calls those polygons valid, so nothing upstream catches it."""
 
     def test_strips_z(self):
         from shapely.geometry import Polygon
@@ -235,13 +234,13 @@ class TestChunkTodo:
 
 
 class TestLodo:
-    """Leave-one-department-out is the headline spatial-generalisation claim, so the two
-    ways it could quietly cheat are pinned here: the held-out department leaking into
-    training, and the held-out department being used as the early-stopping validation set.
+    """LODO is the headline spatial-generalisation claim, so the two ways it could quietly
+    cheat are pinned: the held-out department leaking into training, and it being used as the
+    early-stopping validation set.
 
-    Exercised with the `rules` model, not LightGBM: importing lightgbm into a process that
-    has already imported torch segfaults on macOS (libomp clash — see data.py). `rules` goes
-    through the identical make_dataset/class_weights/fit/predict_proba path.
+    Exercised with the `rules` model, not LightGBM: importing lightgbm after torch segfaults
+    on macOS (libomp clash — see data.py). `rules` takes the identical
+    make_dataset/class_weights/fit/predict_proba path.
     """
 
     def _workspace(self, tmp_path, monkeypatch):
@@ -318,9 +317,9 @@ class TestLodo:
 
     def test_tag_keeps_two_architectures_from_overwriting_each_other(
             self, tmp_path, monkeypatch):
-        """Untagged LODO wrote fixed filenames, so running a second architecture silently
-        replaced the first one's metrics *and* its per-department fits. The comparison
-        between architectures is the reason a second run exists, so it must survive."""
+        """Untagged LODO wrote fixed filenames, so a second architecture silently replaced
+        the first's metrics *and* its per-department fits — and comparing architectures is
+        why a second run exists."""
         import os
 
         from crop_classifier.allperu.lodo import run

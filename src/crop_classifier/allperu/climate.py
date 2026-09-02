@@ -1,43 +1,27 @@
 """Per-parcel climate covariates: mean temperature and total rainfall.
 
-Two products, deliberately kept separate because they differ in what they can safely be
-used for:
+Two products kept separate because they differ in what they can be used for:
 
-``parcel_climate_normals.parquet`` — **WorldClim 2.1**, 30 arc-second (~1 km at the
-equator), the 1970–2000 climatological normal. Twelve monthly mean-temperature rasters and
-twelve monthly total-rainfall rasters, sampled at each parcel and reduced to an annual mean
-temperature (°C) and an annual rainfall total (mm/year), with the monthly profile and a
-handful of derived seasonality descriptors kept alongside.
+``parcel_climate_normals.parquet`` — WorldClim 2.1, ~1 km, the 1970–2000 normal, sampled at
+each parcel and reduced to annual mean temperature (°C), annual rainfall total (mm/yr), the
+monthly profile and derived seasonality descriptors.
 
-``parcel_rainfall_annual.parquet`` — **CHIRPS 2.0**, 0.05° (~5.5 km), one *actual* rainfall
-total per parcel **per calendar year**. This is the year-resolved companion, and it is the
-one that can be used across years.
+``parcel_rainfall_annual.parquet`` — CHIRPS 2.0, ~5.5 km, one *actual* rainfall total per
+parcel per calendar year — the year-resolved companion, usable across years.
 
-⚠️ **The normals are time-invariant, and this project has measured what that costs.** A
-feature that takes the same value in 1998 and in 2023 cannot express change, so a model
-given one will read stability into a panel whether or not the land was stable
-(``docs/RESULTS.md`` §4.4, §5; ``LESSONS.md``). Use ``parcel_climate_normals`` for a
-**single-year** classifier — where "this parcel sits in a 1,600 mm/yr valley" is a genuine
-covariate for what can grow there — and use ``parcel_rainfall_annual`` for anything applied
-across years. If both go in, they must be evaluated on LODO as well as CV, because a 1 km
-climate surface is a smooth function of location and therefore a proxy for
-``centroid_lat``, whose CV/LODO story is the one CLAUDE.md opens with.
+⚠️ The normals are time-invariant: a feature with the same value in 1998 and 2023 cannot
+express change, so a model given one reads stability into a panel (``RESULTS.md`` §4.4/§5).
+Use the normals for a single-year classifier, ``parcel_rainfall_annual`` across years. Both
+in -> evaluate on LODO as well as CV (a 1 km surface proxies ``centroid_lat``).
 
-**Why a centroid sample rather than a zonal mean over the polygon.** The largest parcel in
-the national table is 50 ha; a single WorldClim 30 arc-second cell is ~86 ha at Peru's
-latitudes and a CHIRPS cell ~3,000 ha. **No parcel is larger than one climate pixel**, so a
-polygon mean and a centroid sample would return the same number for essentially every
-parcel, at a few hundred times the cost. ``build_normals`` verifies this rather than
-assuming it, and reports the largest parcel as a fraction of a pixel.
+Centroid sample, not a zonal mean: no parcel (max 50 ha) is larger than one climate pixel
+(~86 ha WorldClim, ~3,000 ha CHIRPS), so the two agree for essentially every parcel at a
+fraction of the cost. ``build_normals`` verifies this.
 
-Sources are downloaded once into ``data/raw/`` and are not redistributed:
-
-* WorldClim 2.1 — https://geodata.ucdavis.edu/climate/worldclim/2_1/base/
-  (``wc2.1_30s_tavg.zip``, ``wc2.1_30s_prec.zip``), Fick & Hijmans 2017.
-* CHIRPS 2.0 annual — https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_annual/tifs/,
-  Funk et al. 2015. Read **remotely** with a windowed ``/vsicurl`` request over Peru's
-  bounding box; the files are uncompressed and row-striped, so ~320 of 2,000 rows are
-  transferred per year and nothing global is stored.
+Sources downloaded once into ``data/raw/``, not redistributed: WorldClim 2.1
+(https://geodata.ucdavis.edu/climate/worldclim/2_1/base/, Fick & Hijmans 2017); CHIRPS 2.0
+annual (https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_annual/tifs/, Funk et al.
+2015), read remotely with a windowed ``/vsicurl`` request over Peru's bbox.
 """
 
 from __future__ import annotations
@@ -63,9 +47,7 @@ CHIRPS_NODATA = -9000.0
 MONTHS = [f"{m:02d}" for m in range(1, 13)]
 
 
-# ---------------------------------------------------------------------------------
-# WorldClim normals
-# ---------------------------------------------------------------------------------
+# --- WorldClim normals ---
 def _unzip(var: str) -> Path:
     """``wc2.1_30s_<var>.zip`` -> a directory of twelve monthly GeoTIFFs."""
     z = RAW / f"wc2.1_30s_{var}.zip"
@@ -87,11 +69,9 @@ def _sample_points(tif: Path | str, lon: np.ndarray, lat: np.ndarray,
                    search: int = 3) -> np.ndarray:
     """Value of ``tif`` at each (lon, lat), with a nearest-valid-cell fallback.
 
-    A parcel whose centroid lands on a masked cell — the coastal fringe, mostly, where a
-    1 km land mask cuts inside a parcel that really is on land — would otherwise come back
-    NaN and quietly drop the parcel from any model that uses the column. Rather than accept
-    that, the sample falls back to the nearest valid cell inside a ``search``-cell window
-    and the count of parcels that needed it is reported.
+    A centroid on a masked cell (the coastal fringe, where a 1 km land mask cuts inside a
+    parcel that is on land) would come back NaN and drop the parcel from any model using the
+    column, so the sample falls back to the nearest valid cell in a ``search``-cell window.
     """
     import rasterio
 
@@ -109,7 +89,7 @@ def _sample_points(tif: Path | str, lon: np.ndarray, lat: np.ndarray,
 
         bad = np.isnan(vals)
         if bad.any():
-            # expanding square search: cheapest fix that is still deterministic
+            # expanding square search: cheapest deterministic fix
             for r0, c0, i in zip(rows[bad], cols[bad], np.where(bad)[0]):
                 for k in range(1, search + 1):
                     win = arr[max(r0 - k, 0):r0 + k + 1, max(c0 - k, 0):c0 + k + 1]
@@ -137,7 +117,7 @@ def build_normals(parcels_path: Path | None = None,
 
     tdir, pdir = _unzip("tavg"), _unzip("prec")
 
-    # --- the sanity check the docstring promises: is a parcel smaller than a pixel? ---
+    # is a parcel smaller than a pixel? (the docstring's claim, verified)
     with rasterio.open(str(sorted(tdir.glob('*.tif'))[0])) as src:
         deg = abs(src.transform.a)
     # metres per degree of longitude at Peru's mid-latitude (~ -10 deg)
@@ -166,12 +146,12 @@ def build_normals(parcels_path: Path | None = None,
     out["t_range_c"] = T.max(1) - T.min(1)           # annual temperature range, degC
     out["precip_mm_wettest_month"] = P.max(1)
     out["precip_mm_driest_month"] = P.min(1)
-    # WorldClim BIO15: SD of monthly rainfall as a percentage of the monthly mean. High =
-    # one short wet season; low = rain spread through the year.
+    # WorldClim BIO15: SD of monthly rainfall as % of the monthly mean (high = one short
+    # wet season).
     with np.errstate(invalid="ignore", divide="ignore"):
         out["precip_seasonality_cv"] = 100 * P.std(1, ddof=0) / np.where(
             P.mean(1) > 0, P.mean(1), np.nan)
-        # De Martonne aridity index, P / (T + 10). Below ~10 is arid, above ~40 humid.
+        # De Martonne aridity index P / (T + 10): <~10 arid, >~40 humid
         out["aridity_index_dm"] = out["precip_mm_yr"] / (out["tmean_c"] + 10.0)
     out["n_dry_months"] = (P < 50).sum(1)            # months under 50 mm
     for i, m in enumerate(MONTHS):
@@ -203,17 +183,14 @@ def _describe(out: pd.DataFrame) -> None:
     print(g.to_string())
 
 
-# ---------------------------------------------------------------------------------
-# CHIRPS year-resolved rainfall
-# ---------------------------------------------------------------------------------
+# --- CHIRPS year-resolved rainfall ---
 def build_rainfall_annual(years: range | list[int] | None = None,
                           parcels_path: Path | None = None,
                           out_path: Path | None = None) -> pd.DataFrame:
     """One row per parcel, one column per calendar year: rainfall total in mm.
 
-    Wide rather than long on purpose: 727k parcels x 30 years is 22 M rows long, and every
-    consumer in this project joins climate onto a parcel table by ``COD_PREDIO``, not onto
-    a parcel-year. Melt it if a panel needs it.
+    Wide not long: 727k parcels x 30 years is 22 M rows, and every consumer joins climate
+    onto a parcel table by ``COD_PREDIO``. Melt it if a panel needs it.
     """
     import rasterio
     from rasterio.windows import from_bounds

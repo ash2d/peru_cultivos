@@ -1,37 +1,29 @@
 """The Phase-7 validation gate: four diagnostics that must pass before any trend.
 
-Nothing downstream of this module — trajectories, transitions, area estimates — is
-meaningful unless these pass, so they are deliberately a **gate**, not a report appendix.
-The panel is a model trained on one ~1998 titling snapshot, asked to predict 28 years; the
-question these answer is whether that transfer is real or whether the "trend" is the
-sensor record, the El Nino, or classifier noise.
+The panel is a model trained on one ~1998 titling snapshot asked to predict 28 years;
+these answer whether that transfer is real or whether the "trend" is the sensor record,
+the El Nino, or classifier noise. Nothing downstream (trajectories, transitions, areas) is
+meaningful unless they pass — a gate, not an appendix.
 
-1. **S4 temporal transfer** (plan §7.3) — accuracy against the PETT label at label-year
-   ``+/- k``, on locked-test parcels only. Criterion: accuracy at ``|k| <= 3`` within 0.10
-   of the ``k = 0`` value. Real land-use change also contributes to the decay, so this is
-   a *lower bound* on model stability.
+1. **S4 temporal transfer** (plan §7.3) — accuracy vs the PETT label at label-year ``+/-k``,
+   locked-test only. Criterion: accuracy at ``|k| <= 3`` within 0.10 of ``k = 0``. Real
+   land-use change also drives the decay, so this is a *lower bound* on stability.
 2. **S5 flicker** (plan §9.2) — fraction of parcels whose raw series changes class more
-   than ``n_observed / 5`` times. Criterion: under 15 % for PERENNIAL-labelled parcels.
-   High flicker means the per-year features are too weak and the minimum-duration rule
-   would be hiding the problem rather than solving it.
-3. **Sensor/feature drift** (plan §7.4) — per-year panel distributions of the index
-   features *and* the raw bands. Raw B/G/R/NIR/SWIR are more sensor-sensitive than ratio
-   indices (which partially cancel calibration differences) and **both models consume
-   them**, so the §4.6 metadata ablation does not remove this exposure — only measuring it
-   does.
+   than ``n_observed / 5`` times. Criterion: under 15 % for PERENNIAL parcels. High flicker
+   means the minimum-duration rule would be hiding the problem, not solving it.
+3. **Sensor/feature drift** (plan §7.4) — per-year panel distributions of index features
+   *and* raw bands. Raw bands are more sensor-sensitive than ratio indices and both models
+   consume them, so the §4.6 metadata ablation does not remove this exposure.
 4. **The 1999+2000 -> 1998 El Nino confound test** (RESULTS.md §8) — registration year is
-   confounded with the label (1998 is 0.4 % perennial vs 2000's 33.8 %) *and* 1997-98 was
-   the catastrophic Piura El Nino, and 1996-98 are the panel's **baseline** years. Holds
-   region fixed while varying year, and reports per-class recall as **test arm minus
-   control arm** — without the control you cannot tell "1998 is a different year" from
-   "1998 parcels are simply harder".
+   confounded with the label (1998 is 0.4 % perennial vs 2000's 33.8 %), 1997-98 was the
+   Piura El Nino, and 1996-98 are the panel's baseline. Holds region fixed while varying
+   year; reports per-class recall as **test arm minus control arm**.
 
-Thin years to flag in every figure rather than interpolate over: **1997** (El Nino,
-48.3 % gate pass), **2009** (49.2 %), **2011** (43.3 %), **2012** (83.6 %, L7 SLC-off
-alone).
+Thin years to flag rather than interpolate over: 1997 (El Nino, 48.3 % gate pass), 2009
+(49.2 %), 2011 (43.3 %), 2012 (83.6 %, L7 SLC-off alone).
 
-This module must stay **torch-free**: diagnostic 4 fits LightGBM, and on macOS torch and
-lightgbm each bundle their own libomp, so loading both in one process segfaults.
+⛔ Must stay torch-free: diagnostic 4 fits LightGBM, and co-loading torch + lightgbm on
+macOS segfaults (each bundles its own libomp).
 """
 
 from __future__ import annotations
@@ -47,17 +39,15 @@ from crop_classifier.paths import proc
 from crop_classifier.perennial import analysis as AN
 from crop_classifier.perennial import panel as P
 
-# Years whose coverage is materially degraded — flagged in every figure, never
-# interpolated over (RESULTS.md §6.2/§6.3, measured).
+# Materially degraded coverage — flagged in every figure, never interpolated (§6.2/§6.3).
 FLAG_YEARS = {1997: "El Nino, 48.3 % gate", 2009: "49.2 % gate",
               2011: "43.3 % gate", 2012: "83.6 % gate, L7 SLC-off alone"}
 
 # Mission composition of the panel (PANEL_MISSIONS = {L5, L7}).
 ERAS = [("L5 only", 1996, 1998), ("L5 + L7", 1999, 2011), ("L7 only", 2012, 2023)]
 
-# Drift is checked on the plan's three index features plus the level (median) and seasonal
-# swing (amp) of all six raw bands — raw bands are where a TM/ETM+ calibration step shows
-# up, because ratio indices partly cancel it.
+# Drift: three index features plus level (median) and seasonal swing (amp) of six raw
+# bands — raw bands are where a TM/ETM+ calibration step shows up, ratio indices cancel it.
 INDEX_DRIFT = ["NDVI_median", "NDVI_amp", "BSI_max"]
 RAW_BANDS = ["B", "G", "R", "NIR", "SWIR1", "SWIR2"]
 RAW_DRIFT = [f"{b}_{s}" for b in RAW_BANDS for s in ("median", "amp")]
@@ -73,22 +63,15 @@ def era_of(year: int) -> str:
     return "?"
 
 
-# ------------------------------------------------------------------------------------
-# 1. S4 — temporal transfer
-# ------------------------------------------------------------------------------------
+# --- 1. S4 — temporal transfer ---
 def _s4_composition_adjusted(panel_preds: pd.DataFrame, classes: list[str],
                              k_max: int = 5) -> pd.DataFrame:
     """Per-class recall vs ``k``, plus two composition-controlled accuracies.
 
-    Raw accuracy across ``k`` bins compares *different parcel mixes*: which parcels have a
-    panel year at distance ``k`` depends on their label year, and label year is confounded
-    with label (§8). So a raw drop can be "the model transfers worse" or merely "this bin
-    is a harder mix". Two controls separate them:
-
-    * ``acc_std_k0prior`` — per-class recalls re-weighted to the ``k = 0`` class prior.
-    * ``bal_acc`` — unweighted mean recall (every class equal).
-
-    Neither replaces the criterion, which is defined on raw accuracy.
+    ``k`` bins are different parcel mixes (label year is confounded with label, §8), so a
+    raw drop can be worse transfer or a harder mix. ``acc_std_k0prior`` re-weights recalls
+    to the ``k = 0`` prior; ``bal_acc`` is unweighted mean recall. Neither replaces the
+    criterion, which is on raw accuracy.
     """
     parcels = gpd.read_parquet(proc() / "modeling_parcels.parquet")
     ref = parcels[["COD_PREDIO", "label", "year", "split"]].rename(
@@ -157,9 +140,8 @@ def s4_temporal_transfer(panel_preds: pd.DataFrame, k_max: int = 5,
     worst_k = int(near.loc[worst_i, "k"])
     worst_drop = a0 - float(near.loc[worst_i, "accuracy"])
 
-    # The criterion is two-sided as written ("within 0.10 of the k=0 value"), but a
-    # *rise* above k=0 is not a transfer failure, so the one-sided degradation is reported
-    # alongside it rather than folded in silently.
+    # Criterion is two-sided as written, but a rise above k=0 is not a transfer failure —
+    # report the one-sided degradation alongside rather than folding it in.
     worst_fall = float(max(0.0, (a0 - near["accuracy"]).max()))
     verdict = {
         "criterion": "S4", "tolerance": S4_TOLERANCE,
@@ -181,9 +163,7 @@ def s4_temporal_transfer(panel_preds: pd.DataFrame, k_max: int = 5,
     return tt, verdict
 
 
-# ------------------------------------------------------------------------------------
-# 2. S5 — flicker
-# ------------------------------------------------------------------------------------
+# --- 2. S5 — flicker ---
 def _flicker_by_label(series: dict, panel_preds: pd.DataFrame, arr: np.ndarray) -> dict:
     """Flicker rate per PETT label for an arbitrary series array."""
     from crop_classifier.perennial import trajectories as TR
@@ -201,20 +181,13 @@ def s5_flicker(panel_preds: pd.DataFrame, classes: list[str]) -> tuple[pd.DataFr
                                                                       dict]:
     """plan §9.2. Returns ``(per-label table, verdict, series bundle)``.
 
-    The criterion is on the **raw** series, unchanged. Two supplementary views are computed
-    alongside so that a failure is diagnosable rather than merely fatal:
+    Criterion is on the raw series. Two supplementary views make a failure diagnosable:
+    *smoothed* (after the gap-aware 3-year mode filter — clean smoothed + failing raw means
+    single-year noise) and *flagged years dropped* (1997/2009/2011/2012 — if that fixes it,
+    the failure is a coverage artefact). Neither changes the verdict.
 
-    * *smoothed* — flicker after the gap-aware 3-year mode filter. If the raw series fails
-      but the smoothed one is clean, the instability is single-year noise; if both fail,
-      the per-year features genuinely cannot hold a class.
-    * *flagged years dropped* — flicker with 1997/2009/2011/2012 removed. If that fixes it,
-      the failure is a coverage artefact of four known-thin years; if it does not, it is
-      the model.
-
-    Neither changes the pass/fail decision — S5 is defined on the raw series.
-
-    The series bundle is returned so the caller can reuse it downstream **only if the
-    gate passes** — building it is the expensive part.
+    The series bundle is returned so the caller can reuse it downstream *only if the gate
+    passes* — building it is the expensive part.
     """
     series = AN.build_series(panel_preds, classes)
     rep = AN.flicker_report(series, panel_preds)
@@ -240,17 +213,14 @@ def s5_flicker(panel_preds: pd.DataFrame, classes: list[str]) -> tuple[pd.DataFr
     return rep, verdict, series
 
 
-# ------------------------------------------------------------------------------------
-# 3. sensor / feature drift (plan §7.4)
-# ------------------------------------------------------------------------------------
+# --- 3. sensor / feature drift (plan §7.4) ---
 def balanced_parcels(years: list[int] | None = None) -> list[str]:
-    """Parcels present in **every non-flagged** assembled year.
+    """Parcels present in every non-flagged assembled year.
 
-    Composition changes year to year — the coverage gate drops roughly half the panel in
-    1997, 2009 and 2011 — so a per-year statistic over "whatever survived" mixes radiometric
-    drift with a changing parcel set. Intersecting over the healthy years removes that.
-    Flagged years are excluded from the *intersection* (they would shrink it to their own
-    survivors), not from the reported series.
+    Composition changes year to year (the coverage gate drops ~half the panel in 1997,
+    2009, 2011), so a per-year statistic over "whatever survived" mixes radiometric drift
+    with a changing parcel set. Flagged years are excluded from the intersection (not the
+    reported series), or they shrink it to their own survivors.
     """
     years = years or P.DEFAULT_YEARS
     common: set[str] | None = None
@@ -270,12 +240,10 @@ def feature_drift(years: list[int] | None = None,
                   balanced: bool = True) -> pd.DataFrame:
     """Per-year panel-wide distribution of each drift feature, with mission era attached.
 
-    Read straight from the per-year assembled bundles, so this describes the features the
-    model actually consumes — not a re-derivation.
-
-    ``balanced`` restricts every year to the same parcels (see ``balanced_parcels``) so a
-    step at a mission boundary cannot be a composition artefact. Pass ``False`` for the
-    raw all-survivors view; both are reported, with the balanced one primary.
+    Read straight from the per-year assembled bundles — the features the model consumes,
+    not a re-derivation. ``balanced`` restricts every year to the same parcels
+    (``balanced_parcels``) so a mission-boundary step cannot be a composition artefact;
+    ``False`` is the raw all-survivors view. Both reported, balanced primary.
     """
     years = years or P.DEFAULT_YEARS
     features = features or (INDEX_DRIFT + RAW_DRIFT)
@@ -309,11 +277,9 @@ def feature_drift(years: list[int] | None = None,
 def dispersion_by_era(drift: pd.DataFrame) -> pd.DataFrame:
     """Cross-parcel spread (p90 - p10) per feature per era.
 
-    ``era_steps`` compares *levels*, and a sensor change that leaves the level alone can
-    still change the **noise**: fewer clear acquisitions in a year means each parcel's
-    seasonal amplitude is estimated from fewer dates, so the population spreads out without
-    the centre moving. That extra per-parcel noise is what turns into prediction flicker
-    (S5), so it has to be measured separately.
+    ``era_steps`` compares levels; a sensor change can leave the level alone but change the
+    noise (fewer clear acquisitions -> amplitude estimated from fewer dates -> population
+    spreads without the centre moving). That per-parcel noise is what becomes S5 flicker.
     """
     d = drift[~drift["flagged_year"]].copy()
     d["spread"] = d["p90"] - d["p10"]
@@ -329,9 +295,9 @@ def dispersion_by_era(drift: pd.DataFrame) -> pd.DataFrame:
 def era_steps(drift: pd.DataFrame) -> pd.DataFrame:
     """Size of the jump at each mission boundary, in units of the within-era spread.
 
-    A boundary step much larger than the year-to-year variation *inside* the adjacent eras
-    is a sensor artefact; one comparable to it is not distinguishable from weather. Flagged
-    years are excluded from the era statistics — they are coverage failures, not radiometry.
+    A step much larger than year-to-year variation inside the adjacent eras is a sensor
+    artefact; one comparable to it is not distinguishable from weather. Flagged years are
+    excluded — coverage failures, not radiometry.
     """
     rows = []
     d = drift[~drift["flagged_year"]]
@@ -354,43 +320,31 @@ def era_steps(drift: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-# ------------------------------------------------------------------------------------
-# 4. the 1999+2000 -> 1998 El Nino confound test (RESULTS.md §8)
-# ------------------------------------------------------------------------------------
+# --- 4. the 1999+2000 -> 1998 El Nino confound test (RESULTS.md §8) ---
 def elnino_confound_test(seed: int = 42, drop_features: str | list[str] | None = "meta",
                          control_frac: float = 0.25,
                          region_years: tuple[int, ...] = (1999, 2000),
                          model_name: str = "lightgbm",
                          model_kw: dict | None = None,
                          val_frac: float = 0.15) -> dict:
-    """Train on 1999+2000, test on 1998, **within regions that contain both**.
+    """Train on 1999+2000, test on 1998, within regions that contain both.
 
-    Year and region are confounded (titling campaigns swept region by region), so
-    restricting to shared regions is what holds region fixed while year varies.
+    Year and region are confounded (campaigns swept region by region), so restricting to
+    shared regions holds region fixed while year varies. The control arm is required — a
+    held-out slice of the same 1999+2000 cohort in the same regions — or a low 1998 score
+    can't be told from "1998 parcels are harder"; the reported quantity is test arm minus
+    control arm, per class. Not trained on 1998 by design: it has almost no perennial parcels.
 
-    The **control arm is required**: a held-out slice of the same 1999+2000 cohort in the
-    same regions. Without it a low 1998 score cannot be told apart from "1998 parcels are
-    simply harder". The reported quantity is **test arm minus control arm, per class**.
+    Per-class recall, not macro-F1: cohort priors differ enormously by construction, so an
+    aggregate mostly measures prior shift. The control is drawn at random not spatially
+    blocked, on purpose — the 1998 test parcels sit inside the training regions, so a
+    blocked control would be handicapped and inflate the difference.
 
-    Direction is deliberate — we do *not* train on 1998: it has almost no perennial
-    parcels, so a failure to transfer *from* it would be unsurprising and uninformative.
+    ``region_years`` sets which regions count as shared; default ``(1999, 2000)`` matches
+    the training arm. §8's ``(1999,)`` phrasing yields 18 regions not 24; both agree.
 
-    Per-class **recall** is reported rather than macro-F1: cohort priors differ enormously
-    by construction, so an aggregate mostly measures prior shift. Recall is computed within
-    each true class, so the fact that 1998 is 86 % ANNUAL by label cannot by itself move
-    any of these numbers. The control arm is drawn at random rather than spatially blocked
-    *on purpose* — the 1998 test parcels sit inside the training regions, so a
-    spatially-blocked control would be handicapped relative to the test arm and would
-    inflate the difference.
-
-    ``region_years`` defines which regions count as shared. The default ``(1999, 2000)``
-    matches the training arm; RESULTS.md §8 wrote the restriction as "regions containing
-    both 1998 and 1999 parcels", which is ``(1999,)`` and yields 18 regions instead of 24.
-    Both were run and agree.
-
-    ``model_name`` goes through the normal lazy registry, so this asks the question of the
-    *actual architecture* rather than always of LightGBM. Only one of torch/lightgbm is ever
-    imported in a given call — do not run two architectures in one process on macOS.
+    ``model_name`` goes through the lazy registry (asks the actual architecture, not always
+    LightGBM). ⛔ Only one of torch/lightgbm per process on macOS.
     """
     from crop_classifier.data import class_weights, make_dataset, resolve_drop_features
     from crop_classifier.models.base import get_model, model_input_kind
@@ -416,8 +370,7 @@ def elnino_confound_test(seed: int = 42, drop_features: str | list[str] | None =
     n_ctrl = int(round(control_frac * len(pool)))
     ctrl = np.zeros(len(sub), dtype=bool)
     ctrl[perm[:n_ctrl]] = True
-    # early stopping needs a val set, carved out of TRAIN — never out of the control arm,
-    # which has to stay untouched for the comparison to mean anything.
+    # val set carved out of TRAIN, never the control arm (must stay untouched).
     val = np.zeros(len(sub), dtype=bool)
     val[perm[n_ctrl:n_ctrl + int(round(val_frac * len(pool)))]] = True
     trn = ~is98 & ~ctrl & ~val
@@ -488,21 +441,17 @@ def elnino_confound_test(seed: int = 42, drop_features: str | list[str] | None =
     }
 
 
-# ------------------------------------------------------------------------------------
-# the gate
-# ------------------------------------------------------------------------------------
+# --- the gate ---
 def run_gate(panel_preds: pd.DataFrame | None = None, save: bool = True,
              preds_path: Path | str | None = None, tag: str = "",
              elnino_model: str = "lightgbm") -> dict:
-    """All four diagnostics. S4 and S5 are the **gate**; 3 and 4 are context for it.
+    """All four diagnostics. S4 and S5 are the gate; 3 and 4 are context.
 
-    Returns a dict with ``gate_pass``. If it is False, nothing downstream (trajectories,
-    transitions, area estimates) may be produced — a trend from a panel that failed
-    validation is not a weaker finding, it is a wrong one.
+    Returns a dict with ``gate_pass``. If False, nothing downstream may be produced — a
+    trend from a panel that failed validation is wrong, not weaker.
 
-    ``preds_path`` selects which panel-prediction file to gate and ``tag`` suffixes every
-    artifact, so a second model can be gated over the same panel without overwriting the
-    first — comparing two models' gates is the point of running a second one.
+    ``preds_path`` selects the file to gate; ``tag`` suffixes every artifact, so a second
+    model can be gated over the same panel without overwriting the first.
     """
     out_dir = proc()
     suf = f"_{tag}" if tag else ""

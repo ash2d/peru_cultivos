@@ -16,17 +16,15 @@ The estimand, written down before anything runs:
                  be flat; (b) adjacent-window disagreement, the noise floor; (c) the T1
                  tenure-by-error test.
 
-**This is descriptive, not causal.** Tenure is observed once, at titling, and a farmer
-planning a 20-year orchard has strong reason to register title first. Say so in every
-write-up (§6.2). ``allperu.tenure.tenure_two_period`` now supplies a *second* dated
-observation (~2011) which would support a two-period difference-in-differences; that is a
-design change, not something this module quietly assumes.
+**Descriptive, not causal.** Tenure is observed once, at titling, and a farmer planning a
+20-year orchard has strong reason to register first. Say so in every write-up (§6.2).
+``allperu.tenure.tenure_two_period`` now supplies a *second* dated observation (~2011) for a
+two-period DiD — a design change, not something this module assumes.
 
-⚠️ **This module refuses to run while the gates fail.** T1, T2 and T3 all returned FAIL on
-2026-08-10 (see docs/RESULTS.md §6), and producing a contrast from a panel that
-failed validation is not a weaker finding, it is a wrong one. ``--force`` exists so the
-refusal can be overridden deliberately and visibly, and it stamps ``gates_failed`` into every
-artifact it writes.
+⚠️ **This module refuses to run while the gates fail.** T1/T2/T3 all FAILed 2026-08-10
+(docs/RESULTS.md §6), and a contrast from a panel that failed validation is not a weaker
+finding, it is a wrong one. ``--force`` overrides the refusal visibly and stamps
+``gates_failed`` into every artifact.
 """
 
 from __future__ import annotations
@@ -65,10 +63,9 @@ def gate_status(tag: str = "nolat") -> dict:
 def error_matrix_from_cv(preds_cv: pd.DataFrame, classes: list[str]) -> np.ndarray:
     """Olofsson error matrix from the **pooled spatial-CV** confusion of the model in use.
 
-    ⚠️ CV-derived, never test-derived. The matrix on disk from earlier work
-    (``lightgbm_3c_final/test_confusion.csv``) belongs to a disqualified model, and no
-    endpoint-year matrix exists anywhere in the project. CV-derived CIs carry the residual
-    spatial leakage of §4.1 and are mildly optimistic — label them as such.
+    ⚠️ CV-derived, never test-derived: the on-disk matrix belongs to a disqualified model and
+    no endpoint-year matrix exists. CV-derived CIs carry §4.1's residual spatial leakage and
+    are mildly optimistic — label them so.
     """
     cols = [f"prob_{c}" for c in classes]
     y_pred = np.asarray(preds_cv[cols].to_numpy().argmax(1))
@@ -82,8 +79,8 @@ def tenure_contrast(wt: pd.DataFrame, window: str = "W19", outcome: str = "peren
     """Weighted linear model of the outcome on tenure with FE and region-clustered SEs.
 
     A linear probability model, deliberately: the estimand is a difference in *shares*, the
-    weights are sampling weights (which a logit would not interpret the same way), and the
-    coefficient is the contrast itself rather than an odds ratio needing a margins step.
+    weights are sampling weights (a logit would not read them the same way), and the
+    coefficient is the contrast itself, not an odds ratio needing a margins step.
     """
     import statsmodels.api as sm
 
@@ -113,9 +110,8 @@ def did_contrast(wt: pd.DataFrame, pre: str = "W99", post: str = "W19",
                  outcome: str = "p_mean") -> dict:
     """Secondary: Δ(post − pre) by tenure, on parcels observed in **both** windows.
 
-    Weaker than the primary because it needs the baseline window *predicted* rather than
-    observed — which is what W-D3 was designed to avoid — but it controls for any
-    tenure-correlated baseline propensity the fixed effects miss.
+    Weaker than the primary — it needs the baseline window *predicted* not observed (what
+    W-D3 avoids) — but it controls for tenure-correlated baseline propensity the FE miss.
     """
     import statsmodels.api as sm
 

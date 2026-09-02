@@ -1,31 +1,20 @@
 """Admitting OLI — the temporal-OOD work (docs/RESULTS.md §6.4).
 
-``perennial/panel.PANEL_MISSIONS = {"L5", "L7"}`` was chosen so every panel year is inferred
-on radiometry the model trained on (training is 52.8 % L5 / 47.2 % L7 / 0 % OLI). Defensible
-— but it is **also what creates the endpoint density collapse**: from 2013 two OLI sensors
-are flying, and the same parcel-years the panel reads with ~13 clear ETM+ observations could
-be read with roughly three times as many.
+``panel.PANEL_MISSIONS = {"L5", "L7"}`` keeps every panel year on trained radiometry, but
+also creates the endpoint density collapse: from 2013 two OLI sensors fly, and parcel-years
+read with ~13 clear ETM+ observations could be read with ~3x as many.
 
-Step 3a is the test that decides whether that trade is available. 2013-2023 has L7 and L8
-flying together, so for the **same parcel-year** the model can be scored twice — once on
-L7-only features (what the panel already has) and once on harmonised-OLI-only features — and
-the two compared directly. No assumption about radiometry is needed; the overlap measures it.
+Step 3a decides whether that trade is available. 2013-2023 has L7 and L8 together, so the
+same parcel-year can be scored on L7-only features and on harmonised-OLI-only features and
+compared directly — the overlap measures the radiometry, no assumption needed.
 
-Pass criteria (plan §3a), fixed before running:
+Pass criteria (plan §3a, fixed before running): median per-parcel ``|Δp_PERENNIAL|`` < 0.05
+(inside the 3-4 pp adjacent-window noise floor, §8.2); class agreement ≥ 0.95; no systematic
+shift in the PETT-``PERENNIAL`` control pool (the pool whose drift broke M2 — checked as a
+signed mean). Fail ⇒ the mission policy stands and step 3 stops (T-D6).
 
-* median per-parcel ``|Δp_PERENNIAL|`` **< 0.05** — inside the adjacent-window disagreement
-  noise floor of 3-4 pp already measured (RESULTS.md §8.2);
-* class agreement **≥ 0.95**;
-* **no systematic shift in the PETT-``PERENNIAL`` control pool** — the pool whose drift broke
-  M2. A mean shift there is exactly the failure this test exists to catch, so it is checked
-  as a signed mean, not an absolute one.
-
-Fail ⇒ the mission policy stands, step 3 stops, and that is itself a result (T-D6).
-
-GEE hygiene (plan §3a, CLAUDE.md §8): probe before extracting, size from the measured rate,
-and **verify every year by counting output parcels** — never by "the process ended".
-
-Run with::
+GEE hygiene (CLAUDE.md §8): probe first, size from the measured rate, verify every year by
+counting output parcels.
 
     CC_PROC=data/processed/all_peru CC_FEAT=data/processed/all_peru/features \\
       uv run python -m crop_classifier.cli allperu oli probe --years 2015,2019
@@ -60,10 +49,9 @@ def verdict(median_abs_dp: float, class_agreement: float,
             control_shift: float) -> dict:
     """The 3a pass/fail, as a pure function of the three registered legs.
 
-    Separated from :func:`compare` so the *criterion* can be tested without an extraction.
-    All three must hold: passing the per-parcel noise leg is not passing 3a, and the
-    control-pool shift — the leg the estimand actually rests on (§8.2) — must be able to fail
-    the whole test on its own.
+    Separate from :func:`compare` so the criterion can be tested without an extraction. All
+    three must hold, and the control-pool shift (the leg the estimand rests on, §8.2) must
+    be able to fail the test on its own.
     """
     out = {"pass_median_dp": bool(median_abs_dp < MAX_MEDIAN_ABS_DP),
            "pass_agreement": bool(class_agreement >= MIN_CLASS_AGREEMENT),
@@ -88,9 +76,9 @@ def probe(years: tuple[int, ...] = DEFAULT_YEARS, n_parcels: int = 150,
           seed: int = 42) -> pd.DataFrame:
     """Measure s/parcel-year for an OLI extraction before committing to the full job.
 
-    Deliberately not reusing ``panel.timing_probe``: that one pins ``PANEL_MISSIONS`` (L5+L7)
-    and the whole point here is the *other* mission set, which returns more observations per
-    parcel-year and is therefore slower and bigger. Never extrapolate the L5/L7 rate to OLI.
+    Not ``panel.timing_probe`` — that pins ``PANEL_MISSIONS`` (L5+L7); the OLI mission set
+    returns more observations per parcel-year and is slower and bigger. Never extrapolate
+    the L5/L7 rate to OLI.
     """
     lg.MISSION_FILTER = OLI_MISSIONS
     panel = gpd.read_parquet(proc() / "panel_parcels.parquet")
@@ -150,10 +138,8 @@ def assemble(years: tuple[int, ...] = DEFAULT_YEARS, harmonize: bool = True,
              suffix: str | None = None, coefficients: dict | None = None) -> None:
     """One bundle per year in ``<panel>/<year>_oli/`` (or ``_oliraw`` unharmonised).
 
-    ``harmonize=True`` is the point of step 3: the Roy et al. OLI->ETM+ coefficients have
-    been implemented since the panel was designed and have never once been used. The
-    unharmonised arm exists to attribute a failure — if raw and harmonised OLI disagree with
-    L7 by the same amount, the harmonisation is not what is wrong.
+    The unharmonised arm attributes a failure — if raw and harmonised OLI disagree with L7
+    by the same amount, the Roy et al. OLI->ETM+ harmonisation is not what is wrong.
     """
     suffix = suffix if suffix is not None else ("_oli" if harmonize else "_oliraw")
     panel = gpd.read_parquet(proc() / "panel_parcels.parquet")
@@ -199,8 +185,8 @@ def compare(run_dir: Path, years: tuple[int, ...] = DEFAULT_YEARS,
             suffix: str = "_oli") -> dict:
     """3a: same parcel-year, L7-only features vs harmonised-OLI-only features.
 
-    Returns the verdict dict. Everything is paired within parcel-year, so nothing here
-    depends on the two arms covering the same parcels — only on the overlap between them.
+    Everything is paired within parcel-year, so nothing depends on the two arms covering the
+    same parcels — only on the overlap.
     """
     from crop_classifier.perennial.panel import infer_panel
 
@@ -208,9 +194,8 @@ def compare(run_dir: Path, years: tuple[int, ...] = DEFAULT_YEARS,
     l7 = pd.read_parquet(l7_preds or (proc() / "panel_predictions_nolat.parquet"))
     l7 = l7[l7["year"].isin(years)]
     oli = infer_panel(run_dir, years=list(years), save=False, bundle_suffix=suffix)
-    # `infer_panel` attaches the L7 panel coverage, so its `n_valid_obs` is the L7 count.
-    # Replace it with the OLI one for reporting — otherwise the table claims the two arms
-    # saw the same number of observations, which is the opposite of the point.
+    # `infer_panel` attaches the L7 coverage, so replace `n_valid_obs` with the OLI count —
+    # else the table claims both arms saw the same number of observations.
     ocov = []
     for y in years:
         p = proc() / f"oli_coverage_{y}.parquet"
@@ -271,19 +256,16 @@ def compare(run_dir: Path, years: tuple[int, ...] = DEFAULT_YEARS,
 
 def split_half_control(run_dir: Path, years: tuple[int, ...] = DEFAULT_YEARS,
                        seed: int = 11, tag: str = "", save: bool = True) -> dict:
-    """The control 3a needs: how well does the model agree with **itself**?
+    """The control 3a needs: how well does the model agree with itself?
 
     Split each parcel-year's L7 acquisitions into two disjoint halves, build features from
-    each, and score both. Same sensor, same year, same parcel, same model — the only
-    difference is *which* clear observations were used. Whatever agreement that produces is
-    the ceiling any cross-sensor comparison can reach, and without it a criterion of 0.95 is
-    a number with no referent.
+    each, score both. Same sensor/year/parcel/model — the only difference is which clear
+    observations were used. That agreement is the ceiling any cross-sensor comparison can
+    reach; without it a 0.95 criterion has no referent.
 
-    ⚠️ Each half has half the observations, so this is a slightly pessimistic ceiling: the
-    OLI arm is compared at full density on both sides. It bounds the criterion from below,
-    which is the direction that matters — if split-half agreement is already far under 0.95,
-    the registered threshold was never achievable and the 3a failure must be read on the
-    *control shift*, not on agreement.
+    ⚠️ Each half has half the observations, so this is a pessimistic ceiling (the OLI arm is
+    full density on both sides). If split-half agreement is already far under 0.95, the 3a
+    failure must be read on the *control shift*, not agreement.
     """
     from crop_classifier.data import FlatData
     from crop_classifier.models.trees import LightGBMModel

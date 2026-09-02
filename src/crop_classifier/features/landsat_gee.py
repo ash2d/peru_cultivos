@@ -35,10 +35,8 @@ import pandas as pd
 
 from crop_classifier.paths import feat, proc
 
-# The Earth Engine project id lives in workspaces.yaml, resolved at call time by
-# `init_ee`. It used to be hard-coded here, which meant a second user's first extraction
-# failed inside Google's client rather than at a line telling them what to edit — Earth
-# Engine bills a *project*, so there is no shared default that could ever be right.
+# The Earth Engine project id lives in workspaces.yaml, resolved at call time by `init_ee`
+# (EE bills a project, so no shared default is ever right).
 
 L5 = "LANDSAT/LT05/C02/T1_L2"
 L7 = "LANDSAT/LE07/C02/T1_L2"
@@ -49,8 +47,7 @@ L9 = "LANDSAT/LC09/C02/T1_L2"
 def f_coverage() -> Path:
     """Stage-1 coverage table, in the current feature store (``CC_FEAT``).
 
-    A function, not a constant: binding it at import would pin the Piura store even when a
-    caller has selected another workspace (see paths.py).
+    A function, not a constant: binding it at import would pin the Piura store (see paths.py).
     """
     return feat() / "coverage.parquet"
 
@@ -72,9 +69,8 @@ _ee = None  # module-level handle set by init_ee
 def init_ee(project: str | None = None):
     """Initialise Earth Engine once; a 120 s socket timeout stops any call hanging.
 
-    ``project`` defaults to ``gee_project`` in ``workspaces.yaml`` (or the ``GEE_PROJECT``
-    environment variable). Resolved here rather than as a module default so that importing
-    this module never requires a configured project — the tests import it constantly.
+    ``project`` defaults to ``gee_project`` in ``workspaces.yaml`` (or ``GEE_PROJECT``),
+    resolved here so importing this module never requires a configured project.
     """
     global _ee
     if _ee is None:
@@ -86,14 +82,10 @@ def init_ee(project: str | None = None):
     return _ee
 
 
-# Optional global restriction on which missions are used, e.g. {"L5", "L7"} for a
-# TM/ETM+-only panel. ``None`` = every mission available in the year.
-#
-# Why this exists: the classifier's training data is 52.8 % L5 + 47.2 % L7 and only 530
-# OLI observations out of 5.65 M — it has effectively never seen L8/L9. Restricting the
-# panel to TM/ETM+ removes the radiometric transfer risk entirely, at the cost of relying
-# on SLC-off L7 after May 2003. Which trade is better is an empirical question about
-# coverage; see docs/DATA.md §7.1.
+# Optional global restriction on missions, e.g. {"L5", "L7"} for a TM/ETM+-only panel;
+# ``None`` = every mission available in the year. The training data is 52.8 % L5 / 47.2 % L7
+# with ~530 OLI obs of 5.65 M, so restricting to TM/ETM+ removes the radiometric transfer
+# risk at the cost of SLC-off L7 after May 2003 (docs/DATA.md §7.1).
 MISSION_FILTER: set[str] | None = None
 
 
@@ -102,8 +94,8 @@ def missions_for_year(year: int,
                       ) -> dict[str, tuple[str, dict[str, str]]]:
     """Missions with data in ``year``, optionally restricted to ``only``.
 
-    OLI (L8/L9) radiometry differs from TM/ETM+; when they are used, harmonisation happens
-    downstream at assembly (``perennial/harmonization.py``) so this raw store stays raw.
+    OLI (L8/L9) radiometry differs from TM/ETM+; harmonisation happens downstream at assembly
+    so this raw store stays raw.
     """
     m: dict[str, tuple[str, dict[str, str]]] = {}
     if year <= 2013:
@@ -169,20 +161,13 @@ def _to_fc(chunk: gpd.GeoDataFrame):
     ])
 
 
-# ------------------------------------------------------------------------------------
-# Fault tolerance: retry transient errors; split a chunk the server says is too big
-# ------------------------------------------------------------------------------------
+# --- Fault tolerance: retry transient errors; split a chunk the server says is too big ---
 # deterministic "computation too big" errors — retrying is useless, split the chunk
 _SPLIT_MSGS = ("computation timed out", "user memory limit exceeded", "too many pixels",
                "computation is too large", "request payload size")
-# transient server/network errors — worth a backoff + retry
-#
-# "too many concurrent aggregations" and "restricted mode" are GEE's *throttles*, not
-# failures: the request is refused because the project is over its concurrency or compute
-# allowance right now, and the same request succeeds a minute later. They were missing here
-# and killed a running S2 extraction outright at 144 of 215 chunks — the work was
-# resumable, so nothing was lost, but the job stopped for a condition it should have waited
-# out. Backing off is the correct response; reducing the worker count is the other half.
+# transient server/network errors — worth a backoff + retry. "too many concurrent
+# aggregations" and "restricted mode" are GEE throttles, not failures: the same request
+# succeeds a minute later. Missing them once killed a running S2 extraction at 144/215.
 _TRANSIENT_MSGS = ("timed out", "timeout", "rate limit", "too many requests", "quota",
                    "unavailable", "internal error", "backend", "connection", "reset by peer",
                    "broken pipe", "bad gateway", "429", "502", "503",
@@ -194,8 +179,8 @@ def _is_split_error(e: Exception) -> bool:
     return any(s in str(e).lower() for s in _SPLIT_MSGS)
 
 
-# Wall-clock ceiling for a single GEE call, in seconds. Generous: a legitimate pixel chunk
-# over a dense parcel set can take minutes. See `_retry` for why this exists at all.
+# Wall-clock ceiling for a single GEE call, in seconds (a dense pixel chunk can take
+# minutes). See `_retry` for why this exists.
 CHUNK_DEADLINE_S = 900.0
 
 
@@ -206,16 +191,11 @@ class ChunkTimeout(TimeoutError):
 def _call_with_deadline(fn: Callable, deadline_s: float):
     """Run ``fn`` on a **daemon** thread and give up on the result after ``deadline_s``.
 
-    The daemon flag is the whole reason this is hand-rolled instead of a
-    ``ThreadPoolExecutor``. Executor threads are non-daemon, and
-    ``concurrent.futures.thread`` registers an ``atexit`` hook that *joins* them; a thread
-    parked in a hung GEE socket read is never joinable, and ``shutdown(cancel_futures=True)``
-    does not help because that only drops futures still queued, never one already running.
-    The measured cost of getting this wrong: on 2026-08-08 all five national panel workers
-    finished their extraction and then sat at 0 % CPU for up to **three hours**, blocked in
-    interpreter shutdown joining the threads their own timeouts had orphaned. The data was
-    complete the whole time; only the processes were stuck. A daemon thread is simply
-    abandoned at exit, so the process leaves when its work is done.
+    Hand-rolled rather than a ``ThreadPoolExecutor`` for the daemon flag: executor threads
+    are non-daemon and joined by an ``atexit`` hook, and a thread parked in a hung GEE
+    socket read is never joinable. Getting this wrong once left five panel workers at 0 %
+    CPU for ~3 h in interpreter shutdown, data already complete. A daemon thread is
+    abandoned at exit.
     """
     box: dict[str, object] = {}
 
@@ -241,21 +221,14 @@ def _retry(fn: Callable, tries: int = 5, base_wait: float = 15.0,
            deadline_s: float | None = CHUNK_DEADLINE_S):
     """Run ``fn`` under a wall-clock deadline; back off and retry transient failures.
 
-    Split-class errors raise immediately (the chunk runner halves the chunk instead of
-    hammering the server).
+    Split-class errors raise immediately (the chunk runner halves the chunk instead).
 
-    **The deadline is the point of this function, not the retries.** Silent GEE hangs are a
-    recurring, measured failure here — three in one run, one of them 13.4 h — where the
-    process stays alive with no output, no exception and no retry. Neither
-    ``socket.setdefaulttimeout`` nor the backoff below fires, because **a hang is not an
-    error**: `_retry` only ever saw exceptions, so there was nothing to catch. Running the
-    call on a worker thread and giving up on the *result* converts a hang into a
-    ``ChunkTimeout``, which is transient-classified and therefore retried like any other.
-
-    The abandoned thread is not killed — Python cannot — but ``_call_with_deadline`` makes it
-    a **daemon**, so the interpreter abandons it at exit instead of joining it. Budget a
-    handful of leaked threads on a bad day, against a run that would otherwise stall
-    indefinitely.
+    The deadline is the point of this function, not the retries. Silent GEE hangs are a
+    recurring measured failure here (three in one run, one 13.4 h) where the process stays
+    alive with no output or exception, so neither ``socket.setdefaulttimeout`` nor the
+    backoff fires. Running the call on a daemon thread and giving up on the result converts a
+    hang into a ``ChunkTimeout``, which is transient-classified and retried. The abandoned
+    thread leaks but is a daemon, so the interpreter drops it at exit.
     """
     for attempt in range(tries):
         try:
@@ -291,8 +264,8 @@ def _run_chunk(fn: Callable[[gpd.GeoDataFrame, int], pd.DataFrame],
 
 
 def _chunk_id(chunk: gpd.GeoDataFrame) -> str:
-    """Content-addressed chunk name: same parcels+year -> same file, so resuming stays
-    correct even if the parcel set, ordering or chunk_size changes between runs."""
+    """Content-addressed chunk name: same parcels+year -> same file, so resuming survives a
+    change in parcel set, ordering or chunk_size."""
     import hashlib
     key = ",".join(sorted(chunk["COD_PREDIO"].astype(str)))
     return hashlib.md5(key.encode()).hexdigest()[:10]
@@ -307,9 +280,7 @@ def _max_gap(presence: np.ndarray) -> int:
     return best
 
 
-# ------------------------------------------------------------------------------------
-# Stage 1 — coverage
-# ------------------------------------------------------------------------------------
+# --- Stage 1 — coverage ---
 def coverage_chunk(chunk: gpd.GeoDataFrame, year: int) -> pd.DataFrame:
     """n_valid_obs (best-pixel clear count) + monthly presence -> max_gap, per parcel."""
     ee = _ee
@@ -321,10 +292,9 @@ def coverage_chunk(chunk: gpd.GeoDataFrame, year: int) -> pd.DataFrame:
     base = ee.ImageCollection(
         [ee.Image.constant(0).float().rename("val").updateMask(ee.Image.constant(0))])
 
-    # A year with zero acquisitions over the AOI yields a band-less count image, and
-    # `unmask` then fails with "If one image has no bands, the other must also have no
-    # bands". Real for the early-1990s panel years over Piura, so merge in the zero base
-    # image first — the count is then a legitimate 0 rather than a crash.
+    # A year with zero acquisitions yields a band-less count image, and `unmask` then fails
+    # ("one image has no bands..."). Real for the early-1990s Piura panel years, so merge the
+    # zero base image first — the count is then a legitimate 0.
     obs = (ee.ImageCollection(val).select("val").merge(base).count()
            .unmask(0).rename("valid_obs"))
     months = []
@@ -346,9 +316,9 @@ def coverage_chunk(chunk: gpd.GeoDataFrame, year: int) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-# Largest bounding box (square degrees) a chunk may span before it is cut short. A chunk's
-# bbox becomes the `ee.Geometry.Rectangle` that every `filterBounds` runs against, so extent
-# drives cost and timeout risk directly. ~4 deg^2 is roughly a large Peruvian department.
+# Largest bbox (deg²) a chunk may span. The bbox becomes the `ee.Geometry.Rectangle` every
+# `filterBounds` runs against, so extent drives cost and timeout risk. ~4 deg² is roughly a
+# large Peruvian department.
 MAX_CHUNK_BBOX_DEG2 = 4.0
 
 
@@ -356,17 +326,12 @@ def _chunk_todo(parcels: gpd.GeoDataFrame, chunk_size: int,
                 max_bbox: float = MAX_CHUNK_BBOX_DEG2) -> list:
     """``[(year, i, chunk), …]`` packed so each chunk is both full AND geographically tight.
 
-    Grouping by year alone was fine for Piura — one department, one compact valley system.
-    Nationally it is not: one label year draws parcels from all 14 departments, and lon/lat
-    sorting then yields chunks spanning **up to 110 deg^2** (~1,200 x 1,000 km), which is
-    enough to make a chunk unaffordable.
-
-    Splitting strictly by ``(year, dept)`` fixes extent but overshoots the other way: 89 of
-    204 groups hold under 50 parcels, and each still pays full per-request overhead. So
-    departments are visited **in longitude order** and packed greedily into chunks, cutting
-    a chunk early whenever adding the next department would push its bbox past ``max_bbox``.
-    Neighbouring small departments therefore share a request while large ones still split.
-    Within a department a Hilbert curve keeps consecutive chunks contiguous.
+    Grouping by year alone was fine for Piura but not nationally: one label year draws from
+    all 14 departments, and lon/lat sorting then yields chunks up to 110 deg² and
+    unaffordable. Splitting strictly by ``(year, dept)`` overshoots the other way (89 of 204
+    groups under 50 parcels). So departments are visited in longitude order and packed
+    greedily, cutting a chunk early whenever the next department would push its bbox past
+    ``max_bbox``; within a department a Hilbert curve keeps consecutive chunks contiguous.
     """
     todo: list = []
     i = 0
@@ -447,13 +412,9 @@ def run_coverage(parcels: gpd.GeoDataFrame | None = None, chunk_size: int = 400,
             print(f"  max_chunks={max_chunks} reached — stopping (resumable)")
             break
 
-    # Combine only the requested years, and dedupe on (COD_PREDIO, year).
-    #
-    # Deduping on COD_PREDIO alone silently collapses a multi-year panel to one row per
-    # parcel: two years whose `out=` files share a parent directory share this chunk dir,
-    # so year B's combine would return year A's numbers for every parcel. That is not
-    # hypothetical — it produced identical "coverage" for 1995/1996/2005 during the panel
-    # timing probe. For the single-year training store the two are equivalent.
+    # Combine only the requested years, dedupe on (COD_PREDIO, year). Deduping on
+    # COD_PREDIO alone collapses a multi-year panel to one row per parcel — it produced
+    # identical "coverage" for 1995/1996/2005 during the panel timing probe.
     globs = [f"cov_{y}_*.parquet" for y in years] if years else ["cov_*.parquet"]
     files = sorted({f for g in globs for f in chunk_dir.glob(g)})
     cov = pd.concat([pd.read_parquet(f) for f in files], ignore_index=True)
@@ -465,12 +426,9 @@ def run_coverage(parcels: gpd.GeoDataFrame | None = None, chunk_size: int = 400,
     return cov
 
 
-# ------------------------------------------------------------------------------------
-# Stage 2 — raw dated pixels (survivors only)
-# ------------------------------------------------------------------------------------
+# --- Stage 2 — raw dated pixels (survivors only) ---
 def _fetch_all_features(fc) -> list[dict]:
-    """Fetch every feature of a FeatureCollection via the paginated computeFeatures API
-    (plain ``getInfo`` is capped at 5000 elements)."""
+    """Paginated computeFeatures fetch — plain ``getInfo`` caps at 5000 elements."""
     ee = _ee
     rows, token = [], None
     while True:
@@ -515,10 +473,9 @@ def run_pixels(parcels: gpd.GeoDataFrame | None = None, chunk_size: int = 40,
                years: list[int] | None = None, feat_dir: Path | None = None) -> None:
     """Stage 2 raw pixel export for gate survivors, chunked + resumable.
 
-    ``max_chunks`` stops after N newly computed chunks; the per-year combine below always
-    runs on every chunk on disk, so a partial run still yields usable per-year stores.
-    ``feat_dir`` defaults to the shared training store; the multi-year panel points it at
-    ``FEAT/"panel"`` so an experimental run never mutates the audited training artifact.
+    ``max_chunks`` stops after N newly computed chunks; the per-year combine always runs on
+    every chunk on disk. ``feat_dir`` defaults to the shared training store; the panel points
+    it at ``FEAT/"panel"`` so an experimental run never mutates the audited artifact.
     """
     init_ee()
     feat_dir = feat_dir or feat()
@@ -547,8 +504,8 @@ def run_pixels(parcels: gpd.GeoDataFrame | None = None, chunk_size: int = 40,
             print(f"  max_chunks={max_chunks} reached — stopping (resumable)")
             break
 
-    # combine every chunk on disk into per-year stores (dedup guards against the same
-    # parcel appearing in two chunk files, e.g. after a chunk-boundary change)
+    # combine every chunk on disk into per-year stores (dedup guards against a parcel in two
+    # chunk files after a boundary change)
     years_on_disk = sorted({f.stem.split("_")[1] for f in chunk_dir.glob("px_*.parquet")})
     for year in years_on_disk:
         files = sorted(chunk_dir.glob(f"px_{year}_*.parquet"))

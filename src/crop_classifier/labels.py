@@ -38,8 +38,8 @@ from crop_classifier.paths import PROC_SHARED, proc
 
 CONFIG_DIR = Path(__file__).resolve().parent / "config"
 
-# The raw label input is shared across workspaces; the outputs are workspace-local and so
-# are resolved at call time (see paths.py — never bind proc() at import time).
+# The raw label input is shared across workspaces; the outputs are workspace-local, resolved
+# at call time (see paths.py — never bind proc() at import).
 F_POLY = PROC_SHARED / "training_crop_polygon.parquet"
 
 LANDCOVER_NAME = {"pasture": "PASTURE", "fallow": "FALLOW"}
@@ -85,12 +85,12 @@ def build(config_path: Path | None = None, save: bool = True) -> gpd.GeoDataFram
     gdf = gpd.read_parquet(F_POLY)
     print(f"loaded {len(gdf):,} labelled polygons")
 
-    # ---- raw label per parcel (category policy + merge map) ----
+    # --- raw label per parcel (category policy + merge map) ---
     lab = gdf.apply(lambda r: assign_raw_label(r, cfg), axis=1)
     gdf["label_raw"] = [t[0] for t in lab]
     gdf["label_reason"] = [t[1] for t in lab]
 
-    # ---- config-driven class surgery: rename first, then drop whole classes ----
+    # --- config-driven class surgery: rename first, then drop whole classes ---
     relabel = cfg.get("relabel") or {}
     if relabel:
         gdf["label_raw"] = gdf["label_raw"].replace(relabel)
@@ -100,7 +100,7 @@ def build(config_path: Path | None = None, save: bool = True) -> gpd.GeoDataFram
         gdf.loc[dropped, "label_reason"] = "dropped_class"
         gdf.loc[dropped, "label_raw"] = None
 
-    # ---- hard gates: area (A5) + year (A1: trusted as-is, but must exist) ----
+    # --- hard gates: area (A5) + year (A1: trusted as-is, but must exist) ---
     gdf["gate_area_ok"] = gdf["area_ha"].between(cfg["area_min_ha"], cfg["area_max_ha"])
     gdf["gate_year_ok"] = gdf["year"].notna() if cfg.get("require_year", True) else True
 
@@ -120,7 +120,7 @@ def build(config_path: Path | None = None, save: bool = True) -> gpd.GeoDataFram
     keep = has_label & gdf["gate_area_ok"] & gdf["gate_year_ok"]
     df = gdf[keep].copy()
 
-    # ---- vocabulary: crops with enough support; landcover classes always kept ----
+    # --- vocabulary: crops with enough support; landcover classes always kept ---
     is_landcover = df["label_raw"].isin(LANDCOVER_NAME.values())
     counts = df.loc[~is_landcover, "label_raw"].value_counts()
     vocab = set(counts[counts >= cfg["min_class_parcels"]].index)
@@ -136,7 +136,7 @@ def build(config_path: Path | None = None, save: bool = True) -> gpd.GeoDataFram
     label_map = {c: i for i, c in enumerate(classes)}
     df["label_id"] = df["label"].map(label_map).astype(int)
 
-    # ---- static columns for downstream stages ----
+    # --- static columns for downstream stages ---
     cen = df.geometry.representative_point()
     df["centroid_lon"], df["centroid_lat"] = cen.x, cen.y
     df["n_pixels_est"] = df["area_ha"] / PIXEL_HA
@@ -151,7 +151,7 @@ def build(config_path: Path | None = None, save: bool = True) -> gpd.GeoDataFram
               "area_ha", "n_pixels_est", "centroid_lon", "centroid_lat",
               "n_valid_obs", "max_gap", "quality_ok", "geometry"]].reset_index(drop=True)
 
-    # ---- report ----
+    # --- report ---
     print(f"\neligible parcels: {len(out):,}  ({len(classes)} classes)")
     print(out["label"].value_counts().to_string())
     print(f"\nmerged intercrop parcels kept: {(df['label_reason'] == 'merged').sum():,}")

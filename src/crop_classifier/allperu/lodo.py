@@ -1,20 +1,18 @@
 """Leave-one-department-out — the spatial-generalisation test Piura could not run.
 
 The Piura pipeline's spatial CV holds out 5 km *regions*: neighbouring cells, same
-department, same agro-climate, same titling campaign. It measures "can the model read a
-field it has not seen", not "can the model read a **place** it has not seen". With 15
-departments spanning the coastal desert, the sierra and the high jungle, the second question
-is finally askable, and it is the one that matters for the stated objective — a classifier
-that is *spatially generalisable*.
+department, same agro-climate. It measures "can the model read a field it has not seen", not
+"a **place** it has not seen". With 15 departments spanning coastal desert, sierra and high
+jungle, the second question is finally askable — and it is the one the objective turns on, a
+*spatially generalisable* classifier.
 
 For each department: train on every **other** department, evaluate on that one. Training
 parcels within ``buffer_m`` of a held-out parcel are dropped, so parcels straddling a shared
 border cannot leak (the same 1.5 km dead-zone the normal split uses).
 
-Read the output as a **lower bound**, and read the spread as the real result. A department
-that scores far below the pooled CV number is telling you the model has learned something
-local — a regional cropping calendar, a soil background — rather than the phenology of
-perennials in general.
+Read the output as a **lower bound**, and the spread as the real result. A department far
+below the pooled CV number means the model learned something local — a regional cropping
+calendar, a soil background — not perennial phenology in general.
 
 Run with::
 
@@ -54,9 +52,9 @@ def run(model_name: str = "lightgbm", drop_features: str | None = "meta",
     """Fit ``n_departments`` models, each blind to one department.
 
     ``tag`` suffixes every artifact and nests the per-department fits under
-    ``runs/lodo/<tag>/``, so a second architecture can be run over the same departments
-    without overwriting the first — comparing two models' transfer is the whole point of
-    running a second one (RESULTS.md §6.2). Untagged keeps the original layout.
+    ``runs/lodo/<tag>/``, so a second architecture runs over the same departments without
+    overwriting the first — comparing two models' transfer is why a second one runs
+    (RESULTS.md §6.2). Untagged keeps the original layout.
     """
     drop = resolve_drop_features(drop_features)
     years = parse_year_spec(train_years)
@@ -85,10 +83,9 @@ def run(model_name: str = "lightgbm", drop_features: str | None = "meta",
         te_idx = parcels.index[held]
         pool = restrict_years(parcels, pool, years)
 
-        # Early stopping needs a validation set, and it must NOT be the held-out
-        # department — that would tune the stopping point on the very data being scored.
-        # Carve ~10 % of the *training* departments' regions instead, grouped by region so
-        # the inner split is spatial too.
+        # Early stopping needs a validation set that is NOT the held-out department (that
+        # would tune the stopping point on the data being scored). Carve ~10 % of the
+        # *training* departments' regions instead, grouped by region so it stays spatial.
         regions = parcels.loc[pool, "region_id"].unique()
         val_regions = set(rng.choice(regions, max(1, int(0.10 * len(regions))),
                                      replace=False))
@@ -152,12 +149,10 @@ def run(model_name: str = "lightgbm", drop_features: str | None = "meta",
                        "pooled_macro_f1": float(pooled),
                        "n_departments": len(res)}, f, indent=2)
         print(f"wrote lodo_metrics{suf}.csv / lodo_predictions{suf}.parquet to {proc()}")
-        # LODYO comes free: the per-department fits already exist, and re-scoring their
-        # predictions per label-year cohort is the only evaluation here that is out of
-        # distribution in space AND time. It is computed automatically because the one time
-        # it was optional it was also the one thing that overturned the selection
-        # (RESULTS.md 9.2.1) -- an evaluation nobody remembers to run is an evaluation that
-        # does not exist.
+        # LODYO comes free: the per-department fits exist, and re-scoring them per label-year
+        # cohort is the only evaluation here that is OOD in space AND time. Automatic because
+        # the one time it was optional it also overturned the selection (RESULTS.md 9.2.1) --
+        # an evaluation nobody remembers to run is one that does not exist.
         try:
             from crop_classifier.allperu.loyo import lodo_by_cohort
             lodo_by_cohort(tag=tag or "", save=True)

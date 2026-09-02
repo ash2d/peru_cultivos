@@ -1,17 +1,16 @@
 """T6 — external validation against MIDAGRI/SIEA district statistics (RESULTS.md §5).
 
-Everything else in this project is internal: the classifier is checked against the same PETT
-declarations it was trained on. That cannot detect a *systematic* error shared by training and
-inference — most importantly the §6.1 risk, that **the export boom happened largely outside
-this cadastre**, on newly irrigated desert developed by agro-export firms rather than on 0.5 ha
-PETT smallholdings. If so, a true conversion rate of 2 → 4 % on titled smallholdings is the
-*answer*, not a detection failure, and no classifier improvement recovers the rest.
+Everything else here is internal: the classifier is checked against the same PETT
+declarations it trained on. That cannot detect a *systematic* error shared by training and
+inference — chiefly the §6.1 risk that **the export boom happened largely outside this
+cadastre**, on newly irrigated desert developed by agro-export firms not 0.5 ha PETT
+smallholdings. If so, a true 2 → 4 % conversion rate on titled smallholdings is the *answer*,
+not a detection failure, and no classifier improvement recovers the rest.
 
 MIDAGRI's SIEA publishes district-level harvested hectares by crop back to the 1990s
-(*Series históricas de producción agrícola*, https://siea.midagri.gob.pe/portal/ — the
-"Sistema Integrado de Estadística Agraria" series; also mirrored on the national open-data
-portal https://www.datosabiertos.gob.pe/). It is **not** redistributed with this repo and is
-not fetched automatically: pass a downloaded CSV.
+(*Series históricas de producción agrícola*, https://siea.midagri.gob.pe/portal/ ; also on
+https://www.datosabiertos.gob.pe/). Not redistributed with this repo and not fetched
+automatically: pass a downloaded CSV.
 
 The comparison is deliberately weak-form, because the two quantities are not the same thing:
 

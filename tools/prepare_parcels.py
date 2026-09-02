@@ -1,9 +1,8 @@
 """Turn a file of parcel polygons into the table the pipeline scores.
 
-For someone who has polygons — a shapefile, a GeoPackage, a GeoJSON, a parquet — and wants a
-trained model's reading of them. It writes ``modeling_parcels.parquet``, the one input every
-later command reads, with placeholder labels: nothing here is training data, it is a list of
-parcels to predict.
+For someone who has polygons (shapefile, GeoPackage, GeoJSON, parquet) and wants a trained
+model's reading of them. It writes ``modeling_parcels.parquet``, the one input every later
+command reads, with placeholder labels — a list of parcels to predict, not training data.
 
 Landsat model (calendar year, features from ``cc satellite extract``)::
 
@@ -119,11 +118,9 @@ def prepare(src: Path, year: int | None = None, year_col: str | None = None,
     out["n_valid_obs"] = pd.array([pd.NA] * len(out), dtype="Int64")
     out["max_gap"] = pd.array([pd.NA] * len(out), dtype="Int64")
     if store == "s2":
-        # the Sentinel-2 store has its own gates (too few clear dates, sub-pixel parcels),
-        # applied when the features are assembled. `quality_ok` is the *Landsat* coverage
-        # flag and stays NA here, and `load_parcels` filters on == True, so leaving it NA
-        # would score zero parcels and report an empty result rather than an error — the
-        # same reason labelling/train_prep sets it True.
+        # `quality_ok` is the *Landsat* coverage flag; the S2 store has its own gates at
+        # assemble time. `load_parcels` filters on == True, so leaving it NA here would score
+        # zero parcels with no error — same reason labelling/train_prep sets it True.
         out["quality_ok"] = pd.array([True] * len(out), dtype="boolean")
         out["imagery_date"] = pd.Timestamp(imagery_date).date()
     else:
@@ -163,12 +160,11 @@ def prepare(src: Path, year: int | None = None, year_col: str | None = None,
 def attach_climate(out_dir: Path, arm: str = "temp") -> Path:
     """Add the climate columns a `--climate` model was trained with to a feature table.
 
-    A model fitted with ``--climate temp`` scores on ``tmean_c``, and a feature table built
-    from imagery alone does not have it: ``cc predict`` stops with "feature store is missing
-    1 model features". The values come from the committed per-parcel normals, so this works
-    for parcels that are in the project's national table and not for polygons from anywhere
-    else — for those, either build the normals over them (`cc allperu climate normals`, and
-    the 10 GB WorldClim rasters) or use a model trained without climate.
+    A model fitted with ``--climate temp`` scores on ``tmean_c``, which an imagery-only
+    feature table lacks (``cc predict`` stops with "feature store is missing 1 model
+    features"). Values come from the committed per-parcel normals, so this works only for
+    parcels in the project's national table — for others, build the normals over them
+    (`cc allperu climate normals`) or use a model trained without climate.
     """
     if arm not in CLIMATE_ARMS:
         raise SystemExit(f"--attach-climate must be one of {', '.join(CLIMATE_ARMS)}")

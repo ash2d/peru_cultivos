@@ -34,10 +34,9 @@ def scale_sr(df: pd.DataFrame) -> pd.DataFrame:
 def scale_sr_s2(df: pd.DataFrame) -> pd.DataFrame:
     """Scale raw S2 L2A DN band columns to reflectance, clipped to [0, 1].
 
-    Written **beside** :func:`scale_sr` rather than as a branch inside it: a sensor
-    argument on a scaling function is exactly the kind of thing that gets defaulted wrong
-    once and applies the Landsat offset to Sentinel-2 for a whole store with no error.
-    Two names, one scale each.
+    Beside :func:`scale_sr`, not a branch inside it: a sensor argument on a scaling function
+    gets defaulted wrong once and applies the Landsat offset to Sentinel-2 for a whole store
+    with no error. Two names, one scale each.
     """
     out = df.copy()
     for b in BANDS:

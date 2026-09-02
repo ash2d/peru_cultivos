@@ -10,8 +10,8 @@ Three provenances, and the distinction is the useful part of the output:
 ``repo``
     Committed to this repository. A clone has it. If it is missing, the clone is broken.
 ``derive``
-    Not committed, but reproducible from things that are, by a command named here. Usually
-    excluded because it is large and cheap to rebuild, or large and slow but optional.
+    Not committed, but reproducible by a command named here. Excluded because it is large
+    and either cheap to rebuild or slow-but-optional.
 ``obtain``
     Neither. It is the licensed raw archive or a fresh Earth Engine extraction, and no
     command in this repository can conjure it — ``docs/DATA_ACCESS.md`` says who to ask.
@@ -30,10 +30,10 @@ class Need:
     path: str                     # relative to the repository root
     provenance: str               # repo | derive | obtain
     note: str = ""                # how to get it, when it is not `repo`
-    #: Needed only to rebuild this capability's inputs from further upstream — not to run
-    #: it. The DiD is the case: its classifier predictions are committed, so the estimate
-    #: reproduces, and the 13.5-hour panel extraction behind them is optional. Without this
-    #: distinction the check reports "needs data" for something that in fact works.
+    #: Needed only to rebuild this capability's inputs from further upstream, not to run it.
+    #: The DiD is the case: its predictions are committed so the estimate reproduces, and the
+    #: 13.5-hour panel extraction behind them is optional. Without this the check says "needs
+    #: data" for something that works.
     optional: bool = False
 
 

@@ -1,8 +1,8 @@
 """S2 per-date medians -> the LightGBM summary feature block (docs/s2_labelling/plan.md).
 
-Only the summary block is emitted. LTAE/PSE-LTAE are dropped from this strand (they lose
-on LODO 0.442 vs 0.477, LOYO 0.4784 and W2 -0.1025), so nothing needs the per-date or
-pixel-set tensors and there is no reason to build them.
+Only the summary block is emitted. LTAE/PSE-LTAE are dropped from this strand (lose LODO
+0.442 vs 0.477, LOYO 0.4784, W2 -0.1025), so the per-date and pixel-set tensors are not
+built.
 
 Two settled negative results are enforced here rather than left to a config: **no
 ``centroid_lat``/``centroid_lon``** (spatial memorisation — CV +0.047, LODO -0.060) and
@@ -129,24 +129,18 @@ if __name__ == "__main__":
 
 
 
-# ------------------------------------------------------------------------------------
-# Per-date sequence tensor (LTAE)
-# ------------------------------------------------------------------------------------
-# The module header says LTAE was dropped from this strand. That was decided on the
-# **Landsat** store, where a parcel-year carries 13-24 clear looks and the attention model
-# lost on every transfer axis (LODO 0.442 vs 0.477, LOYO 0.4784, W2 -0.1025). Sentinel-2
-# gives a median 49 clear dates inside the same agricultural year — roughly triple — so the
-# input the architecture was starved of is now present, and the question is worth re-asking
-# on this data rather than inherited from the old store. The summary block above is
-# unchanged and remains the LightGBM input; this is an additional artifact, not a
-# replacement.
+# --- Per-date sequence tensor (LTAE) ---
+# The module header says LTAE was dropped — decided on the **Landsat** store (13-24 clear
+# looks/parcel-year, attention lost on every transfer axis: LODO 0.442 vs 0.477, LOYO
+# 0.4784, W2 -0.1025). Sentinel-2 gives a median 49 clear dates in the same ag year, so the
+# input the architecture was starved of is now present and the question is worth re-asking.
+# The summary block above is unchanged; this is an additional artifact, not a replacement.
 #
-# ⚠️ **Positions are days since Aug 1, not day-of-year.** `ag_year` always returns
-# Aug 1 - Jul 31, so the window straddles the New Year and `doy` would wrap from 365 back to
-# 1 in the middle of every parcel's series — the sinusoidal position encoding would then
-# place mid-season observations adjacent to the window's first week. Days-since-window-start
-# is monotone across the window, lands in the same [0, 365) range the encoder expects, and
-# is *phase-aligned across parcels* precisely because every window starts on Aug 1.
+# ⚠️ **Positions are days since Aug 1, not day-of-year.** The ag year straddles New Year, so
+# `doy` would wrap 365→1 mid-series and the sinusoidal position encoding would place
+# mid-season observations next to the window's first week. Days-since-window-start is
+# monotone, lands in [0, 365), and is *phase-aligned across parcels* since every window
+# starts Aug 1.
 FN_PERDATE = "tensor_perdate.npz"
 T_MAX = 64
 
@@ -156,8 +150,7 @@ def build_sequence_tensor(px: pd.DataFrame, parcels: pd.DataFrame,
     """Ag-year per-date medians -> ``X [N,T,C]`` + positions + mask for LTAE.
 
     No pixel-set tensor: ``s2_perdate.parquet`` holds per-date band **medians** and
-    quantiles over a parcel's pixels, never the pixels themselves, so PSE-LTAE cannot be
-    built from this store at all and is not attempted.
+    quantiles, never the pixels, so PSE-LTAE cannot be built from this store.
     """
     d = add_indices(scale_sr_s2(restrict_to_ag_year(px, parcels)))
     d = d.sort_values(["COD_PREDIO", "date"])

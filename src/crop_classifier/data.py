@@ -6,8 +6,7 @@ Selection logic is centralised here so every model sees identical splits:
   ``buffer_excl_fold{k}`` (the §5 dead-zone) — both restricted to ``quality_ok``.
 * Final/test:      train = all trainval minus ``buffer_excl_test``; test = ``split=='test'``.
 
-Channel normalisation (sequence/pixelset) is fit on the TRAIN subset only and applied to
-val/test — never fit on held-out data (leakage checklist §5).
+Channel normalisation (sequence/pixelset) is fit on TRAIN only (leakage checklist §5).
 """
 
 from __future__ import annotations
@@ -23,15 +22,13 @@ import pandas as pd
 # torch (macOS libomp clash with lightgbm -> segfault); the flat path never needs it.
 from crop_classifier.paths import feat, proc
 
-# Feature-store file names inside a feature directory. The directory is FEAT by default
-# (the shared training store) but is overridable per call so the multi-year panel can read
-# its own per-year store (perennial/panel.py) without touching the audited one.
+# Feature-store file names. The directory is FEAT by default but overridable per call so the
+# multi-year panel can read its own per-year store (perennial/panel.py).
 FN_LGBM = "features_lightgbm.parquet"
 FN_PERDATE = "tensor_perdate.npz"
 FN_PIXELSET = "tensor_pixelset.npz"
-# Optional per-parcel static covariates riding alongside the sequence tensor.
-# Absent from every store built before the climate arms, and absent = no statics,
-# so the sequence models are byte-for-byte unchanged where the file does not exist.
+# Optional per-parcel static covariates alongside the sequence tensor; absent -> no statics,
+# so the sequence models are unchanged where the file does not exist.
 FN_STATICS = "statics.npz"
 
 
@@ -87,11 +84,9 @@ def restrict_years(df: pd.DataFrame, idx: pd.Index,
                    years: list[int] | None) -> pd.Index:
     """Subset ``idx`` to parcels whose label ``year`` is in ``years``.
 
-    Applied to the **train** side only (train.py). Validation/test membership must not
-    change, or CV stops being comparable with runs that used the full label cohort —
-    which is the whole point of the ≥1999 (no-El-Nino) experiment (RESULTS.md §8.1).
-    Parcels with a missing ``year`` are dropped by the restriction, since they cannot be
-    shown to satisfy it.
+    Train side only (train.py) — val/test membership must not change, or CV stops being
+    comparable with full-cohort runs (the point of the ≥1999 no-El-Nino experiment,
+    RESULTS.md §8.1). Missing ``year`` is dropped.
     """
     if not years:
         return idx
@@ -106,9 +101,7 @@ def class_weights(y: np.ndarray, n_classes: int) -> np.ndarray:
     return w
 
 
-# ------------------------------------------------------------------------------------
-# flat (LightGBM)
-# ------------------------------------------------------------------------------------
+# --- flat (LightGBM) ---
 @dataclass
 class FlatData:
     X: pd.DataFrame          # feature matrix (NaN allowed)
@@ -117,22 +110,19 @@ class FlatData:
     feature_names: list[str] = field(default_factory=list)
 
 
-# Acquisition metadata: describes *which satellite was overhead*, not the land. These vary
-# across a multi-year panel for reasons that have nothing to do with land use — `frac_l7`
-# ramps 0 -> 1 as L7 replaces L5 — and in training they are confounded with the label
-# because titling year and mission availability move together (RESULTS.md §4.6). A model
-# that uses them manufactures a trend. `centroid_lat` is listed separately: it is
-# time-invariant so it cannot manufacture a trend, but it is heavy spatial memorisation.
+# Acquisition metadata: which satellite was overhead, not the land. `frac_l7` ramps 0 -> 1
+# as L7 replaces L5, and in training is confounded with the label because titling year and
+# mission availability move together (RESULTS.md §4.6) — a model using it manufactures a
+# trend. `centroid_lat` is time-invariant (no trend) but heavy spatial memorisation.
 META_FEATURES = ["frac_l7", "n_valid_obs", "n_dates", "max_gap", "n_valid_pixels"]
 LOCATION_FEATURES = ["centroid_lat"]
 
-# Order statistics over a parcel-year's observations. A max over 24 clear looks is not the
-# same estimator as a max over 13, so these move when only the *number of looks* changes —
-# measured, within parcel: mean |slope| 0.35 within-SD per e-fold of observation count for
-# min/max/amplitude against 0.08 for the harmonic/slope fits (`allperu.density`, the step-1a
-# audit in docs/RESULTS.md §6.1). Landsat density is not stationary — ~24 clear
-# observations per parcel-year in 2004-08 against ~13 in 2019-23 — so a model leaning on
-# them reads archive depth as land-use change.
+# Order statistics over a parcel-year's observations: a max over 24 clear looks is a
+# different estimator than over 13, so these move with the *number of looks* alone —
+# within-parcel mean |slope| 0.35 within-SD per e-fold of observation count vs 0.08 for the
+# harmonic/slope fits (`allperu.density`, §6.1). Landsat density is not stationary (~24
+# clear obs/parcel-year in 2004-08 vs ~13 in 2019-23), so a model leaning on them reads
+# archive depth as land-use change.
 ORDER_FEATURES = [f"{ch}_{k}" for ch in
                   ["B", "G", "R", "NIR", "SWIR1", "SWIR2",
                    "NDVI", "EVI", "NDWI", "NDMI", "BSI"]
@@ -143,11 +133,8 @@ DROP_SETS = {"meta": META_FEATURES, "location": LOCATION_FEATURES,
 
 
 def resolve_drop_features(spec: str | list[str] | None) -> list[str]:
-    """Feature-exclusion spec -> explicit column list.
-
-    Accepts a list, or a comma-separated string whose entries are either column names or
-    the group aliases in ``DROP_SETS`` (``meta``, ``location``).
-    """
+    """Feature-exclusion spec -> explicit column list. Entries are column names or
+    ``DROP_SETS`` group aliases (``meta``, ``location``, ``order``)."""
     if not spec:
         return []
     items = [s.strip() for s in spec.split(",")] if isinstance(spec, str) else list(spec)
@@ -166,16 +153,12 @@ def make_flat(parcels: pd.DataFrame, idx: pd.Index,
               augment_feat: Path | str | None = None) -> FlatData:
     """Flat feature matrix for LightGBM.
 
-    ``drop_features`` excludes columns at *training* time (names or ``DROP_SETS`` aliases).
-    ``feature_names`` instead pins the exact ordered column list — used at inference so a
-    model scores on precisely the columns it was fitted on, whatever the store contains.
+    ``drop_features`` excludes columns at training time; ``feature_names`` instead pins the
+    exact ordered list, used at inference so a model scores on the columns it was fitted on.
 
-    ``augment_feat`` points at a second feature table keyed on the same ``COD_PREDIO`` —
-    in practice a **degraded** copy of the store, assembled at endpoint observation density
-    (``allperu.density.build_degraded_features``) — whose rows for the same ``idx`` are
-    appended, doubling the parcel's representation at two densities under one label. It must
-    only ever be passed for a **train** dataset: adding degraded copies to a validation set
-    would score the model on rows it also trained on, and would change what CV means.
+    ``augment_feat`` is a second table on the same ``COD_PREDIO`` — a degraded copy at
+    endpoint density (``allperu.density.build_degraded_features``) — appended for the same
+    ``idx``. ⚠️ Train datasets only: degraded copies in a val set would score on trained rows.
     """
     feats = pd.read_parquet((feat_dir or feat()) / FN_LGBM)
     if augment_feat is not None:
@@ -197,16 +180,12 @@ def make_flat(parcels: pd.DataFrame, idx: pd.Index,
                     feature_names=list(X.columns))
 
 
-# ------------------------------------------------------------------------------------
-# sequence (LTAE) / pixelset (PSE-LTAE)
-# ------------------------------------------------------------------------------------
+# --- sequence (LTAE) / pixelset (PSE-LTAE) ---
 class Normalizer:
     """Per-channel mean/std over *valid* entries; fit on train only.
 
-    Carries a second, optional block for per-parcel **statics** (the climate columns), fit
-    on the same train subset and for the same reason: a static standardised against the
-    validation fold's own mean is a leak, and with two columns and ~550 training parcels it
-    would be a large one.
+    An optional second block for per-parcel statics (climate columns), fit on the same
+    train subset — standardising against the val fold's own mean is a leak.
     """
 
     def __init__(self) -> None:
@@ -252,9 +231,8 @@ class Normalizer:
 class SeqDataset:
     """Per-date median sequences (LTAE) or pixel sets (PSE-LTAE).
 
-    Deliberately not subclassing ``torch.utils.data.Dataset`` so this module imports
-    without torch; a plain ``__len__``/``__getitem__`` is all ``DataLoader`` needs. torch
-    is imported here (only reached on a torch-model run).
+    Not subclassing ``torch.utils.data.Dataset`` so the module imports without torch; a
+    plain ``__len__``/``__getitem__`` is all ``DataLoader`` needs.
     """
 
     def __init__(self, kind: str, parcels: pd.DataFrame, idx: pd.Index,
@@ -279,8 +257,7 @@ class SeqDataset:
         self.mask = z["mask"][rows]
         self.pixmask = z["pixmask"][rows] if kind == "pixelset" else None
 
-        # optional per-parcel statics (the climate arms). Absent file -> n_static 0 and
-        # the batch carries no `stat` key, so nothing downstream changes.
+        # optional per-parcel statics (climate arms). Absent -> n_static 0, no `stat` key.
         self.statics: np.ndarray | None = None
         self.static_names: list[str] = []
         sf = fd / FN_STATICS
@@ -339,12 +316,9 @@ def make_dataset(input_kind: str, parcels: pd.DataFrame, idx: pd.Index,
     """Factory used by the trainer: one call site for all three input kinds.
 
     ``drop_features``/``feature_names``/``augment_feat`` apply to the flat path only — the
-    sequence and pixel-set tensors carry no statics of their own (only spectral + doy +
-    mask), so the attention models are structurally free of the metadata confound, and
-    degradation augmentation for them would need degraded *tensors*, which is a separate
-    build. The one exception is a feature directory that also holds ``statics.npz``, which
-    the climate arms write deliberately (``labelling.climate_arms``); nothing else in the
-    project ships one.
+    sequence/pixel-set tensors carry only spectral + doy + mask, so the attention models are
+    structurally free of the metadata confound. The one exception is a feature directory
+    that also holds ``statics.npz``, which the climate arms write (``labelling.climate_arms``).
     """
     if input_kind == "flat":
         return make_flat(parcels, idx, feat_dir=feat_dir, drop_features=drop_features,

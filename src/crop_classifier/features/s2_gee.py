@@ -1,22 +1,17 @@
 """Sentinel-2 extraction for the endpoint-labelling campaign (docs/s2_labelling/plan.md).
 
-Mirrors ``features/landsat_gee.py``'s structure — chunked, cached, resumable — and
-**reuses its ``_retry`` / ``_call_with_deadline`` verbatim**, because silent GEE hangs are
-a recurring measured failure in this project (once 13.4 h) and a hang is not an error, so
-nothing else catches it.
+Mirrors ``features/landsat_gee.py`` — chunked, cached, resumable — and reuses its
+``_retry`` / ``_call_with_deadline`` verbatim, since a silent GEE hang is not an exception.
 
-Three deliberate differences from the Landsat store:
+Differences from the Landsat store:
 
-1. **Per-date parcel medians, not raw pixels.** LTAE/PSE-LTAE are dropped (they lose on
-   LODO 0.442 vs 0.477 and on every temporal axis), so nothing downstream needs a pixel
-   set — and a server-side median is ~50x cheaper to export.
-2. **The parcel is eroded 10 m before reduction**, killing edge and mixed pixels. Erosion
-   happens offline in a metric CRS (``erode_parcels``); if it empties the geometry the
-   original is used and ``eroded=False`` is recorded.
-3. **One 24-month window per parcel**, centred on its Esri ``imagery_date``. The
-   agricultural year Aug 1 - Jul 31 containing that date is always a sub-interval of it,
-   so a single extraction serves both the model features (§5.4) and the annotator's NDVI
-   trace.
+1. Per-date parcel medians, not raw pixels (LTAE/PSE-LTAE are dropped, so a server-side
+   median is ~50x cheaper to export).
+2. The parcel is eroded 10 m before reduction to kill edge/mixed pixels; if erosion empties
+   the geometry the original is used and ``eroded=False`` recorded.
+3. One 24-month window per parcel, centred on its Esri ``imagery_date``. The Aug 1 - Jul 31
+   agricultural year containing that date is a sub-interval, so one extraction serves both
+   the model features (§5.4) and the annotator's NDVI trace.
 
 Run::
 
@@ -33,8 +28,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 
-# The fault-tolerance machinery is shared on purpose — one place where the wall-clock
-# deadline lives, so a fix to it applies to every extraction this project runs.
+# Shared on purpose: one place for the wall-clock deadline, so a fix reaches every extraction.
 from crop_classifier.features.landsat_gee import (  # noqa: F401  (re-exported)
     ChunkTimeout,
     _call_with_deadline,
@@ -48,46 +42,36 @@ from crop_classifier.paths import feat
 S2_COLLECTION = "COPERNICUS/S2_SR_HARMONIZED"
 CSP_COLLECTION = "GOOGLE/CLOUD_SCORE_PLUS/V1/S2_HARMONIZED"
 
-# Cloud Score+ threshold. Per-pixel, handles haze and thin cirrus, covers 2015-06 onward.
-# Deliberately the ONLY cloud mask beyond SCL=1: over-masking thins the observation series,
-# and thinning the series is the exact mechanism measured as harmful in RESULTS.md §9.2.
+# Cloud Score+ threshold. Per-pixel, covers 2015-06 on. The ONLY cloud mask beyond SCL=1:
+# over-masking thins the observation series, which RESULTS.md §9.2 measures as harmful.
 CS_THRESHOLD = 0.60
 
 # 10 m bands + the two 20 m SWIRs, renamed onto `features.indices.BANDS` so
 # `indices.add_indices` works unchanged and the S2 store carries the same 11 channels.
 S2_BANDS = {"B2": "B", "B3": "G", "B4": "R", "B8": "NIR", "B11": "SWIR1", "B12": "SWIR2"}
 
-# **Per-pixel NDVI, computed server-side before reduction, so its quantiles are meaningful.**
-#
-# The labelling trace draws a p25-p75 ribbon = the spread of greenness *across the parcel's
-# pixels on one date*. That cannot be recovered from the band medians this store used to
-# carry: a quantile of a ratio is not the ratio of the quantiles, so
-# `(NIR_p25 - R_p25)/(NIR_p25 + R_p25)` is not the 25th percentile of NDVI and would draw a
-# ribbon of the wrong width. NDVI is therefore formed per pixel in `masked_collection` and
-# reduced like any other band.
-#
-# It is deliberately **not** called `NDVI`: `indices.add_indices` writes a column of that
-# name from the band medians, and the two are different quantities (Jensen's inequality —
-# they differ by ~0.005-0.02 on a heterogeneous parcel). The model features keep using the
-# band-median NDVI unchanged; only the trace uses these.
+# Per-pixel NDVI, computed server-side before reduction, so its quantiles are meaningful:
+# a quantile of a ratio is not the ratio of the quantiles, so the labelling ribbon (a
+# p25-p75 spread of greenness across the parcel's pixels) cannot be recovered from band
+# medians. Deliberately not named `NDVI`: `indices.add_indices` writes that column from the
+# band medians, and the two differ by ~0.005-0.02 (Jensen's inequality). The model features
+# keep the band-median NDVI; only the trace uses these.
 S2_NDVI_BAND = "NDVIpx"
 NDVI_PX_COLS = ("NDVI_px_p25", "NDVI_px_p50", "NDVI_px_p75")
 RIBBON_PERCENTILES = (25, 75)
 
-# What an *unremoved* baseline-04.00 offset would look like in reflectance: +1000 DN at a
-# 1/10000 scale = +0.10 in every band. The harmonisation check is judged against this, not
-# against zero — a step of 0.005 and a step of 0.10 are different findings.
+# An unremoved baseline-04.00 offset would be +1000 DN = +0.10 reflectance in every band.
+# The harmonisation check is judged against this, not against zero.
 UNHARMONISED_STEP = 0.10
 
-# Channels the harmonisation check measures. The verdict is taken from the raw bands only
-# (see `harmonisation_check`); NDVI is carried for context because it is what the labeller
-# and the model actually look at.
+# Channels the harmonisation check measures; the verdict is taken from the raw bands only
+# (see `harmonisation_check`). NDVI is carried for context.
 HARMONISATION_CHANNELS = ("SWIR1", "R", "NIR", "NDVI")
 BANDS_FOR_VERDICT = ("SWIR1", "R", "NIR")
 
 ERODE_M = 10.0
-MIN_PIXELS = 5          # a date with fewer clear eroded pixels is dropped
-TRACE_MONTHS = 12       # +/- this many months around imagery_date
+MIN_PIXELS = 5          # drop a date with fewer clear eroded pixels
+TRACE_MONTHS = 12       # +/- months around imagery_date
 REDUCE_SCALE = 10       # metres
 
 
@@ -95,16 +79,9 @@ def f_pixels() -> Path:
     return feat() / "s2_perdate.parquet"
 
 
-# ------------------------------------------------------------------------------------
-# Windows (§5.4)
-# ------------------------------------------------------------------------------------
+# --- Windows (§5.4) ---
 def ag_year(date) -> tuple[dt.date, dt.date]:
-    """The agricultural year **Aug 1 - Jul 31** containing ``date``.
-
-    Aug-Jul holds one complete sierra season (sow Sep-Nov, harvest Apr-Jun) instead of
-    cutting it in half, which a calendar year does. Deliberately different from the
-    Landsat pipeline's calendar year: nothing here needs to be comparable to that store.
-    """
+    """The agricultural year Aug 1 - Jul 31 containing ``date`` (one full sierra season)."""
     d = pd.Timestamp(date).date()
     start_year = d.year if d.month >= 8 else d.year - 1
     return dt.date(start_year, 8, 1), dt.date(start_year + 1, 7, 31)
@@ -113,8 +90,8 @@ def ag_year(date) -> tuple[dt.date, dt.date]:
 def trace_window(date, months: int = TRACE_MONTHS) -> tuple[dt.date, dt.date]:
     """24 months centred on ``date`` — the annotator's NDVI trace, and the extraction span.
 
-    The agricultural year containing ``date`` is always inside this interval (it starts at
-    most 11 months before and ends at most 11 months after), so one extraction serves both.
+    The agricultural year containing ``date`` is always inside this interval, so one
+    extraction serves both.
     """
     d = pd.Timestamp(date)
     return ((d - pd.DateOffset(months=months)).date(),
@@ -127,16 +104,13 @@ def window_key(date, months: int = TRACE_MONTHS) -> str:
     return f"{lo:%Y%m}_{hi:%Y%m}"
 
 
-# ------------------------------------------------------------------------------------
-# Geometry
-# ------------------------------------------------------------------------------------
+# --- Geometry ---
 def erode_parcels(parcels: gpd.GeoDataFrame, erode_m: float = ERODE_M,
                   metric_crs: int = 32718) -> gpd.GeoDataFrame:
     """Shrink each parcel by ``erode_m`` to drop edge/mixed pixels; flag the fallbacks.
 
-    Done offline in a metric CRS rather than with ``ee.Geometry.buffer`` so the result is
-    inspectable and the fallback is explicit: a parcel the erosion empties keeps its
-    original outline and gets ``eroded=False``, rather than silently contributing no data.
+    Done offline in a metric CRS so the result is inspectable and the fallback is explicit:
+    a parcel the erosion empties keeps its original outline and gets ``eroded=False``.
     """
     out = parcels.copy()
     m = out.geometry.to_crs(metric_crs)
@@ -148,22 +122,19 @@ def erode_parcels(parcels: gpd.GeoDataFrame, erode_m: float = ERODE_M,
     return out
 
 
-# ------------------------------------------------------------------------------------
-# Collection
-# ------------------------------------------------------------------------------------
+# --- Collection ---
 def masked_collection(lo: dt.date, hi: dt.date, region, cs_threshold=CS_THRESHOLD):
     """Harmonised, Cloud-Score+-masked S2 collection over ``region`` in ``[lo, hi)``."""
     ee = init_ee()
 
     def _prep(img):
-        # Cloud Score+ is linked per-image; `cs_cdf` is the cumulative clear-sky
-        # probability, so >= 0.60 keeps confidently-clear pixels including thin haze cases.
+        # cs_cdf is cumulative clear-sky probability; >=0.60 keeps confidently-clear pixels.
         clear = img.select("cs_cdf").gte(cs_threshold)
-        # SCL class 1 = saturated/defective. The only extra mask (see module docstring).
+        # SCL class 1 = saturated/defective; the only extra mask (see module docstring).
         not_defective = img.select("SCL").neq(1)
         out = (img.select(list(S2_BANDS)).rename(list(S2_BANDS.values()))
                .updateMask(clear.And(not_defective)))
-        # per-pixel NDVI, so `perdate_chunk` can take real quantiles of it (see S2_NDVI_BAND)
+        # per-pixel NDVI, for real quantiles downstream (see S2_NDVI_BAND)
         out = out.addBands(out.normalizedDifference(["NIR", "R"]).rename(S2_NDVI_BAND))
         return out.copyProperties(img, ["system:time_start", "SPACECRAFT_NAME"])
 
@@ -199,14 +170,9 @@ def _fetch_all(fc) -> list[dict]:
 def perdate_chunk(chunk: gpd.GeoDataFrame, lo: dt.date, hi: dt.date) -> pd.DataFrame:
     """One row per parcel x acquisition date: band medians, NDVI quartiles, pixel count.
 
-    ``median + count + percentile([25, 75])`` are combined with ``sharedInputs=True``, so
-    all three come out of **one** pass over the pixels — a second ``reduceRegions`` for the
-    quantiles would re-read the imagery, which is the expensive part.
-
-    The band percentiles that fall out of that combine are discarded: only NDVI's are used
-    (the labelling ribbon), and keeping 12 unused columns per row would grow the store for
-    nothing. If a later analysis wants per-band spread, it is already being computed and
-    only the ``keep`` list below has to change.
+    ``median + count + percentile`` are combined with ``sharedInputs=True``, so all come
+    from one pass over the pixels. The band percentiles are discarded (only NDVI's are
+    used); to keep them, extend the ``keep`` list below.
     """
     ee = init_ee()
     region = ee.Geometry.Rectangle(list(chunk.total_bounds))
@@ -237,7 +203,7 @@ def perdate_chunk(chunk: gpd.GeoDataFrame, lo: dt.date, hi: dt.date) -> pd.DataF
                             f"{S2_NDVI_BAND}_p75": "NDVI_px_p75"})
     cnt_cols = [c for c in df.columns if c.endswith("_count")]
     if cnt_cols:
-        # every band shares the same mask, so the counts agree; take the 10 m one
+        # every band shares the mask, so the counts agree; take the 10 m one
         df["n_px"] = df[cnt_cols].max(axis=1)
         df = df.drop(columns=cnt_cols)
     keep = ["COD_PREDIO", "date", "doy", "n_px", *bands, *NDVI_PX_COLS]
@@ -245,16 +211,13 @@ def perdate_chunk(chunk: gpd.GeoDataFrame, lo: dt.date, hi: dt.date) -> pd.DataF
     return df.dropna(subset=[b for b in bands if b in df.columns], how="all")
 
 
-# ------------------------------------------------------------------------------------
-# Runner
-# ------------------------------------------------------------------------------------
-# Largest bounding box (square degrees) a chunk may span. The chunk bbox becomes the
-# `filterBounds` rectangle, and **every S2 granule intersecting it is reduced, per image**
-# — so cost scales with extent, not with parcel count. A window group here draws parcels
-# from all 14 departments, so grouping by window alone gave chunks spanning most of Peru
-# and the first run stalled at 3 of 89 chunks with the workers at 0 % CPU. An S2 granule is
-# ~110 km, so ~1 deg^2 keeps a chunk to a handful of granule columns. This is exactly the
-# lesson `landsat_gee._chunk_todo` already recorded; it had to be learned twice.
+# --- Runner ---
+# Largest bbox (deg²) a chunk may span. The chunk bbox becomes the `filterBounds`
+# rectangle, and every intersecting S2 granule is reduced per image — so cost scales with
+# extent, not parcel count. Grouping by window alone drew parcels from all 14 departments
+# and gave near-continental chunks that stalled at 0 % CPU. An S2 granule is ~110 km, so
+# ~1 deg² keeps a chunk to a few granule columns. Same lesson as `landsat_gee._chunk_todo`,
+# learned twice.
 MAX_CHUNK_BBOX_DEG2 = 1.0
 
 
@@ -269,7 +232,7 @@ def _chunks(parcels: gpd.GeoDataFrame, chunk_size: int,
 
     Within a window, parcels are visited in Hilbert order and packed greedily; a chunk is
     cut short as soon as adding the next parcel would push its bounding box past
-    ``max_bbox``. Chunks are therefore full *and* compact, instead of full and continental.
+    ``max_bbox``.
     """
     todo = []
     for key, grp in parcels.groupby("_window", sort=True):
@@ -314,8 +277,7 @@ def extract(parcels: gpd.GeoDataFrame, chunk_size: int = 25,
     """Extract per-date parcel medians for every parcel's 24-month window.
 
     ``parcels`` needs ``COD_PREDIO``, ``geometry`` and ``imagery_date``. Resumable: each
-    chunk is a content-addressed parquet under ``<feat>/s2_chunks/``, so a re-run skips
-    what is already on disk.
+    chunk is a content-addressed parquet under ``<feat>/s2_chunks/``.
     """
     init_ee()
     feat_dir = feat_dir or feat()
@@ -348,10 +310,8 @@ def extract(parcels: gpd.GeoDataFrame, chunk_size: int = 25,
         return f"  [{n + 1}/{len(todo)}] {key}: {len(df):,} parcel-dates"
 
     if pending:
-        # Threads, not processes: every call is IO-bound on GEE, and each chunk writes its
-        # own content-addressed file so there is nothing to serialise. Kept modest — GEE
-        # answers a concurrency breach with *"Restricted Mode"*, which arrives as a silent
-        # 900 s hang rather than an error.
+        # Threads, not processes: every call is IO-bound on GEE. Kept modest — a concurrency
+        # breach triggers GEE "Restricted Mode", which arrives as a silent 900 s hang.
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=max(1, workers)) as ex:
             for msg in ex.map(_one, pending):
@@ -373,19 +333,15 @@ def _consolidate(df: pd.DataFrame, parcels: pd.DataFrame,
                  min_pixels: int) -> pd.DataFrame:
     """Merge same-date granule splits, apply the pixel floor, attach the erosion flag.
 
-    A parcel in an S2 tile overlap is reduced once per granule on the same date, giving two
-    rows that are both correct over their own part of the parcel. They are combined as a
-    **pixel-count-weighted mean of the two medians** — the alternative, keeping the larger,
-    throws away real observations at exactly the parcels that straddle a tile edge.
+    A parcel in a tile overlap is reduced once per granule on the same date, giving two
+    rows correct over their own part of the parcel. They are combined as a
+    pixel-count-weighted mean of the two medians (keeping the larger one would drop real
+    observations at tile-edge parcels). The NDVI quartiles are averaged the same way; this
+    affects only the ribbon width on the handful of split dates.
     """
     from crop_classifier.features.indices import BANDS
 
     bands = [b for b in BANDS if b in df.columns]
-    # The NDVI quartiles are averaged the same way. A pixel-count-weighted mean of two
-    # granules' p25 is not the true p25 of the union, but the two halves are disjoint pixel
-    # sets over one field and the alternative — dropping one — loses real observations at
-    # exactly the parcels that straddle a tile edge (D11). It affects only the ribbon's
-    # width on the handful of split dates.
     vals = bands + [c for c in NDVI_PX_COLS if c in df.columns]
     df = df.dropna(subset=["n_px"])
     df["n_px"] = df["n_px"].astype(float)
@@ -413,29 +369,18 @@ def _consolidate(df: pd.DataFrame, parcels: pd.DataFrame,
     return df.sort_values(["COD_PREDIO", "date"]).reset_index(drop=True)
 
 
-# ------------------------------------------------------------------------------------
-# §5.1 harmonisation verification — a 20-minute check that guards the whole store
-# ------------------------------------------------------------------------------------
+# --- §5.1 harmonisation verification — a 20-min check that guards the whole store ---
 def harmonisation_check(px: pd.DataFrame | None = None,
                         out_dir: Path | str = "docs/figures") -> pd.DataFrame:
     """Confirm there is no radiometric step at the 2022-01-25 baseline-04.00 boundary.
 
-    ``_HARMONIZED`` is *supposed* to remove the +1000 DN offset. RESULTS.md §9.5 is what
-    happens when a correction is assumed to work rather than checked: the Roy OLI
-    harmonisation had been documented as the safe path for months and was **harmful** the
-    first time anyone ran it.
+    ``_HARMONIZED`` is supposed to remove the +1000 DN offset; RESULTS.md §9.5 is what
+    happens when a correction is assumed to work rather than checked.
 
-    **Phenology is controlled by construction, and the check has a negative control.**
-    The obvious version — mean NDVI in the six months before the cut against the six after
-    — is worthless here, because "before" is Jul-Jan and "after" is Jan-Jul, so it measures
-    the growing season. Run that way on this data it reports a +0.055 NDVI "step" that is
-    entirely seasonal. Instead:
-
-    * the contrast is **within parcel and within month-of-year**, so a January is only ever
-      compared with another January;
-    * the identical procedure is run at a **placebo cut a year earlier**, where no baseline
-      change happened. The placebo is the measurement's own noise floor, and the real cut
-      only means something relative to it.
+    Phenology is controlled by construction: the contrast is within parcel and within
+    month-of-year, and the identical procedure is run at a placebo cut one year earlier
+    (no baseline change) as the noise floor. A naive six-months-before/after mean reports a
+    +0.055 NDVI "step" that is entirely seasonal.
 
     Returns the summary; writes ``s2_harmonisation_check.csv``, the monthly series and a
     figure.
@@ -458,27 +403,19 @@ def harmonisation_check(px: pd.DataFrame | None = None,
                          **_paired_step(d, c, col)})
     summary = pd.DataFrame(rows)
 
-    # **Two corrections make this readable, and neither is optional.**
-    #
-    # (1) The estimator has a residual of its own: even on a pure sine with no step it
-    #     returns ~+0.018, because a month's observations do not fall on the same days in
-    #     two different years. The **placebo cut is that residual measured**, so the
-    #     quantity to judge is `step - placebo`, not `step`.
-    # (2) The judgement is against what the *failure* would look like, not against zero. An
-    #     unremoved +1000 DN offset is +0.10 reflectance in every band. A corrected step an
-    #     order of magnitude below that is not the baseline-04.00 offset, whatever else it
-    #     may be.
+    # Two corrections, neither optional:
+    # (1) The estimator has a ~+0.018 residual even with no step (a month's observations
+    #     fall on different days across years), so judge `step - placebo`, not `step`.
+    # (2) Judge against the failure, not zero: an unremoved +1000 DN offset is +0.10 per band.
     plac = summary[summary.cut == "placebo_-1y"].set_index("channel")["step"]
     summary["placebo_step"] = summary["channel"].map(plac)
     summary["step_corrected"] = summary["step"] - summary["placebo_step"]
     summary["expected_if_unharmonised"] = UNHARMONISED_STEP
     summary["frac_of_failure"] = (summary["step_corrected"].abs()
                                   / summary["expected_if_unharmonised"])
-    # **The verdict is read off the raw BANDS, never off an index.** The baseline-04.00
-    # change is an additive offset in band reflectance, so a band answers the question
-    # directly. NDVI is a ratio: it responds to an offset in a value-dependent way *and* it
-    # absorbs every real year-to-year change in how green the country was. On this data it
-    # reads -0.031 while the bands read ~+0.01 — that gap is Peruvian weather, not Sentinel-2.
+    # Verdict is read off the raw BANDS, never an index: the baseline change is additive in
+    # band reflectance, while NDVI also absorbs real year-to-year greenness change (it reads
+    # -0.031 here vs bands ~+0.01 — that gap is Peruvian weather, not Sentinel-2).
     summary["diagnostic"] = summary["channel"].isin(BANDS_FOR_VERDICT)
     summary["verdict"] = np.where(
         ~summary["diagnostic"],
@@ -509,21 +446,16 @@ def harmonisation_check(px: pd.DataFrame | None = None,
 
 def _paired_step(d: pd.DataFrame, cut: pd.Timestamp, col: str,
                  months: int = 12, min_obs: int = 8) -> dict:
-    """Per-parcel step across ``cut``, with the seasonal cycle **fitted out**, not binned out.
+    """Per-parcel step across ``cut``, with the seasonal cycle fitted out, not binned out.
 
-    For each parcel, over a +/- ``months`` window::
+    Per parcel, over a +/- ``months`` window::
 
         value ~ a + b*cos(2*pi*t) + c*sin(2*pi*t) + step * 1[date >= cut]
 
-    and ``step`` is the coefficient reported (median across parcels). The order-1 harmonic
-    is the same seasonal model ``assemble._summaries`` already uses.
-
-    **Why a fit and not a within-month-of-year pairing.** The pairing version looks exactly
-    as principled and is not: a parcel's observations do not land on the same days of the
-    month in two different years, so within a month the two sides sample different parts of
-    a steep seasonal curve. On a pure sine with no step at all it returns ~+0.018 at one cut
-    date and ~-0.014 at another, purely from where the sampling grid happens to sit. Fitting
-    the cycle removes it by construction: the same synthetic series returns ~0 at both.
+    ``step`` is the reported coefficient (median across parcels); the order-1 harmonic
+    matches ``assemble._summaries``. A within-month-of-year pairing looks as principled but
+    samples different parts of a steep seasonal curve across years (~+0.018 on a pure sine
+    with no step).
     """
     win = d[(d["date"] >= cut - pd.DateOffset(months=months))
             & (d["date"] < cut + pd.DateOffset(months=months))].copy()
@@ -538,7 +470,7 @@ def _paired_step(d: pd.DataFrame, cut: pd.Timestamp, col: str,
     for _, g in win.groupby("COD_PREDIO", sort=False):
         y = g[col].values.astype(float)
         ok = np.isfinite(y)
-        # both sides must be present, and enough points to identify 4 coefficients
+        # both sides present, and enough points to identify 4 coefficients
         if ok.sum() < min_obs or g.loc[ok, "_after"].nunique() < 2:
             continue
         X = np.c_[np.ones(ok.sum()), g["_c"].values[ok], g["_s"].values[ok],
@@ -590,9 +522,8 @@ def _harmonisation_figure(monthly: pd.DataFrame, summary: pd.DataFrame,
 def observation_report(px: pd.DataFrame, parcels: pd.DataFrame) -> pd.DataFrame:
     """Clear observations per parcel-year by department (§5.6).
 
-    S2's 5-day revisit should give far more than Landsat's 13-24, but the selva is
-    cloud-limited and that number bounds what a model can do there — so it is measured
-    rather than assumed.
+    The selva is cloud-limited and that number bounds what a model can do there, so it is
+    measured rather than assumed.
     """
     p = px.copy()
     p["date"] = pd.to_datetime(p["date"])

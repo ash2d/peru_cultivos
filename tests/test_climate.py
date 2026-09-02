@@ -1,12 +1,11 @@
 """Guards on the per-parcel climate covariates.
 
 The trap this file pins is the same shape as the four in `DATA.md`: a climate raster masks
-the ocean, Peru's cadastre runs to the shoreline, and a parcel whose centroid lands one cell
-seaward comes back **NaN rather than as an error**. A NaN column silently drops that parcel
-from any model that uses it, so the sampler falls back to the nearest valid cell and the
-count is reported. These tests hold that behaviour, and hold the two things that make a
-centroid sample legitimate here at all: the parcel is smaller than the pixel, and the
-derived columns mean what their names say.
+the ocean, the cadastre runs to the shoreline, and a parcel whose centroid lands one cell
+seaward comes back **NaN, not an error** — silently dropping it from any model that uses the
+column. The sampler falls back to the nearest valid cell and reports the count. These tests
+hold that, plus the two things that make a centroid sample legitimate here: the parcel is
+smaller than the pixel, and the derived columns mean what their names say.
 """
 
 from __future__ import annotations
@@ -64,9 +63,7 @@ def test_points_outside_the_raster_are_clamped_not_wrapped(tmp_path):
     assert v[0] == 3.0                        # clamped to column 0 of the middle row
 
 
-# ------------------------------------------------------------------------------------
-# the premise that licenses a centroid sample
-# ------------------------------------------------------------------------------------
+# --- the premise that licenses a centroid sample ---
 def test_no_national_parcel_is_larger_than_a_worldclim_cell():
     """If this ever fails, the centroid sample stops being equivalent to a zonal mean."""
     from crop_classifier.allperu.climate import PARCELS
@@ -77,9 +74,7 @@ def test_no_national_parcel_is_larger_than_a_worldclim_cell():
     assert a.max() < px_ha, f"largest parcel {a.max():.1f} ha vs {px_ha:.0f} ha cell"
 
 
-# ------------------------------------------------------------------------------------
-# the derived columns say what they are named
-# ------------------------------------------------------------------------------------
+# --- the derived columns say what they are named ---
 def test_derived_seasonality_columns_match_their_definitions(tmp_path, monkeypatch):
     """`n_dry_months` counts months under 50 mm; the aridity index is P/(T+10)."""
 
@@ -93,10 +88,9 @@ def test_derived_seasonality_columns_match_their_definitions(tmp_path, monkeypat
 def test_rainfall_seasonality_is_nan_exactly_where_rainfall_is_zero():
     """0/0 is undefined and stays undefined.
 
-    1,275 Ica parcels receive exactly 0 mm/year in the WorldClim normal. Filling their
-    seasonality with 0 would assert that rain is evenly spread through the year, which is a
-    claim about rain that does not fall. This pins that the NaN is confined to those rows
-    and has not leaked anywhere else — a NaN elsewhere would silently drop the parcel.
+    1,275 Ica parcels get exactly 0 mm/year in the WorldClim normal. Filling their
+    seasonality with 0 would claim rain is evenly spread through a year in which none falls.
+    This pins the NaN to those rows — a NaN elsewhere would silently drop the parcel.
     """
     from crop_classifier.allperu.climate import OUT_DIR
     f = OUT_DIR / "parcel_climate_normals.parquet"

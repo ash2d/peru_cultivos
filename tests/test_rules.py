@@ -46,7 +46,7 @@ def fitted(ds, tmp_path, **kw) -> RuleModel:
     return m
 
 
-# ---- registry ------------------------------------------------------------------------
+# --- registry ---
 def test_registered_as_a_flat_model():
     assert model_input_kind("rules") == "flat"
     assert INPUT_KIND["rules"] == "flat"
@@ -62,7 +62,7 @@ def test_registry_lookup_does_not_import_torch_or_lightgbm():
     assert "torch" not in dir(r) and "lightgbm" not in dir(r)
 
 
-# ---- threshold search ----------------------------------------------------------------
+# --- threshold search ---
 def test_finds_a_known_separable_boundary(separable, tmp_path):
     m = fitted(separable, tmp_path)
     t = m.thresholds
@@ -88,7 +88,7 @@ def test_fit_never_reads_validation_data(separable, tmp_path):
     assert m.thresholds == a
 
 
-# ---- probabilities -------------------------------------------------------------------
+# --- probabilities ---
 def test_probabilities_sum_to_one_and_are_not_one_hot(separable, tmp_path):
     m = fitted(separable, tmp_path)
     p = m.predict_proba(separable)
@@ -109,7 +109,7 @@ def test_soft_scores_move_with_the_margin(separable, tmp_path):
     assert m.predict_proba(far)[0, PER] > m.predict_proba(near)[0, PER]
 
 
-# ---- NaN fallback --------------------------------------------------------------------
+# --- NaN fallback ---
 def test_nan_rows_fall_back_to_training_majority_and_are_counted(tmp_path):
     rng = np.random.default_rng(1)
     n = 100
@@ -136,7 +136,7 @@ def test_nan_rows_in_training_are_counted(tmp_path):
     assert m.n_nan_rows == 1
 
 
-# ---- persistence ---------------------------------------------------------------------
+# --- persistence ---
 def test_save_load_round_trip(separable, tmp_path):
     m = fitted(separable, tmp_path)
     path = tmp_path / "model.bin"
@@ -147,7 +147,7 @@ def test_save_load_round_trip(separable, tmp_path):
     assert np.allclose(m2.predict_proba(separable), m.predict_proba(separable))
 
 
-# ---- error surface -------------------------------------------------------------------
+# --- error surface ---
 def test_missing_feature_raises_rather_than_guessing(tmp_path):
     ds = FlatData(X=pd.DataFrame({"NDVI_p25": [0.5]}), y=np.array([0]),
                   cod_predio=np.array(["a"]), feature_names=["NDVI_p25"])

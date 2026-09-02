@@ -1,53 +1,32 @@
 """Normalise the free-text ``CULTIVO`` crop labels from the BD SSET registry.
 
-The registry's crop field is dirty free text: ~9,400 distinct labels in Piura, riddled
-with typos, accents, plurals, regional synonyms, land-prep / fallow states written where
-a crop should be, and **multiple crops packed into one cell** with a dozen different
-separators (``CAFE Y PLATANO``, ``MANGO, LIMON``, ``CAFE 50%-PLATANO 50%``, ...).
+~9,400 distinct dirty labels in Piura — typos, accents, plurals, regional synonyms,
+land-prep/fallow states, and multiple crops packed into one cell with a dozen separators.
+Turns one raw label into a list of ``(crop, category)`` pairs, nothing silently dropped.
 
-This module turns one raw label into a **list of normalised crop tokens**, each tagged
-with a coarse ``category`` so downstream code can decide what to keep *without anything
-being silently dropped here*.
-
-Design decisions (kept deliberately conservative so no real crop type is lost):
-
-* **Split, don't guess a "main" crop.** A label is split on every separator we have seen
-  (``, / + & - Y CON`` and percentage weightings). Percentages and parentheticals are
-  stripped, so ``CAFE 50%-PLATANO 50%`` and ``CAFE(50%), PLATANO(50%)`` both become
-  ``[CAFE, PLATANO]``.
-* **Normalise spelling, not identity.** ``CANON`` fixes typos, accents, plurals and
-  documented regional synonyms (``AROZ→ARROZ``, ``ALGODONERO→ALGODON``,
-  ``MERKERON→MELQUERON``). It does **not** merge genuinely distinct crops — e.g. the bean
-  varieties ``FRIJOL DE PALO`` / ``FRIJOL CAUPI`` stay distinct (Landsat can't tell them
-  apart, but that is a modelling choice to make later, not a data-cleaning one to bake in
-  now).
-* **Nothing is removed.** Fallow (``DESCANSO``), land preparation (``GRADEO``, ``ARADO``),
-  pasture and "unspecified" all survive as tokens; they are only flagged via ``category``
-  (``fallow`` / ``land_prep`` / ``pasture`` / ``unspecified`` / ``crop``).
-* Tokens not covered by ``CANON`` pass through cleaned (uppercased, de-accented,
-  whitespace-collapsed) and default to ``category="crop"`` unless a keyword marks them
-  otherwise — so rare, long-tail crops are preserved verbatim rather than dropped.
+Conservative by design: split on every seen separator (``, / + & - Y CON`` + percentage
+weightings, parentheticals stripped); normalise spelling not identity (``CANON`` fixes
+typos/accents/plurals/synonyms but never merges distinct crops — the bean varieties stay
+separate); nothing removed (fallow / land_prep / pasture / unspecified survive, flagged by
+``category``); unknown tokens pass through cleaned, defaulting to ``crop`` unless a keyword
+marks them otherwise.
 """
 
 from __future__ import annotations
 
 import re
 
-# --------------------------------------------------------------------------------------
-# 1 · Low-level text cleaning
-# --------------------------------------------------------------------------------------
+# --- 1 · Low-level text cleaning ---
 
-# Strip vowel accents but KEEP "Ñ" (it is meaningful: CAÑA = sugarcane).
+# Strip vowel accents but KEEP "Ñ" (meaningful: CAÑA = sugarcane).
 _ACCENTS = str.maketrans("ÁÀÄÂÉÈËÊÍÌÏÎÓÒÖÔÚÙÜÛ", "AAAAEEEEIIIIOOOOUUUU")
 
-# Separators that delimit distinct crops inside one cell. "Y"/"CON" only as whole words
-# (so GUAYAQUIL, SOYA, YUCA are not split). "E" is intentionally NOT a separator: it is
-# too risky (2 chars, appears in "EN DESCANSO", "DE") for the 3 rows it would help.
+# Crop separators. "Y"/"CON" only as whole words (so GUAYAQUIL, SOYA, YUCA are not split).
+# "E" is deliberately not a separator — too risky ("EN DESCANSO", "DE") for the 3 rows it helps.
 _SPLIT = re.compile(r"[,/+&]|-+|\bY\b|\bCON\b")
 
-# Descriptive prefixes that wrap a crop noun; stripped (repeatedly) so the crop is
-# recovered. e.g. "CULTIVO DE ARROZ" -> "ARROZ",
-# "EXISTEN RASTROJOS DE MAIZ" -> "RASTROJOS DE MAIZ" -> "MAIZ".
+# Descriptive prefixes wrapping a crop noun, stripped repeatedly:
+# "EXISTEN RASTROJOS DE MAIZ" -> "MAIZ".
 _PREFIX = re.compile(
     r"^(CULTIVO DE|CULTIVO|SEMBRIO DE|SEMBRADO DE|SEMBRADO CON|SEMBRADO|SEMBRIO|"
     r"RASTROJOS DE|RASTROJO DE|RASTROJOS|RASTROJO|RESTOS DE|"
@@ -58,14 +37,10 @@ _PREFIX = re.compile(
 
 
 def clean_text(s: str) -> str:
-    """Uppercase, de-accent, and turn percentage weightings / parentheticals into a comma
-    separator, then collapse whitespace.
-
-    Percentages and parentheticals are *separators*, not noise: in this data crops are
-    very often delimited only by their share, e.g. ``PLATANO (30%) CAFE (30%)`` or
-    ``CAFE 50%-PLATANO 50%`` or ``CAFE 50, PLATANO 50``. Replacing every ``(...)`` group
-    and every digit-run (with or without ``%``) by a comma lets the normal splitter break
-    all three forms into individual crops.
+    """Uppercase, de-accent, collapse whitespace, and turn percentage weightings /
+    parentheticals into comma separators — crops here are often delimited only by their
+    share (``PLATANO (30%) CAFE (30%)``, ``CAFE 50%-PLATANO 50%``), so ``(...)`` groups and
+    digit-runs become commas for the splitter.
     """
     s = str(s).upper().translate(_ACCENTS)
     s = re.sub(r"\(.*?\)", ",", s)      # "(50%)" -> separator
@@ -75,11 +50,9 @@ def clean_text(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
-# --------------------------------------------------------------------------------------
-# 2 · Canonical synonym / typo map  (raw cleaned token -> canonical token)
-# --------------------------------------------------------------------------------------
-# Grouped by canonical value for readability. Only spelling variants, accents, plurals
-# and documented regional synonyms are merged here — never two distinct crops.
+# --- 2 · Canonical synonym / typo map (cleaned variant -> canonical) ---
+# Only spelling variants, accents, plurals and documented regional synonyms — never two
+# distinct crops.
 _SYNONYMS: dict[str, tuple[str, ...]] = {
     # --- staple annual crops ---
     "ARROZ": ("AROZ", "ARROS", "ARROZAL", "ARRZ"),
@@ -175,8 +148,8 @@ _SYNONYMS: dict[str, tuple[str, ...]] = {
     "COBERTURA ARBOREA": ("COBERTURA ARBOLES", "COBERTURA BOSCOSA", "BOSQUE"),
 }
 
-# Fallow / land-preparation states written in the crop field. Kept, but categorised so a
-# classifier can exclude them. Values here are the canonical land-state token.
+# Fallow / land-preparation states written in the crop field. Kept, categorised so a
+# classifier can exclude them.
 _FALLOW: dict[str, tuple[str, ...]] = {
     "DESCANSO": ("EN DESCANSO", "EN DESCANZO", "DESCANZO", "TERRENO EN DESCANSO",
                  "TERRENO EN DESCANZO", "PREDIO EN DESCANSO", "PREDIO EN DESCANZO",
@@ -216,8 +189,8 @@ _CATEGORY_SOURCES: list[tuple[str, dict[str, tuple[str, ...]]]] = [
     ("crop", _SYNONYMS),  # pasture tokens are re-tagged below
 ]
 
-# Pasture canonical tokens get their own category (they are a valid land-cover class,
-# distinct from row crops — a classifier may keep or drop them as a group).
+# Pasture canonical tokens get their own category — a valid land-cover class, distinct from
+# row crops.
 _PASTURE_CANON = {
     "PASTO", "PASTO NATURAL", "PASTO ELEFANTE", "MELQUERON", "GRAMA", "GRAMALOTE",
     "GRAMA CRIOLLA", "REYGRAS", "INVERNA", "NUDILLO", "YARAGUA", "GRAMINEAS",
@@ -284,30 +257,30 @@ def _lookup(token: str) -> tuple[str, str] | None:
 def canonicalize_token(token: str) -> list[tuple[str, str]]:
     """Map one cleaned sub-string to a list of ``(canonical_name, category)`` pairs.
 
-    Usually one pair, but a space-separated run of *known* crops (``MANGO LIMON``,
-    ``CAFE PLATANO NARANJA``) expands to several. Returns ``[]`` for empty / noise input.
+    Usually one; a space-separated run of *known* crops (``MANGO LIMON``) expands to
+    several. ``[]`` for empty / noise input.
     """
     prev = None
-    while token != prev:                        # strip nested prefixes: "EXISTEN RASTROJOS DE X"
+    while token != prev:                        # strip nested prefixes
         prev = token
         token = _PREFIX.sub("", token, count=1).strip()
     token = re.sub(r"\s+", " ", token)
     if not token or len(token) < 2:
         return []
 
-    hit = _lookup(token)                         # whole token known? (multi-word crops win here)
+    hit = _lookup(token)                         # whole token known (multi-word crops win)
     if hit is not None:
         return [hit]
 
-    # Unknown multi-word token: split on spaces ONLY if every piece is a known crop, so
-    # "MANGO LIMON" -> [MANGO, LIMON] but "GRAMA CHINA" / "MAIZ AMARILLO DURO" stay whole.
+    # unknown multi-word: split on spaces only if every piece is a known crop
+    # ("MANGO LIMON" -> split; "MAIZ AMARILLO DURO" stays whole)
     pieces = token.split(" ")
     if len(pieces) > 1:
         resolved = [_lookup(p) for p in pieces]
         if all(r is not None for r in resolved):
             return [r for r in resolved if r is not None]
 
-    # Long-tail passthrough: keep the cleaned token, infer category from keywords.
+    # long-tail passthrough: keep the cleaned token, category from keywords
     return [(token, _keyword_category(token))]
 
 

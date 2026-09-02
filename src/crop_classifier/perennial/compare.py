@@ -85,7 +85,7 @@ def compare(run_dirs: list[Path], out_dir: Path,
     per_class.to_csv(out_dir / "per_class_f1.csv", index=False)
     print(flat.to_string(index=False))
 
-    # ---- per-fold macro-F1 (the honest spatial-CV error bar) ----
+    # --- per-fold macro-F1 (the honest spatial-CV error bar) ---
     if "fold_macro_f1" in tbl:
         fig, ax = plt.subplots(figsize=(6.5, 4))
         for _, r in tbl.iterrows():
@@ -100,7 +100,7 @@ def compare(run_dirs: list[Path], out_dir: Path,
         fig.savefig(out_dir / "cv_macro_f1_by_fold.png", dpi=130)
         plt.close(fig)
 
-    # ---- pooled metrics ----
+    # --- pooled metrics ---
     metrics = ["macro_f1", "balanced_accuracy", "accuracy", "cohen_kappa"]
     fig, ax = plt.subplots(figsize=(1.6 * len(tbl) + 4, 4))
     w = 0.8 / len(metrics)
@@ -119,7 +119,7 @@ def compare(run_dirs: list[Path], out_dir: Path,
     fig.savefig(out_dir / "pooled_cv_metrics.png", dpi=130)
     plt.close(fig)
 
-    # ---- per-class F1 ----
+    # --- per-class F1 ---
     piv = per_class.pivot(index="class", columns="model", values="f1")
     fig, ax = plt.subplots(figsize=(1.2 * len(piv) + 4, 4))
     piv.plot.bar(ax=ax, width=0.8)

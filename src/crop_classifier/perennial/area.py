@@ -8,9 +8,9 @@ shown:
 (a) **naive** — Σ area of parcels whose argmax is the class. Biased.
 (b) **probability-weighted** — Σ P(class) × area. Softens flicker, still biased, but a
     useful middle line.
-(c) **Olofsson et al. (2014)** stratified estimator with 95 % CIs, using the locked-test
-    confusion matrix as the error matrix. This is the defensible one for a paper: it
-    corrects the bias *and* reports the uncertainty, which an unadorned trend line hides.
+(c) **Olofsson et al. (2014)** stratified estimator with 95 % CIs, error matrix from the
+    locked-test confusion. The defensible one for a paper: corrects the bias *and* reports
+    the uncertainty a bare trend line hides.
 
 Reference: Olofsson, Foody, Herold, Stehman, Woodcock & Wulder (2014), "Good practices for
 estimating area and assessing accuracy of land change", *Remote Sensing of Environment*
@@ -79,8 +79,7 @@ def olofsson_area(map_area: np.ndarray, n: np.ndarray,
 
     ``map_area[i]`` is the mapped area of stratum *i* (from the full map, expanded by
     sampling weights); ``n[i, j]`` is the reference-sample error matrix. Strata with no
-    sample units contribute their mapped area with zero estimated variance — flagged by a
-    wide-looking CI elsewhere rather than silently dropped.
+    sample units contribute their mapped area at zero estimated variance, not dropped.
     """
     n_cls = len(classes)
     total = float(map_area.sum())

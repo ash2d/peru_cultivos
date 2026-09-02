@@ -5,11 +5,10 @@ then combines them. It used to glob **every** ``cov_*.parquet`` there and dedupe
 ``COD_PREDIO`` alone — so two panel years whose ``out=`` files share a parent directory
 would silently return the *first* year's numbers for every parcel.
 
-The plan's stated fix ("call it once per year with an explicit ``out=``") is **not
-sufficient** on its own, because the chunk directory is derived from ``out.parent``. This
-was caught for real during the panel timing probe: 1995, 1996 and 2005 all reported an
-identical 4.7 % gate pass with median 2 observations. The real numbers are 4.7 %, 100 %
-and 100 %.
+The plan's fix ("call it once per year with an explicit ``out=``") is **not sufficient**:
+the chunk directory is derived from ``out.parent``. Caught for real in the panel timing
+probe — 1995/1996/2005 all reported an identical 4.7 % gate pass, median 2 obs; the real
+numbers are 4.7 %, 100 %, 100 %.
 
 These tests exercise the combine logic with pre-seeded chunk files, so no GEE is needed.
 """
@@ -113,16 +112,14 @@ def test_missions_include_l9_from_2021():
     assert set(lg.missions_for_year(2005)) == {"L5", "L7"}
 
 
-# ------------------------------------------------------------------------------------
-# Completeness is measured in PARCELS, never in files (RESULTS.md §7.1)
-# ------------------------------------------------------------------------------------
+# --- Completeness is measured in PARCELS, never in files (RESULTS.md §7.1) ---
 def test_verify_years_catches_a_truncated_year_that_looks_well_formed(tmp_path,
                                                                      monkeypatch):
-    """A per-year pixel store is rewritten from *every* chunk on disk at the moment
-    ``run_pixels`` combines, so a worker finishing early truncates a year another worker is
-    still extracting. `pixels_2023.parquet` once sat at 62 % of its parcels, well-formed and
-    wrong. "The process ended" and "the file exists" have both been wrong here; only the
-    parcel count has not.
+    """A per-year pixel store is rewritten from *every* chunk on disk when ``run_pixels``
+    combines, so a worker finishing early truncates a year another is still extracting.
+    `pixels_2023.parquet` once sat at 62 % of its parcels, well-formed and wrong. "The
+    process ended" and "the file exists" have both been wrong here; only the parcel count
+    has not.
     """
     from crop_classifier.perennial import panel as P
 
@@ -148,11 +145,10 @@ def test_verify_years_catches_a_truncated_year_that_looks_well_formed(tmp_path,
 def test_verify_years_tolerates_a_uniform_sub_pixel_floor(tmp_path, monkeypatch):
     """A parcel smaller than a Landsat pixel passes the coverage gate and yields no rows.
 
-    Measured on the DiD panel: the *same* ~85 of 14,625 parcels are absent in every year
-    (median 0.11 ha, 1.23 estimated pixels). That is a structural floor, not truncation, and
-    the tell is that it is identical in every year — so `verify` must pass it while still
-    failing a year-specific deficit. Setting the tolerance above the floor by guesswork is
-    what produced a false alarm on a complete extraction.
+    Measured on the DiD panel: the *same* ~85 of 14,625 parcels are absent every year (median
+    0.11 ha, 1.23 estimated pixels) — a structural floor, not truncation, and the tell is
+    that it is identical every year. `verify` must pass it while still failing a year-specific
+    deficit; a guessed tolerance above the floor once false-alarmed a complete extraction.
     """
     from crop_classifier.perennial import panel as P
 

@@ -3,20 +3,18 @@
 The demo exists because ``data/`` is 33 GB and gitignored, so a fresh clone could otherwise
 run nothing at all and the first thing a new collaborator met was a wall.
 
-It is drawn from the national workspace: real parcels, real declared labels, real extracted
-Landsat features, real spatial splits. Redistributing this sample publicly was confirmed as
-permitted; the **full** archive is not redistributable and is not here
+Drawn from the national workspace: real parcels, labels, extracted Landsat features, spatial
+splits. Redistributing this sample was confirmed permitted; the **full** archive is not
 (``docs/DATA_ACCESS.md``).
 
 Two design choices, both so the demo teaches the right thing rather than a simplified thing:
 
 * **Six departments, not one.** ``cc advanced lodo`` needs more than one held-out unit, and
   leave-one-department-out is the evaluation this project turns on. A single-department demo
-  would let someone learn the pipeline while never meeting the one split that decides.
-* **Whole regions move together** into a split and into a fold — the assignment is inherited
-  from the national build, not redrawn. Splitting parcels at random would put a parcel's
-  neighbours in its own training set, which is the cheapest way there is to manufacture an
-  inflated cross-validation score.
+  would teach the pipeline but never the split that decides.
+* **Whole regions move together** into a split and a fold — inherited from the national
+  build, not redrawn. Random parcel splits put a parcel's neighbours in its own training
+  set, the cheapest way to inflate a cross-validation score.
 
 Regenerating needs the national workspace on disk; using the committed output does not::
 
@@ -38,9 +36,8 @@ SRC_FEAT = SRC_PROC / "features"
 OUT = ROOT / "data" / "demo"
 SEED = 20260901
 
-# Six departments spanning the country's range of class balance: TUMBES is 75 % PERENNIAL,
-# LAMBAYEQUE 6 %. A demo drawn from six similar departments would make leave-one-department-out
-# look easy, which is the opposite of the lesson.
+# Six departments spanning the range of class balance: TUMBES 75 % PERENNIAL, LAMBAYEQUE 6 %.
+# Six similar departments would make leave-one-department-out look easy — the opposite lesson.
 DEPTS = ["PIURA", "LAMBAYEQUE", "ICA", "TUMBES", "ANCASH", "AYACUCHO"]
 PER_DEPT = 220
 N_FOLDS = 5
@@ -63,10 +60,9 @@ def _require_source() -> None:
 def draw(rng: np.random.Generator) -> gpd.GeoDataFrame:
     """A stratified draw: up to PER_DEPT parcels per department, balanced across classes.
 
-    Balanced rather than proportional because the point is a demo that trains: the national
-    class balance would give a fold with three PERENNIAL parcels in it. ⚠️ That means the demo
-    is NOT a representative sample and no share computed from it means anything — the same
-    caveat the real national sample carries, for the same reason.
+    Balanced not proportional so the demo trains: the national balance would give a fold with
+    three PERENNIAL parcels. ⚠️ So the demo is NOT a representative sample and no share from it
+    means anything — the same caveat the national sample carries.
     """
     g = gpd.read_parquet(SRC_PROC / "modeling_parcels.parquet")
     g = g[g["dept"].isin(DEPTS) & (g["quality_ok"] == True)]      # noqa: E712
@@ -83,9 +79,9 @@ def draw(rng: np.random.Generator) -> gpd.GeoDataFrame:
 def refold(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """Renumber folds so all five are populated after the draw.
 
-    The national fold ids survive the sample unevenly — a fold can end up empty, and an empty
-    validation fold is a crash rather than a warning. Regions are kept **whole**: every parcel
-    of a region moves to the same fold, which is the property that makes the split honest.
+    The national fold ids survive the sample unevenly — a fold can end up empty, which crashes
+    rather than warns. Regions are kept **whole**: every parcel of a region moves to the same
+    fold, the property that makes the split honest.
     """
     tv = df["split"] == "trainval"
     regions = sorted(df.loc[tv, "region_id"].unique())

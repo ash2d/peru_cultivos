@@ -139,8 +139,8 @@ class TestGeeFaultTolerance:
 
     def test_deadline_turns_a_silent_hang_into_a_retry(self):
         """The measured failure this exists for: a GEE call that never returns and never
-        raises. Before the deadline, `_retry` had nothing to catch and the run stalled —
-        once for 13.4 h. The first call hangs; the deadline must abandon it and retry."""
+        raises, so `_retry` had nothing to catch — once stalled 13.4 h. The first call hangs;
+        the deadline must abandon it and retry."""
         calls = {"n": 0}
 
         def hangs_once():
@@ -162,11 +162,10 @@ class TestGeeFaultTolerance:
     def test_abandoned_thread_is_daemon_so_the_process_can_exit(self):
         """Regression: the timeout must not strand the interpreter at shutdown.
 
-        The first implementation used a ``ThreadPoolExecutor``. Its threads are non-daemon
-        and ``concurrent.futures.thread`` joins them via ``atexit``, so a thread parked in a
-        hung GEE read kept the process alive *after all its work was done* — measured at up
-        to 3 h across all five national panel workers on 2026-08-08. A daemon thread is
-        abandoned at exit instead.
+        A ``ThreadPoolExecutor``'s threads are non-daemon and ``concurrent.futures.thread``
+        joins them via ``atexit``, so a thread parked in a hung GEE read kept the process
+        alive after its work was done — up to 3 h across five panel workers on 2026-08-08. A
+        daemon thread is abandoned at exit instead.
         """
         seen: list[threading.Thread] = []
 
@@ -285,9 +284,8 @@ class TestModels:
             assert torch.allclose(net(x, doy, mask), net(x2, doy, mask), atol=1e-5)
 
 
-# LightGBM training must run in a torch-free process (torch + lightgbm each bundle a
-# libomp that segfaults when co-loaded on macOS). pytest imports torch for the model
-# tests, so we exercise lgb.train in a subprocess with a clean interpreter.
+# LightGBM training must run torch-free (torch + lightgbm each bundle a libomp that segfaults
+# when co-loaded on macOS). pytest imports torch, so exercise lgb.train in a subprocess.
 _LGBM_SUBPROC = """
 import numpy as np, pandas as pd
 from crop_classifier.data import FlatData, class_weights

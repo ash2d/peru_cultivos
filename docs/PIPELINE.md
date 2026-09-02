@@ -133,6 +133,7 @@ abandoned — the code is built and unit-tested, and it stays unrun (`RESULTS.md
 | **`allperu cenagro-extract [--dept D] [--overwrite] [--verify]`** | slim the 25 OneDrive CENAGRO 2012 `.dta` files (409 cols, ~18 GB) to `data/raw/Cenagro_IV/<Dept>.parquet` (76 cols, ~0.3 GB). `--verify` runs the audit. `DATA.md` §1.5 |
 | **`allperu cenagro-link`** | the NATIONAL census⇄PETT crosswalk by farmer name, 14 depts → `cenagro_pett_link.parquet`. farmer-level, not parcel-level |
 | **`allperu cenagro-shift`** | PETT → CENAGRO 2012 → photo-interpreted 2019+, nationally, split by tenure. Perennial share of parcels and of **cadastral** area. `RESULTS.md` §8.6 |
+| **`analysis parcel-table [--out F] [--run R] [--preds P]`** | ⭐ the export: one row per parcel, one column per observation of it — tenure, declared class + year, CENAGRO 2012 class, the human 2019+ label and the classifier's. 95,941 parcels, no analysis |
 | **`allperu cenagro`** | CENAGRO 2012 as the 'before' instead of the PETT declaration — paired change, area-weighted, by link quality. **Piura only**, farmer-level link. `RESULTS.md` §8.5 |
 | **`allperu s2-labels <step>`** | the live campaign — steps below |
 | **`allperu s2-train <step>`** | train/compare models on the returned labels — steps below |
@@ -401,6 +402,19 @@ unmapped, and the figure script rendering. `tests/test_cenagro.py` covers the Pi
   diffs them against the values baked into `docs/figures/perennial_over_time_by_tenure.py`,
   prints a paste-ready block if they have drifted, and calls that script's `draw()` — so the
   standalone reproduction and the pipeline figure cannot diverge silently.
+* `parcel_table.py` — the export (`analysis parcel-table`, pinned by
+  `tests/test_parcel_table.py`). The same four observations `cenagro_shift.py` compares, one
+  row per parcel and no analysis. The universe is `national_panel.parquet` — 95,941 parcels,
+  the largest set a clone can build — and every later observation is a **left join**, so a
+  column is null where that instrument never looked. Two decisions carry the module. The 2025
+  prediction is read from `fold*/preds_val.parquet` + `preds_test.parquet`, never from
+  `cc predict` on the campaign's own parcels: **the model was fitted on them**, so an applied
+  prediction there is the model grading its training rows, and `s2_pred_source` records which
+  it is. And a locked-test parcel legitimately appears in **both** files — it carries a fold
+  id, and `data.fold_split` takes every row of that fold as validation while the train side
+  is `split == "trainval"` only — so the refit's read wins and only a *fold–fold* duplicate
+  raises. `PRED_TO_DECLARED` renames the imagery `OTHER` to `PASTURE_FALLOW` so all four
+  columns are one vocabulary and can be crosstabbed.
 * `cenagro.py` — CENAGRO 2012 as the "before" observation. Classifies **both** sides with the
   same lexicon machinery, because otherwise part of the measured change is a change of
   definition; `token_audit()` reports the unmapped share and **must be run before trusting a
@@ -492,6 +506,7 @@ cannot see an additive-only claim in a full copy; you have to diff it.
 | `climate/parcel_climate_normals.parquet` | `allperu climate normals` | 726,808 parcels × 34: `tmean_c` (°C), `precip_mm_yr` (mm/yr), monthly profile, seasonality. **Static** (1970–2000 normal) |
 | `climate/parcel_rainfall_annual.parquet` | `allperu climate rainfall` | 726,808 parcels × 33: `precip_mm_<year>` (mm) for 1996–2024. **Year-resolved** — the one safe across years |
 | `cenagro/*.csv` | `allperu cenagro` | PETT→CENAGRO 2012 paired change: raw, like-for-like, area-weighted, by link quality, plus the token audit |
+| `cenagro/parcel_table.parquet` | `analysis parcel-table` | ⭐ one row per parcel × 23 columns: tenure, `pett_year`/`pett_class`, `cen_class`, `s2_label`/`s2_class`, `s2_pred_class` + `s2_pred_source`, `weight`, `n_observations`. 95,941 rows, the imagery columns null on all but 157 |
 | `labels_s2/skill_by_target.csv` | `report_s2.skill_table` | every target's macro-F1 **against its own majority floor**, plus `PERENNIAL` F1 — the only cross-target-comparable columns |
 
 The **only** NaN in either climate table is `precip_seasonality_cv` for 1,275 Ica parcels
@@ -609,6 +624,15 @@ uv run cc -w national analysis perennial-shift --figure          # redraw only
 uv run python docs/figures/perennial_over_time_by_tenure.py      # standalone, no project
 # -> data/processed/cenagro/national_*.csv + national_panel.parquet
 # -> docs/figures/perennial_over_time_by_tenure.png
+```
+
+```bash
+# ── the per-parcel export: the same observations, one row each, no analysis ──
+# runs off the committed panel — no licensed archive, no GEE.
+uv run cc -w national analysis parcel-table                          # ~10 s
+uv run cc -w national analysis parcel-table --out parcels.csv        # CSV instead
+uv run cc -w national analysis parcel-table --preds preds2025.parquet   # howto/04 §C
+# -> data/processed/cenagro/parcel_table.parquet
 ```
 
 ```bash

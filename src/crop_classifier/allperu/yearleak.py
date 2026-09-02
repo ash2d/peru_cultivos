@@ -1,25 +1,22 @@
 """Year-leak audit — the temporal-OOD work (docs/RESULTS.md §6).
 
 The generalised form of the ``frac_l7`` finding (``../perennial/RESULTS.md`` §4.6): *any*
-feature that identifies **which year you are in** is a feature that will mislead you in a
-year you have never seen. ``frac_l7`` was the obvious case — it ramps 0 → 1 as L7 replaces
-L5 and was the 2nd-highest-gain feature — but it was found by inspection, not by a test. This
-module is the test.
+feature that identifies **which year you are in** will mislead you in a year you have never
+seen. ``frac_l7`` (ramps 0 → 1 as L7 replaces L5, 2nd-highest gain) was found by inspection,
+not a test. This module is the test.
 
 Two rankings, deliberately, because they fail in different ways:
 
-* **``eta2_year``** — the share of a feature's variance explained by the label-year cohort,
-  i.e. a one-way ANOVA R². Direct, cheap, and computed for every feature independently, so a
-  feature is not hidden by a correlated neighbour.
+* **``eta2_year``** — share of a feature's variance explained by the label-year cohort
+  (one-way ANOVA R²). Per-feature, so a correlated neighbour cannot hide one.
 * **LightGBM gain** on a model whose *target is the cohort*. Captures interactions the ANOVA
   cannot, but gain is diluted across correlated features and — measured twice in this project
   — **gain ≠ contribution**.
 
-⚠️ **Cohort is confounded with place.** Titling swept region by region, so "features that
-identify 1998" and "features that identify Piura" are partly the same features. Both
-rankings are therefore also reported **within region** (region means removed first), which is
-the only version that isolates time. The unconditional version is kept alongside as the
-loose upper bound, exactly as ``loyo.py`` keeps its unrestricted arm.
+⚠️ **Cohort is confounded with place.** Titling swept region by region, so "identifies 1998"
+and "identifies Piura" are partly the same features. Both rankings are also reported **within
+region** (region means removed first) — the only version that isolates time; the
+unconditional one is the loose upper bound, as in ``loyo.py``.
 
 Nothing here decides anything. It **generates candidates**; LOYO decides (T-D1/T-D2).
 
@@ -88,7 +85,7 @@ def run(drop_features: str | None = "meta,location", min_parcels: int = 300,
 
     ``shared_regions_only`` mirrors ``loyo.run``: keep only parcels in regions holding at
     least ``min_cohorts_per_region`` cohorts, so region is approximately fixed while year
-    varies. Without it the ranking is contaminated by pure geography.
+    varies. Without it the ranking is contaminated by geography.
     """
     drop = resolve_drop_features(drop_features)
     parcels = load_parcels(require_quality=True)
@@ -133,10 +130,9 @@ def run(drop_features: str | None = "meta,location", min_parcels: int = 300,
         out["cohort_gain"] = gain
         out["cohort_gain_share"] = gain / max(gain.sum(), 1e-9)
 
-        # Held-out predictability is the number that means something. An in-sample fit on
-        # 134 features reaches 1.000 and says only that the model memorised 47 k rows.
-        # The split is by REGION, because cohort is confounded with place: a random-row
-        # split would let the model recognise the held-out parcel's neighbours.
+        # Held-out predictability is the number that means something: an in-sample fit on 134
+        # features reaches 1.000 (memorised 47 k rows). Split by REGION, since cohort is
+        # confounded with place — a random-row split lets the model recognise neighbours.
         rng = np.random.default_rng(42)
         regs = pd.unique(reg)
         held = set(rng.choice(regs, max(1, int(0.2 * len(regs))), replace=False))

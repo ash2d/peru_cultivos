@@ -55,24 +55,20 @@ def train(model_name: str = "lightgbm", n_folds: int | None = None,
           drop_features: str | list[str] | None = None,
           train_years: str | list[int] | None = None,
           augment_feat: Path | str | None = None) -> Path:
-    """``drop_features``: columns (or ``DROP_SETS`` aliases) to withhold from the flat
-    model — see ``data.META_FEATURES`` and RESULTS.md §4.6. Recorded in
-    ``cv_metrics.json``; the fitted model also stores its own surviving feature list, which
-    is what inference aligns to.
+    """``drop_features``: columns (or ``DROP_SETS`` aliases) to withhold from the flat model —
+    see ``data.META_FEATURES`` and RESULTS.md §4.6. Recorded in ``cv_metrics.json``; the
+    fitted model stores its own surviving feature list, which inference aligns to.
 
     ``train_years`` (``"1999-2023"``, or a comma list) restricts the **training** cohort to
-    parcels with those PETT label years, in both the CV folds and the final refit.
-    Validation and locked-test membership are deliberately left untouched, so CV stays
-    directly comparable to a run without the flag. Motivation: ~80 % of labels are 1998–99
-    and 1997–98 was the catastrophic Piura El Nino, whose imagery the model cannot read
+    those PETT label years, in CV folds and final refit. Val and locked-test membership are
+    untouched so CV stays comparable to a run without the flag. Motivation: ~80 % of labels
+    are 1998–99 and 1997–98 was the Piura El Nino, whose imagery the model cannot read
     (RESULTS.md §8.1/§8.2).
 
     ``augment_feat`` is a degraded copy of the feature store
     (``allperu.density.build_degraded_features``) appended to the **train** side only, so
-    each parcel appears at both its own and the endpoint observation density under one
-    label. Val/test are untouched for the same reason as ``train_years``: CV has to stay
-    comparable, and a degraded row in a validation fold would be a row the model trained
-    on. See docs/RESULTS.md §6.2."""
+    each parcel appears at both its own and the endpoint observation density under one label.
+    Val/test untouched for the same reason as ``train_years``. See docs/RESULTS.md §6.2."""
     drop_features = resolve_drop_features(drop_features)
     train_years = parse_year_spec(train_years)
     parcels = load_parcels(require_quality=True)
@@ -95,7 +91,7 @@ def train(model_name: str = "lightgbm", n_folds: int | None = None,
         print(f"restricting TRAIN to label years {train_years[0]}-{train_years[-1]} "
               f"({len(train_years)} years); val/test membership unchanged")
 
-    # ---- spatial CV ----
+    # --- spatial CV ---
     cv = []
     for k in folds:
         fold_dir = run_dir / f"fold{k}"
@@ -131,7 +127,7 @@ def train(model_name: str = "lightgbm", n_folds: int | None = None,
     print(f"CV macro-F1: {summary['cv_macro_f1_mean']:.3f} "
           f"± {summary['cv_macro_f1_std']:.3f}")
 
-    # ---- final refit on all trainval minus test buffer ----
+    # --- final refit on all trainval minus test buffer ---
     tr_idx, te_idx = final_split(parcels)
     tr_idx = restrict_years(parcels, tr_idx, train_years)
     model = get_model(model_name, **model_kw)
@@ -151,7 +147,7 @@ def train(model_name: str = "lightgbm", n_folds: int | None = None,
     with open(run_dir / "cv_metrics.json", "w") as f:
         json.dump(summary, f, indent=2)
 
-    # ---- optional single locked-test evaluation ----
+    # --- optional single locked-test evaluation ---
     if eval_test:
         test_ds = make_dataset(model.input_kind, parcels, te_idx, normalizer=norm,
                                drop_features=drop_features)

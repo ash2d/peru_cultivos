@@ -1,43 +1,23 @@
 """Build the ``(polygon, crop, time)`` training table for the Piura crop classifier.
 
-This is the scripted, reproducible version of ``notebooks/03_pett_crop_polygon.ipynb``. It
-follows the same reliable, real-key join chain (no fragile name matching):
+Scripted version of ``notebooks/03_pett_crop_polygon.ipynb``, over the real-key join chain
+(no name matching):
 
     BD SSET  ──CodigoSSET──►  grafica_tabular_Piura.dta  ──COD_PREDIO──►  qgis polygons
     (crop, registration date)      (bridge, best coverage)                   (geometry)
 
-and adds the crop-label cleaning from :mod:`crop_classifier.crop_normalization` so the free
--text ``CULTIVO`` field becomes a tidy, normalised list of crops per parcel, ready to attach
-Landsat features to.
+plus crop-label cleaning from :mod:`crop_classifier.crop_normalization`.
 
-Outputs (in ``data/processed/``):
+Outputs (``data/processed/``): ``training_crop_polygon.parquet`` (one row per polygon:
+geometry, crop list, category list, contributing keys, representative + full year set,
+area, counts), ``training_crop_records.parquet`` (exploded long form), and
+``crop_normalization_map.csv`` (every distinct raw label -> its normalised crops).
 
-* ``training_crop_polygon.parquet`` — **the deliverable**: one row per polygon
-  (``COD_PREDIO``) with its geometry, a **list of normalised crop names**, the aligned
-  category of each, the contributing ``CodigoSSET`` keys, a representative year and the full
-  set of years, parcel area (ha) and record counts.
-* ``training_crop_records.parquet`` — the exploded long form: one row per
-  ``(COD_PREDIO, CodigoSSET, crop, category, year)`` with the original raw label kept, for
-  auditing and for any per-record modelling.
-* ``crop_normalization_map.csv`` — every distinct raw ``CULTIVO`` label → its normalised
-  crop list + category + row count, so every cleaning decision is inspectable.
-
-Decisions made here (all intentionally conservative — see the module docstring of
-``crop_normalization`` for the label logic):
-
-* **Bridge = ``grafica_tabular_Piura.dta``** (covers ~69% of SSET crop keys; the ``catastro``
-  bridge is a strict subset and ``qgis/PIURA.dta`` carries no ``CodigoSSET``).
-* **Nothing is dropped by crop type.** Fallow / land-prep / pasture / unspecified survive as
-  tokens, only *flagged* by ``category`` so the modeller can filter later.
-* **Multiple crops per polygon are kept as a list** (both intercrop labels like
-  ``CAFE Y PLATANO`` and different declarations across a parcel's records are unioned).
-* **``year`` is the titling/registration year** derived from ``FECHA EMPADRONAMIENTO`` — it is
-  unreliable as a growing season (batch/stub dates) and in practice collapses onto the
-  ~1998–99 titling wave; treat it as an approximate label year, not a scene selector.
-* **Areas are cleaned**: SSET ``AREA`` (m², dirty) has non-positive values nulled; the
-  parcel's ``AREA_S_HA`` (hectares, from the polygon layer) is carried as the reliable area.
-
-Run with::
+Decisions: bridge = ``grafica_tabular_Piura.dta`` (~69 % of SSET crop keys; the others are
+subsets or lack ``CodigoSSET``); nothing dropped by crop type, only flagged by
+``category``; multiple crops per polygon kept as a list; ``year`` from
+``FECHA EMPADRONAMIENTO`` is an approximate label year, not a scene selector; SSET ``AREA``
+(m², dirty) non-positive nulled, polygon ``AREA_S_HA`` carried as the reliable area.
 
     uv run python -m crop_classifier.build_training_data
 """
@@ -55,9 +35,7 @@ import pyreadstat
 
 from crop_classifier.crop_normalization import normalize_label
 
-# --------------------------------------------------------------------------------------
-# Paths (repo-root relative, so the script runs from anywhere)
-# --------------------------------------------------------------------------------------
+# --- Paths (repo-root relative) ---
 ROOT = Path(__file__).resolve().parents[2]
 RAW = ROOT / "data" / "raw"
 OUT = ROOT / "data" / "processed"
@@ -66,23 +44,16 @@ F_SSET = RAW / "BD SSET(MOQUEGUA-PASCO-PIURA).xlsx"
 F_BRIDGE = RAW / "grafica_tabular_Piura.dta"
 F_POLY = RAW / "qgis_stefany" / "CATASTRO_CENAGRO_PIURA_WGS84_Z17S_FINAL.shp"
 
-# Registration years outside this window are treated as data errors and nulled. The real
-# titling waves are ~1996–2019; anything else is a typo/stub in FECHA EMPADRONAMIENTO.
+# Registration years outside this window are data errors (typo/stub in FECHA EMPADRONAMIENTO).
 YEAR_MIN, YEAR_MAX = 1990, 2020
 
-# Categories that count as actual vegetation (a usable classifier label).
 VEG_CATEGORIES = frozenset({"crop", "pasture"})
 
 
-# --------------------------------------------------------------------------------------
-# Loaders
-# --------------------------------------------------------------------------------------
+# --- Loaders ---
 def load_sset(path: Path = F_SSET) -> pd.DataFrame:
-    """Load the Piura BD SSET crop declarations with a crop label.
-
-    Returns one row per declaration, with a canonicalised string ``CodigoSSET``, a cleaned
-    ``area_m2`` (non-positive -> NaN), a derived ``year`` (implausible -> NaN) and the raw
-    ``crop_raw`` label kept for the audit trail.
+    """One row per Piura BD SSET declaration: canonical string ``CodigoSSET``, cleaned
+    ``area_m2`` (non-positive -> NaN), derived ``year`` (implausible -> NaN), raw ``crop_raw``.
     """
     df = pd.read_excel(
         path,
@@ -94,16 +65,15 @@ def load_sset(path: Path = F_SSET) -> pd.DataFrame:
     df = df.rename(columns={"Codigo SSET": "CodigoSSET", "FECHA EMPADRONAMIENTO": "fecha",
                             "CULTIVO": "crop_raw", "AREA": "area_m2", "NOMBRES": "owner"})
 
-    # CodigoSSET is int64 here but a string on the bridge/polygon side -> canonicalise.
+    # CodigoSSET is int64 here, string on the bridge/polygon side -> canonicalise.
     df["CodigoSSET"] = df["CodigoSSET"].astype("Int64").astype(str).str.strip()
 
-    # Year from an unreliable registration date; null impossible years.
     df["fecha"] = pd.to_datetime(df["fecha"], errors="coerce")
     df["year"] = df["fecha"].dt.year
     df.loc[~df["year"].between(YEAR_MIN, YEAR_MAX), "year"] = np.nan
     df["year"] = df["year"].astype("Int64")
 
-    # Area in m^2 is dirty: null non-positive values (0 / negatives are not real parcels).
+    # area m^2 is dirty: null non-positive values
     df["area_m2"] = pd.to_numeric(df["area_m2"], errors="coerce")
     df.loc[df["area_m2"] <= 0, "area_m2"] = np.nan
 
@@ -126,11 +96,8 @@ def load_bridge(path: Path = F_BRIDGE) -> pd.DataFrame:
 
 
 def load_polygons(path: Path = F_POLY) -> gpd.GeoDataFrame:
-    """Load parcel polygons keyed by ``COD_PREDIO`` (EPSG:4326).
-
-    Drops null-code polygons, collapses duplicate codes to one geometry, and reprojects to
-    WGS84 lon/lat for downstream Earth Engine / Landsat work.
-    """
+    """Parcel polygons keyed by ``COD_PREDIO``, reprojected to EPSG:4326 for GEE. Drops
+    null-code polygons and dissolves duplicate codes to one geometry."""
     poly = pyogrio.read_dataframe(str(path), columns=["COD_PREDIO", "AREA_S_HA"])
     poly = poly[poly.COD_PREDIO.notna()].copy()
     poly["COD_PREDIO"] = poly.COD_PREDIO.astype(str).str.strip()
@@ -141,24 +108,17 @@ def load_polygons(path: Path = F_POLY) -> gpd.GeoDataFrame:
     return poly
 
 
-# --------------------------------------------------------------------------------------
-# Crop-label normalisation applied to the SSET table
-# --------------------------------------------------------------------------------------
+# --- Crop-label normalisation applied to the SSET table ---
 def explode_crops(sset: pd.DataFrame) -> pd.DataFrame:
-    """Explode each declaration's raw label into one row per normalised crop.
-
-    A distinct-label cache keeps this fast (labels repeat heavily). Rows whose label yields
-    no crop token at all (pure noise) are dropped — that removes *unparseable* cells, never a
-    recognised crop type.
-    """
+    """Explode each declaration's raw label into one row per normalised crop. Rows yielding
+    no crop token (pure noise) are dropped — never a recognised crop type."""
     label_map = {lab: normalize_label(lab) for lab in sset.crop_raw.unique()}
     sset = sset.copy()
     sset["_pairs"] = sset.crop_raw.map(label_map)
     sset = sset[sset["_pairs"].map(len) > 0].explode("_pairs", ignore_index=True)
     if sset.empty:
-        # No parseable crop anywhere — real for the smallest departments (Callao has 404
-        # parcels). Without this the empty `_pairs` column infers float dtype and `.str`
-        # raises, so an ordinary "nothing here" turns into a crash mid-run.
+        # real for the smallest departments (Callao: 404 parcels); without this the empty
+        # `_pairs` infers float dtype and `.str` raises mid-run.
         sset["crop"] = pd.Series(dtype="object")
         sset["category"] = pd.Series(dtype="object")
         return sset.drop(columns="_pairs")
@@ -183,9 +143,7 @@ def normalization_audit(sset_raw: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-# --------------------------------------------------------------------------------------
-# Join chain + aggregation
-# --------------------------------------------------------------------------------------
+# --- Join chain + aggregation ---
 def _mode_year(years: pd.Series) -> int | float:
     """Representative (most frequent, ties → earliest) non-null year for a polygon."""
     y = years.dropna()
@@ -219,9 +177,8 @@ def build(save: bool = True) -> tuple[gpd.GeoDataFrame, pd.DataFrame, pd.DataFra
         .reset_index(drop=True)
     )
 
-    # ---- Polygon grain: crops as a list, everything aggregated per COD_PREDIO ----
-    # De-duplicate (crop, category) within a polygon, keeping a stable alphabetical order so
-    # the two list columns stay aligned.
+    # ---- Polygon grain: crops as a list, aggregated per COD_PREDIO ----
+    # de-dup (crop, category) per polygon in alphabetical order so the two list columns align
     crop_cat = (
         linked[["COD_PREDIO", "crop", "category"]]
         .drop_duplicates()

@@ -1,9 +1,9 @@
 """Every `cc …` command line printed in the documentation actually resolves.
 
-The how-tos are the entry point for someone who has never seen this project, and a command
-that no longer exists costs them more than a missing page: they cannot tell whether they typed
-it wrong, installed it wrong, or are missing data. This walks the real Typer app rather than a
-list of names, so renaming a command breaks the test that names the doc to fix.
+The how-tos are the entry point for someone new, and a command that no longer exists costs
+more than a missing page: they cannot tell whether they typed it wrong, installed it wrong,
+or are missing data. This walks the real Typer app, so renaming a command breaks the test
+that names the doc to fix.
 
 It checks that the command PATH exists. It does not run anything — most of these need data,
 Earth Engine, or hours.

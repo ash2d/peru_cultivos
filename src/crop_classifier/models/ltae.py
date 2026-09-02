@@ -49,13 +49,11 @@ class LTAENet(nn.Module):
     """Attention encoder over dates, optionally fused with per-parcel statics.
 
     ``n_static > 0`` adds a small ``Linear -> ReLU`` embedding of the standardised static
-    vector, concatenated onto the pooled temporal embedding before the head. The embedding
-    exists rather than a bare concatenation because one or two raw dimensions beside 128
-    temporal ones are trivially ignorable: the comparison being made is "can the
-    architecture use climate", and it should not be lost to a width accident. It is
-    ``d_static = 16``, ~50 parameters for two inputs, so it adds no meaningful capacity.
-    With ``n_static == 0`` the module is identical to the version fitted in RESULTS.md
-    §8.2 — no extra layer, no extra parameter, no change to the forward pass.
+    vector, concatenated onto the pooled temporal embedding before the head. An embedding,
+    not a bare concat, because one or two raw dims beside 128 temporal ones are trivially
+    ignorable and the comparison is "can the architecture use climate". ``d_static = 16``,
+    ~50 params for two inputs, so no meaningful capacity. With ``n_static == 0`` the module
+    is identical to the version fitted in RESULTS.md §8.2.
     """
 
     def __init__(self, n_channels: int, n_classes: int, d_model: int = 128,

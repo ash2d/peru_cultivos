@@ -1,33 +1,31 @@
 """The window-deliverable extraction sample: stratified on ``dept × tenure × label`` (§4.5/§4.6).
 
-The existing national sample allocates departments sqrt-proportionally with a region cap, and
-the Piura panel sampled proportionally by ``label × region``. Neither ever looked at tenure —
-balance "came out fine by luck" (``../perennial/RESULTS.md`` §7.5). The whole deliverable now
-rests on the ``INSCRITO × ANNUAL`` cell, so it is stratified rather than lucky.
+Earlier samples never stratified on tenure — balance "came out fine by luck"
+(``../perennial/RESULTS.md`` §7.5). The deliverable now rests on the ``INSCRITO × ANNUAL``
+cell, so it is stratified rather than lucky.
 
 Design, in the order it binds:
 
-1. **Population** = parcels whose PETT label resolves to one of the three classes, with a
-   non-null ``ESTADO en RRPP``, passing the area gate — the estimand's population (§2).
+1. **Population** = parcels with a 3-class PETT label, non-null ``ESTADO en RRPP``, passing
+   the area gate (§2).
 2. **Strata** = ``department × tenure × PETT label``.
-3. **Oversample the at-risk cells** (``ANNUAL`` × each tenure) to the §4.6 target; keep a
-   proportional ``PERENNIAL`` allocation, because it is the drift control (M2) and needs
-   ~1,500+ parcels to be readable at all.
-4. **Whole 5 km regions**, never scattered parcels — the same reason as ``sample.py``: crops
-   grow in single-crop blocks, so a scattered draw destroys the buffered spatial split and
-   inflates apparent difficulty.
+3. **Oversample the at-risk cells** (``ANNUAL`` × each tenure) to the §4.6 target; keep
+   ``PERENNIAL`` proportional — it is the drift control (M2) and needs ~1,500+ parcels to
+   read at all.
+4. **Whole 5 km regions**, never scattered parcels — as in ``sample.py``: crops grow in
+   single-crop blocks, so a scattered draw destroys the buffered spatial split.
 5. **Sampling weights** (stratum population / stratum sample) travel with every row. *Any
    share reported without them is wrong* — this design deliberately distorts the tenure and
-   class mix, far more than the sqrt allocation already did.
+   class mix.
 
-Cost, for the record: ~13-15 k parcels × 10 years (1999-2003 + 2019-2023) ≈ 130-150 k
-parcel-years, comparable to the existing 25-year national panel's 114 k — buying ~3× the
-parcels at the same cost because it buys 10 years instead of 25. That trade is the point.
+Cost: ~13-15 k parcels × 10 years (1999-2003 + 2019-2023) ≈ 130-150 k parcel-years,
+comparable to the existing 25-year panel's 114 k — ~3× the parcels at the same cost, buying
+10 years instead of 25. That trade is the point.
 
 ⚠️ **Drawing this sample is cheap; extracting it is not.** As of 2026-08-10 the T1/T2/T3
-gates in RESULTS.md §5 have all **failed**, and the plan's own stop rule says no GEE
-budget should be spent until that is understood. This module exists so the draw is
-reproducible and reviewable *before* anyone spends it, not as permission to spend.
+gates in RESULTS.md §5 have all **failed** and the stop rule says no GEE budget until that is
+understood. This module makes the draw reproducible *before* anyone spends it, not
+permission to spend.
 
 Run with::
 
@@ -61,11 +59,10 @@ def power_n(p1: float, p2: float, alpha: float = 0.05, power: float = 0.80,
             deff: float = 1.4) -> float:
     """Parcels per tenure group to detect ``p2 - p1`` in a two-proportion test.
 
-    ``deff`` is the design effect from the sampling weights — the sample is deliberately
-    unequal-probability, so the effective sample size is smaller than the parcel count.
-    The window plan (RESULTS.md §5) quoted ~1,500 before and ~2,100 after ``deff``;
-    the ≥5,000 target is
-    for department fixed effects and heterogeneity, not for the headline test.
+    ``deff`` is the design effect from the deliberately unequal-probability weights, so
+    effective n is below the parcel count. RESULTS.md §5 quoted ~1,500 before and ~2,100
+    after ``deff``; the ≥5,000 target is for department fixed effects and heterogeneity, not
+    the headline test.
     """
     from scipy.stats import norm
 
@@ -110,9 +107,9 @@ def quotas(pop: gpd.GeoDataFrame, at_risk_per_tenure: int = TARGET_AT_RISK_PER_T
            n_pasture: int = TARGET_PASTURE) -> pd.Series:
     """Target parcels per ``(label, tenure)`` cell, split across departments by sqrt share.
 
-    The at-risk cells get a flat per-tenure target (that is the whole point); the two control
-    classes get a fixed total split by the same sqrt rule, which keeps small departments
-    represented without letting Cajamarca and Ancash swamp the controls.
+    At-risk cells get a flat per-tenure target (the whole point); the two control classes get
+    a fixed total on the same sqrt rule, keeping small departments represented without
+    Cajamarca and Ancash swamping the controls.
     """
     want = {}
     totals = {"ANNUAL": None, "PERENNIAL": n_perennial, "PASTURE_FALLOW": n_pasture}

@@ -1,40 +1,36 @@
 """One YAML loader for every config in ``config/``, with ``extends:``.
 
-Why this exists: the configs were a **copy-forward chain**. ``perennial_allperu.yaml``
-was ``perennial.yaml`` pasted whole plus ~200 sierra/selva tokens, and
-``perennial_cenagro.yaml`` was *that* pasted whole plus the census vocabulary — 559 lines
-each, of which the part that mattered was a few dozen. Two headers deep, both said
-"Original header follows". The split configs were the same story: six files differing from
-one another by one or two keys.
+Why this exists: the configs were a **copy-forward chain**. ``perennial_allperu.yaml`` was
+``perennial.yaml`` pasted whole plus ~200 sierra/selva tokens; ``perennial_cenagro.yaml``
+was *that* plus the census vocabulary — 559 lines each, of which a few dozen mattered. The
+split configs were the same: six files differing by one or two keys.
 
-That is not just verbose, it is the failure mode this project keeps writing down. A
-derived lexicon is only safe if it is **additive** — if it changed an existing token's
-group, a measured "change in the land" would partly be a change of definition
-(``RESULTS.md`` §8.5). When the derived file is a full copy, nothing enforces that and
-nothing shows it; the reader has to diff 559 lines to find out.
+That is the failure mode this project keeps writing down. A derived lexicon is safe only if
+**additive** — changing an existing token's group makes a measured "change in the land"
+partly a change of definition (``RESULTS.md`` §8.5). A full-copy derived file neither
+enforces nor shows that; the reader must diff 559 lines.
 
 So:
 
 ``extends: <file>``
     Load that file first (relative to this one's directory, recursively), then let this
-    file's own top-level keys **replace** the parent's. Use it for a config that is a
-    genuine variant — a different label space, a different buffer width.
+    file's own top-level keys **replace** the parent's. Use it for a genuine variant — a
+    different label space, a different buffer width.
 
 ``add: {key: [...]}``
-    **Append** to the parent's list under ``key``, in order, skipping exact duplicates.
-    This is the additive-only discipline, written down where it is used instead of
-    asserted in a comment. A key that is not already a list in the parent raises, so a
-    typo becomes an error rather than a silently-ignored new group.
+    **Append** to the parent's list under ``key``, in order, skipping exact duplicates — the
+    additive-only discipline, enforced where it is used. A key that is not already a list in
+    the parent raises, so a typo is an error not a silent new group.
 
 ``drop: [key, ...]``
-    Delete inherited top-level keys. Needed only where a variant genuinely renames a
-    group (``perennial_binary.yaml`` has ``non_perennial`` where the base has ``annual``),
-    and it is explicit so that a reader can see what left.
+    Delete inherited top-level keys. Only where a variant renames a group
+    (``perennial_binary.yaml`` has ``non_perennial`` where the base has ``annual``);
+    explicit so a reader sees what left.
 
-⚠️ **The loader does not check that a token stays in one group** — it does not need to.
-``perennial.labels3.build_resolver`` already raises when a token resolves twice, and it
-sees the *merged* config, so an ``add:`` that collides with an inherited assignment fails
-there. That check is the one of record; this module must not duplicate it.
+⚠️ **The loader does not check that a token stays in one group** — it need not.
+``perennial.labels3.build_resolver`` already raises when a token resolves twice, on the
+*merged* config, so a colliding ``add:`` fails there. That check is the one of record; do
+not duplicate it here.
 """
 
 from __future__ import annotations

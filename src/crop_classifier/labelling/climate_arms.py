@@ -1,41 +1,22 @@
 """Climate covariates as extra model inputs on the S2 endpoint labels.
 
-Four feature sets are fitted per model class, so that "does climate help?" is asked
-against the *same* parcels, the *same* frozen folds and the *same* seeds:
+Arms ``none`` / ``temp`` (``tmean_c``) / ``rain`` (``precip_mm_yr``) / ``both``, fitted per
+model class against the *same* parcels, frozen folds and seeds. The two columns are
+WorldClim 2.1 1970–2000 normals sampled at each parcel centroid (``allperu.climate``).
 
-| arm | columns added |
-|---|---|
-| ``none`` | — (the arm already in ``RESULTS.md`` §8.2) |
-| ``temp`` | ``tmean_c`` |
-| ``rain`` | ``precip_mm_yr`` |
-| ``both`` | both |
+⚠️ Two warnings that decide how the result must be read:
+1. A 1 km climate surface is a smooth function of location, so these columns proxy
+   ``centroid_lat`` — the project's canonical CV-up / LODO-down feature (``RESULTS.md``
+   §4.2). Every arm is reported CV *and* LODO; ``location_proxy_audit`` measures how much
+   department identity the columns carry.
+2. The normals are time-invariant — fine here only: a single-epoch endpoint classifier has
+   no trend for a constant to manufacture. Do not carry these columns into a panel.
 
-``tmean_c`` / ``precip_mm_yr`` are the WorldClim 2.1 1970–2000 normals sampled at each
-parcel centroid (``allperu.climate``): annual mean temperature in °C and annual rainfall
-total in mm/yr.
-
-⚠️ **Two warnings that decide how the result must be read**, both already on this
-project's record:
-
-1. A 1 km climate surface is a **smooth function of location**, so these columns are a
-   ``centroid_lat`` proxy, and ``centroid_lat`` is the project's canonical example of a
-   feature that buys cross-validation skill and *loses* out-of-department skill
-   (``RESULTS.md`` §4.2). Every arm here is therefore reported CV **and** LODO, and
-   ``location_proxy_audit`` measures directly how much of the department identity the two
-   columns carry.
-2. The normals are **time-invariant**. That is fine here and only here: this is a
-   single-epoch endpoint classifier, so there is no trend for a constant to manufacture
-   (``RESULTS.md`` §4.4/§5 is about the panel). Do not carry these columns into a panel.
-
-Each variant gets its own ``CC_PROC`` workspace, built by **symlinking the base
-workspace's ``modeling_parcels.parquet`` and ``label_map.json``** rather than rebuilding
-them — the split, the folds and the 3 km dead-zones are then identical across arms by
-construction, so a difference between arms cannot be a difference in fold membership.
-
-The flat (LightGBM / rules) path reads the extra columns straight out of the feature
-parquet. The sequence (LTAE) path has no static input at all — its tensor is spectral +
-doy + mask — so the variant also writes ``statics.npz``, which ``data.SeqDataset`` picks
-up and ``models.ltae`` concatenates into the classifier head.
+Each variant is its own ``CC_PROC`` workspace, symlinking the base workspace's
+``modeling_parcels.parquet`` and ``label_map.json`` so split / folds / dead-zones are
+identical across arms by construction. The flat path reads the extra columns from the
+feature parquet; the LTAE path has no static input, so the variant also writes
+``statics.npz`` for ``data.SeqDataset`` / ``models.ltae``.
 """
 
 from __future__ import annotations
@@ -56,12 +37,9 @@ CLIMATE_SETS: dict[str, list[str]] = {
     "temp": ["tmean_c"],
     "rain": ["precip_mm_yr"],
     "both": ["tmean_c", "precip_mm_yr"],
-    # ⭐ the control, not a proposal. Two raw coordinates in place of the two climate
-    # columns: same count, same time-invariance, same smoothness over space, but no
-    # agro-climatic content whatsoever. If `latlon` buys as much as `both`, then what
-    # climate is contributing is *where the parcel is* and the arm should be read as
-    # RESULTS.md §4.2 all over again. `centroid_lat` is the project's canonical
-    # memorisation feature, so this is the sharpest available test.
+    # ⭐ the control, not a proposal: two raw coordinates in place of the climate columns —
+    # same count, same time-invariance, same smoothness, no agro-climatic content. If
+    # `latlon` buys as much as `both`, climate is contributing location (RESULTS.md §4.2).
     "latlon": ["centroid_lat", "centroid_lon"],
 }
 ARMS = list(CLIMATE_SETS)
@@ -76,11 +54,10 @@ def ws_dir(target: str, climate: str, include_pilot: bool = True) -> Path:
 
 
 def _covariate_table(parcels: gpd.GeoDataFrame) -> pd.DataFrame:
-    """Climate normals **and** centroid coordinates for these parcels, one row each.
+    """Climate normals and centroid coordinates for these parcels, one row each.
 
-    The coordinates are taken from the parcel's own geometry rather than from any stored
-    column, so the control arm cannot differ from the climate arms in which parcels it
-    covers.
+    Coordinates come from the parcel's own geometry, not a stored column, so the control
+    arm covers exactly the same parcels as the climate arms.
     """
     if not CLIMATE_PARQUET.exists():
         raise SystemExit(
@@ -94,8 +71,8 @@ def _covariate_table(parcels: gpd.GeoDataFrame) -> pd.DataFrame:
     out = want.drop_duplicates("COD_PREDIO").merge(cl, on="COD_PREDIO", how="left")
     miss = int(out[CLIMATE_ONLY].isna().any(axis=1).sum())
     if miss:
-        # a climate NaN would silently drop the parcel from LightGBM's split logic in a
-        # way that differs between arms, which is exactly the comparison being made
+        # a climate NaN drops the parcel from LightGBM's split logic differently per arm —
+        # exactly the comparison being made
         raise SystemExit(f"{miss} of {len(out)} labelled parcels have no climate value; "
                          f"rebuild the normals over a parcel table that covers them")
     return out
@@ -108,8 +85,7 @@ def build_variant(target: str = "t4", climate: str = "both",
         raise SystemExit(f"unknown climate arm {climate!r}; expected {ARMS}")
     base = P.ws_dir(target, include_pilot)
     if not (base / "modeling_parcels.parquet").exists():
-        # a climate arm is the base label set plus two columns, so build the base rather
-        # than telling the caller to run a second command in the right order
+        # a climate arm is the base label set plus two columns — build the base here
         print(f"{base.name} not built yet — building it first")
         P.build_workspace(target, include_pilot=include_pilot)
     if climate == "none":
@@ -158,18 +134,14 @@ def build_all(target: str = "t4", include_pilot: bool = True) -> None:
         print()
 
 
-# ---------------------------------------------------------------------------------
-# Is climate just latitude again?
-# ---------------------------------------------------------------------------------
+# --- Is climate just latitude again? ---
 def location_proxy_audit(target: str = "t4", include_pilot: bool = True) -> dict:
     """How much of *where the parcel is* do the two climate columns carry?
 
-    ``centroid_lat`` gains +0.047 on CV and loses 0.060 on LODO (``RESULTS.md`` §4.2), and
-    the mechanism is that it lets the model name the department. Climate is a smooth
-    surface over the same space, so the honest question is not "is it correlated with
-    latitude" but "can a model recover the department from these two numbers alone". A
-    5-fold accuracy well above the department prior means the same failure mode is
-    available, and the LODO column of the results table is where it would show up.
+    ``centroid_lat`` gains +0.047 CV / loses 0.060 LODO (§4.2) by letting the model name
+    the department. The honest question is whether a model can recover the department from
+    these two numbers alone — a 5-fold accuracy well above the department prior means the
+    same failure mode is available.
     """
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.model_selection import cross_val_score
@@ -209,9 +181,7 @@ def location_proxy_audit(target: str = "t4", include_pilot: bool = True) -> dict
     return out
 
 
-# ---------------------------------------------------------------------------------
-# The comparison table
-# ---------------------------------------------------------------------------------
+# --- The comparison table ---
 RUNS = ROOT / "runs" / "s2_labels"
 MODELS = ["lightgbm", "ltae", "rules"]
 
@@ -219,10 +189,9 @@ MODELS = ["lightgbm", "ltae", "rules"]
 def _majority_floor(counts: pd.Series) -> float:
     """macro-F1 of "always guess the largest class".
 
-    Predicting only class *c* gives it recall 1 and precision ``p = n_c / N``, so its F1 is
-    ``2p / (1 + p)`` and every other class scores 0. Divided by the class count, that is
-    the floor macro-F1 has to clear — and it **moves with the number of classes**, which is
-    why RESULTS.md §8.2c prints it beside every macro-F1 rather than comparing bare F1s.
+    Class *c* gets recall 1, precision ``p = n_c / N``, F1 ``2p/(1+p)``; others score 0.
+    Over the class count, that is the floor — and it moves with the class count, which is
+    why §8.2c prints it beside every macro-F1.
     """
     p = float(counts.max() / counts.sum())
     return (2 * p / (1 + p)) / len(counts)
@@ -315,9 +284,9 @@ def collect(target: str = "t4", include_pilot: bool = True) -> pd.DataFrame:
 def fold_paired(target: str = "t4", include_pilot: bool = True) -> pd.DataFrame:
     """Per-fold and per-department deltas against each model's own no-climate arm.
 
-    A mean over 5 folds or 14 departments is 5 or 14 numbers (CLAUDE.md), and at ~140
-    validation parcels per fold a 0.02 macro-F1 difference sits inside one fold's spread.
-    This is the table that says whether an arm's gain is consistent or is one fold.
+    A mean over 5 folds or 14 departments is 5 or 14 numbers, and at ~140 val parcels per
+    fold a 0.02 macro-F1 difference sits inside one fold's spread. This says whether an
+    arm's gain is consistent or one fold.
     """
     rows = []
     for model in MODELS:
@@ -358,11 +327,9 @@ def fold_paired(target: str = "t4", include_pilot: bool = True) -> pd.DataFrame:
 def _wilcoxon_p(d: np.ndarray | None) -> float:
     """Two-sided paired Wilcoxon over the per-department deltas.
 
-    Paired because the 14 departments are the same 14 on both sides and their difficulty
-    varies far more than the arms do (LODO SD ~0.12 against a ~0.03 effect); an unpaired
-    comparison of two means over 14 units would find nothing either way. ⚠️ It is still
-    **14 numbers**, and the arms share training data, so read it as "is the sign
-    consistent", not as a licence to select.
+    Paired: same 14 departments both sides, their difficulty varies far more than the arms
+    (LODO SD ~0.12 vs a ~0.03 effect), so an unpaired test finds nothing. ⚠️ Still 14
+    numbers and the arms share training data — read it as "is the sign consistent".
     """
     if d is None or len(d) < 6:
         return float("nan")
@@ -376,10 +343,9 @@ def _wilcoxon_p(d: np.ndarray | None) -> float:
 def climate_importance(target: str = "t4", include_pilot: bool = True) -> pd.DataFrame:
     """Where the climate columns land in LightGBM's gain ranking, per arm.
 
-    ⚠️ Gain is **not** contribution — this project has measured that twice (LESSONS.md:
-    dropping features holding 29.8 % of gain cost 0.007 macro-F1). Read this as "did the
-    booster look at the column", never as "this is what the column was worth". The
-    ``d_cv_macro_f1`` / ``d_lodo_macro_f1`` columns of the main table are what it was worth.
+    ⚠️ Gain is not contribution — measured twice (LESSONS.md: dropping 29.8 % of gain cost
+    0.007 macro-F1). Read as "did the booster look at the column"; the main table's
+    ``d_*_macro_f1`` columns are what it was worth.
     """
     from crop_classifier.models.trees import LightGBMModel
     rows = []
@@ -404,9 +370,8 @@ def climate_importance(target: str = "t4", include_pilot: bool = True) -> pd.Dat
 def per_class(target: str = "t4", include_pilot: bool = True) -> pd.DataFrame:
     """Per-class out-of-fold F1 for every arm — which class the covariate actually moves.
 
-    macro-F1 averages four numbers and hides which one changed; the research question only
-    turns on ``PERENNIAL``, and RESULTS.md §8.2c already established that the binding
-    constraint is the ``PERENNIAL`` / ``WOODY_NON_CROP`` boundary.
+    macro-F1 hides which class changed; the question turns only on ``PERENNIAL``, and §8.2c
+    established the binding constraint is the ``PERENNIAL`` / ``WOODY_NON_CROP`` boundary.
     """
     base = P.ws_dir(target, include_pilot)
     with open(base / "label_map.json") as f:
@@ -427,12 +392,11 @@ def per_class(target: str = "t4", include_pilot: bool = True) -> pd.DataFrame:
 
 def lodo_per_class(target: str = "t4", include_pilot: bool = True) -> pd.DataFrame:
     """Per-class F1 on the pooled LODO predictions — the out-of-department counterpart of
-    ``per_class``, which only pools the CV folds.
+    ``per_class`` (which pools only CV folds).
 
-    ``macro_f1`` averages the classes, and the arms differ in *which* class they move: on
-    ``t3w`` ``temp`` is worth +0.058 on ``PERENNIAL`` and +0.011 on ``ANNUAL``. The verdict
-    turns on ``PERENNIAL``, so it has to be visible separately on the axis the verdict is
-    read on.
+    Arms differ in *which* class they move: on ``t3w`` ``temp`` is worth +0.058 on
+    ``PERENNIAL``, +0.011 on ``ANNUAL``. The verdict turns on ``PERENNIAL``, so show it
+    separately on the axis the verdict is read on.
     """
     base = P.ws_dir(target, include_pilot)
     with open(base / "label_map.json") as f:
@@ -459,13 +423,11 @@ def lodo_per_class(target: str = "t4", include_pilot: bool = True) -> pd.DataFra
 
 
 def control_paired(target: str = "t4", include_pilot: bool = True) -> pd.DataFrame:
-    """Each climate arm **minus the ``latlon`` control**, paired over the same departments.
+    """Each climate arm minus the ``latlon`` control, paired over the same departments.
 
-    ⚠️ This, not the ``d_lodo_macro_f1`` column, is the comparison the §8.8 verdict rests on.
-    The question is never "does climate help" but "does it help *more than a same-shaped
-    surrogate carrying only location*" — and since both arms are scored on the same 14
-    held-out departments, that difference is paired and should be tested as one rather than
-    eyeballed as two deltas against ``none``.
+    ⚠️ This, not ``d_lodo_macro_f1``, is what the §8.8 verdict rests on: "does climate help
+    *more than a same-shaped surrogate carrying only location*". Both arms score on the
+    same 14 held-out departments, so the difference is paired — test it as one.
     """
     rows = []
     for model in MODELS:
@@ -499,18 +461,14 @@ def _lodo_series(target: str, model: str, arm: str,
 def woody_boundary(target: str = "t4", include_pilot: bool = True) -> pd.DataFrame:
     """Does an arm's gain sit on the ``PERENNIAL`` / ``WOODY_NON_CROP`` boundary?
 
-    ⚠️ The boundary is **rainfall-aligned in the labels themselves**: above 700 mm/yr, 1 of
-    87 usable declared-perennial parcels was called ``PERENNIAL`` and 65.5 % ``WOODY_NON_CROP``
-    (28.8 % / 21.2 % below it), and the declared crops there are coffee and cacao. So a
-    rainfall column could buy macro-F1 by learning the annotator's own cut rather than
-    anything agro-climatic, and RESULTS.md §8.8 carried that as a live caveat.
+    ⚠️ The boundary is rainfall-aligned in the labels: above 700 mm/yr only 1 of 87 usable
+    declared-perennial parcels was called ``PERENNIAL``, 65.5 % ``WOODY_NON_CROP`` (28.8 % /
+    21.2 % below); the crops there are coffee and cacao. So a rainfall column could buy
+    macro-F1 by learning the annotator's cut (§8.8 caveat).
 
-    This isolates the sub-problem on the LODO predictions: restricted to parcels whose true
-    label is one of the two, how often does the model pick the right one? ``t3w`` deletes the
-    boundary by construction, so it only means anything on a target that has both classes —
-    and §8.8b's answer is that ``temp`` improves it (+0.054) while ``rain`` does **not**
-    (−0.018), which is why folding ``WOODY_NON_CROP`` in costs ``both`` its gain and costs
-    ``temp`` nothing.
+    Restricted to parcels whose true label is one of the two, how often does the model pick
+    the right one? ``t3w`` deletes the boundary, so this only means anything where both
+    classes exist. §8.8b: ``temp`` improves it (+0.054), ``rain`` does not (−0.018).
     """
     base = P.ws_dir(target, include_pilot)
     with open(base / "label_map.json") as f:
@@ -551,15 +509,13 @@ def bracket(targets: tuple[str, ...] = ("t4", "t3w"),
             include_pilot: bool = True) -> pd.DataFrame:
     """The same arms at both ends of the ``t4`` / ``t3w`` codebook bracket, side by side.
 
-    ⚠️ ``t4`` and ``t3w`` are **not two candidate models**. They differ only in which side
-    ``WOODY_NON_CROP`` sits on, and RESULTS.md §8.2c measured that single choice at **+0.190**
-    on ``PERENNIAL`` F1 — larger than any modelling effect in the study. A feature verdict is
-    therefore only worth as much as its agreement across the two, which is how §8.8b caught
-    that ``--climate both``'s 12/14 at p = 0.004 was 7/14 at p = 0.345 one codebook decision
-    away.
+    ⚠️ ``t4`` and ``t3w`` are not two candidate models — they differ only in which side
+    ``WOODY_NON_CROP`` sits on, worth +0.190 on ``PERENNIAL`` F1 (§8.2c), larger than any
+    modelling effect. A feature verdict is worth only its agreement across the two: §8.8b
+    caught ``--climate both`` going 12/14 p=0.004 -> 7/14 p=0.345 one codebook decision away.
 
-    ⚠️ The majority-class floor **moves with the target** (0.171 at ``t4``, 0.228 at ``t3w``),
-    so read ``*_skill`` and ``*_perennial_f1``, never the raw macro-F1 columns, across targets.
+    ⚠️ The majority-class floor moves with the target (0.171 / 0.228), so read ``*_skill``
+    and ``*_perennial_f1``, not raw macro-F1, across targets.
     """
     got = {t: collect(t, include_pilot) for t in targets}
     got = {t: v for t, v in got.items() if len(v)}
@@ -602,8 +558,7 @@ def report(target: str = "t4", include_pilot: bool = True) -> pd.DataFrame:
               "alone — a climate gain that `latlon`\n   matches is geography, which is "
               "RESULTS.md §4.2.")
 
-    # every table printed here is also written, because RESULTS.md §8.8 quotes numbers
-    # from all four and a figure that exists only in a terminal scrollback is not a record
+    # every table printed here is also written — §8.8 quotes numbers from all four
     written = [P.labels_dir() / f"climate_arms_{target}.csv"]
     t.round(4).to_csv(written[0], index=False)
 

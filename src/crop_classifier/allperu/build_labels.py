@@ -1,26 +1,13 @@
 """All-Peru ``(polygon, crop, year)`` build — the Chain-A join run per department.
 
-Identical join logic and identical label normalisation to
-``crop_classifier.build_training_data`` (which stays as the Piura-only reference
-implementation); the only differences are that it loops over
-:func:`crop_classifier.allperu.sources.departments` and carries a ``dept`` column through.
+Same join logic and label normalisation as ``crop_classifier.build_training_data`` (the
+Piura-only reference); this loops over :func:`allperu.sources.departments` and carries a
+``dept`` column. Per-department caches (``cache/sset_*.parquet``, ``cache/bridge_*.parquet``)
+make re-runs cheap — reading a 200 MB xlsx costs minutes.
 
-Two per-department caches make re-runs cheap, because reading a 200 MB xlsx with openpyxl
-costs minutes:
-
-* ``data/processed/all_peru/cache/sset_<WORKBOOK>.parquet`` — the six columns we use, for a
-  whole workbook (they hold 3-4 departments each).
-* ``data/processed/all_peru/cache/bridge_<DEPT>.parquet`` — the deduplicated key pairs.
-
-Outputs (in ``data/processed/all_peru/``) mirror the Piura build so every downstream module
-works unchanged:
-
-* ``training_crop_polygon.parquet`` — one row per polygon, ``crops`` as a list, + ``dept``
-* ``training_crop_records.parquet`` — the exploded long form, + ``dept``
-* ``crop_normalization_map.csv`` — raw label -> normalised crops, over all of Peru
-* ``build_report.csv`` — per-department yield at every join stage (the attrition audit)
-
-Run with::
+Outputs (``data/processed/all_peru_full/``) mirror the Piura build: ``training_crop_polygon``
+/ ``training_crop_records`` (+ ``dept``), ``crop_normalization_map.csv``, and
+``build_report.csv`` (per-department attrition at every join stage).
 
     uv run python -m crop_classifier.allperu.build_labels
 """
@@ -54,9 +41,9 @@ from crop_classifier.build_training_data import (
 )
 
 ROOT = Path(__file__).resolve().parents[3]
-# The FULL build lives in its own workspace; ``all_peru`` holds the Piura-scale *sample*
-# that everything downstream trains on. Keeping them apart means the sample can be redrawn
-# (different seed, different size) without re-reading 500 MB of spreadsheets.
+# The FULL build has its own workspace; ``all_peru`` holds the Piura-scale sample everything
+# downstream trains on — kept apart so the sample can be redrawn without re-reading 500 MB
+# of spreadsheets.
 OUT = ROOT / "data" / "processed" / "all_peru_full"
 CACHE = OUT / "cache"
 SHP_VIEW = CACHE / "shp"
@@ -66,33 +53,26 @@ SSET_COLS = ["DEPARTAMENTO", "CULTIVO", "FECHA EMPADRONAMIENTO", "AREA", "Codigo
 
 
 def canon_key(s: pd.Series) -> pd.Series:
-    """Canonical ``CodigoSSET``: strip whitespace **and leading zeros**.
+    """Canonical ``CodigoSSET``: strip whitespace *and leading zeros*.
 
-    Necessary, and the single biggest gotcha in the all-Peru drop. Most departments' bridge
-    files zero-pad the key to 9 characters (``030406693``) while BD SSET stores the same key
-    unpadded (``30406693``) — so a naive string join returns **zero** matches and looks like
-    "this department has no linkable data" rather than an error. Ancash: 0 keys matched
-    before, 369,089 of 422,769 after.
-
-    Piura is unaffected (both sides already 9 digits, no leading zeros), so the Piura build
-    is bit-identical with or without this — verified by rebuilding it.
+    The biggest gotcha in the all-Peru drop: most bridge files zero-pad the key to 9 chars
+    (``030406693``) while BD SSET stores it unpadded (``30406693``), so a naive string join
+    returns zero matches and reads as "no linkable data". Ancash: 0 -> 369,089 keys. Piura
+    is unaffected (both sides already 9 digits).
     """
     s = s.astype(str).str.strip()
     stripped = s.str.lstrip("0")
-    # an all-zeros key collapses to "" under lstrip; keep it as "0" rather than losing it
+    # an all-zeros key collapses to "" under lstrip; keep it as "0"
     stripped = stripped.where(stripped.ne("") | s.eq(""), "0")
     return stripped.replace({"": np.nan, "nan": np.nan, "<NA>": np.nan, "None": np.nan})
 
 
-# --------------------------------------------------------------------------------------
-# Loaders (cached)
-# --------------------------------------------------------------------------------------
+# --- Loaders (cached) ---
 def load_sset_workbook(path: Path) -> pd.DataFrame:
     """Read one BD SSET workbook (all its departments), cached to parquet.
 
-    Reads **every** ``DATOS*`` sheet: the Arequipa/Ayacucho/Cajamarca workbook holds
-    1.6 M rows and is split across ``DATOS1``/``DATOS2`` because one sheet cannot exceed
-    Excel's 1,048,576-row limit. Assuming a single ``DATOS`` silently loses a department.
+    Reads every ``DATOS*`` sheet — the Arequipa/Ayacucho/Cajamarca workbook is split across
+    ``DATOS1``/``DATOS2`` (Excel's row limit), and assuming one ``DATOS`` loses a department.
     """
     cache = CACHE / f"sset_{path.stem.replace(' ', '_')}.parquet"
     if cache.exists():
@@ -106,8 +86,8 @@ def load_sset_workbook(path: Path) -> pd.DataFrame:
         raise ValueError(f"{path.name}: no DATOS* sheet (found {wb.sheetnames})")
     parts = [pd.read_excel(path, sheet_name=s, usecols=SSET_COLS) for s in sheets]
     df = pd.concat(parts, ignore_index=True) if len(parts) > 1 else parts[0]
-    # `Codigo SSET` is int64 in some workbooks and str in others -> canonicalise to str,
-    # matching the bridge side. Int64 first so 1.0e9 floats do not become "1000000000.0".
+    # `Codigo SSET` is int64 in some workbooks, str in others -> canonicalise to str.
+    # Int64 first so 1.0e9 floats do not become "1000000000.0".
     key = df["Codigo SSET"]
     if not pd.api.types.is_object_dtype(key):
         key = key.astype("Int64")
@@ -121,13 +101,10 @@ def load_sset_workbook(path: Path) -> pd.DataFrame:
 
 
 def build_dept_sset_caches(depts: list[Dept]) -> None:
-    """One pass over **every** workbook -> one crop-declaration cache per department.
+    """One pass over every workbook -> one crop-declaration cache per department.
 
-    A department's rows are **not** confined to the workbook named after it. Lima's
-    declarations are spread across three workbooks (21,926 + 120 rows outside its own);
-    Ayacucho, La Libertad and Lambayeque also spill. Selecting only the workbook whose
-    filename mentions the department silently loses those rows, so every workbook is scanned
-    and the pieces concatenated.
+    A department's rows are not confined to the workbook named after it (Lima spills across
+    three; Ayacucho, La Libertad, Lambayeque also), so every workbook is scanned.
     """
     wanted = {d.sset_key for d in depts}
     if all((CACHE / f"sset_dept_{d.name}.parquet").exists() for d in depts):
@@ -187,8 +164,8 @@ def bridge_for(dept: Dept) -> pd.DataFrame:
 def polygons_for(dept: Dept) -> gpd.GeoDataFrame:
     """Parcel polygons keyed by ``COD_PREDIO``, EPSG:4326.
 
-    Goes through :func:`shapefile_view` because most departments ship the attribute table
-    under the wrong basename; without it the read silently returns no columns.
+    Via :func:`shapefile_view` — most departments ship the attribute table under the wrong
+    basename, and without it the read silently returns no columns.
     """
     shp = shapefile_view(dept, SHP_VIEW)
     fields = set(pyogrio.read_info(str(shp))["fields"])
@@ -214,16 +191,11 @@ def polygons_for(dept: Dept) -> gpd.GeoDataFrame:
 def clean_geometry(geom: gpd.GeoSeries) -> gpd.GeoSeries:
     """Force 2D and repair self-intersections.
 
-    **Z coordinates are the trap.** La Libertad's cadastre stores 3D polygons — 5,411 of
-    the sampled parcels — and Earth Engine's GeoJSON validator rejects any coordinate
-    triple with a bare ``EEException: Invalid GeoJSON geometry``. Shapely calls them
-    perfectly valid, `geopandas` reads and writes them happily, and nothing complains until
-    a multi-hour extraction dies partway through on a department it has not reached before.
-    Piura's shapefile is 2D, which is why this never surfaced.
-
-    ``make_valid`` additionally repairs the 19 self-intersecting rings; anything that
-    degenerates to a non-areal type is dropped by the caller rather than silently sampled
-    as a line.
+    ⚠️ Z coordinates are the trap: La Libertad's cadastre has 3D polygons (5,411 sampled
+    parcels), and Earth Engine's GeoJSON validator rejects them with a bare
+    ``EEException`` — shapely and geopandas accept them, so nothing complains until a
+    multi-hour extraction dies partway through. ``make_valid`` also repairs 19
+    self-intersecting rings; non-areal degenerates are dropped by the caller.
     """
     out = shapely.force_2d(geom.values)
     invalid = ~shapely.is_valid(out)
@@ -232,9 +204,7 @@ def clean_geometry(geom: gpd.GeoSeries) -> gpd.GeoSeries:
     return gpd.GeoSeries(out, index=geom.index, crs=geom.crs)
 
 
-# --------------------------------------------------------------------------------------
-# Per-department build
-# --------------------------------------------------------------------------------------
+# --- Per-department build ---
 def build_dept(dept: Dept) -> tuple[gpd.GeoDataFrame, pd.DataFrame, dict]:
     """Run the whole chain for one department. Returns (polygons, records, report row)."""
     t0 = time.time()
@@ -314,8 +284,7 @@ def build(save: bool = True, only: list[str] | None = None
     records = pd.concat(recs, ignore_index=True)
     report = pd.DataFrame(reps)
 
-    # COD_PREDIO is department-scoped in principle but the code embeds the department, so
-    # collisions across departments would be a data error. Check rather than assume.
+    # COD_PREDIO embeds the department, so a cross-department collision is a data error
     dup = polygons.COD_PREDIO.duplicated().sum()
     if dup:
         raise ValueError(f"{dup:,} COD_PREDIO collide across departments — the key is not "

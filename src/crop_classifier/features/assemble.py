@@ -63,11 +63,10 @@ def load_pixels(feat_dir: Path | None = None,
 def assert_one_year_per_parcel(px: pd.DataFrame) -> None:
     """Guard the multi-year landmine (plan §7.0.1).
 
-    Every downstream grouping here is keyed on ``(COD_PREDIO, doy)``. That is only sound
-    while a parcel's pixels come from a single year — otherwise observations from
-    different years silently merge into one "date", producing plausible-looking but
-    completely wrong features. The training store holds one year per parcel; the panel
-    must therefore assemble **one year at a time** (``years=[Y]``).
+    Every grouping here is keyed on ``(COD_PREDIO, doy)``, sound only while a parcel's pixels
+    are from one year — else observations from different years merge into one "date" and
+    produce plausible but wrong features. So the panel must assemble **one year at a time**
+    (``years=[Y]``).
     """
     if "year" not in px.columns:
         return
@@ -84,8 +83,8 @@ def assert_one_year_per_parcel(px: pd.DataFrame) -> None:
 def per_date_medians(px: pd.DataFrame) -> pd.DataFrame:
     """Median across a parcel's clear pixels per acquisition date + the 11 channels.
 
-    Callers must have ensured one year per parcel (``assert_one_year_per_parcel``);
-    ``doy`` alone identifies an acquisition only within a single year.
+    ``doy`` identifies an acquisition only within one year — callers must have ensured that
+    (``assert_one_year_per_parcel``).
     """
     g = (px.groupby(["COD_PREDIO", "doy"], sort=True)
            .agg({**{b: "median" for b in BANDS}, "px_id": "nunique", "mission": "first"})
@@ -93,9 +92,7 @@ def per_date_medians(px: pd.DataFrame) -> pd.DataFrame:
     return add_indices(g)
 
 
-# ------------------------------------------------------------------------------------
-# LightGBM whole-year summary features (no binning — A3)
-# ------------------------------------------------------------------------------------
+# --- LightGBM whole-year summary features (no binning — A3) ---
 def _summaries(dates: np.ndarray, vals: np.ndarray) -> dict[str, float]:
     """Summary + slope + order-1 harmonic coefficients for one channel series."""
     v = vals[~np.isnan(vals)]
@@ -139,9 +136,7 @@ def build_lightgbm_features(pd_med: pd.DataFrame, parcels: pd.DataFrame) -> pd.D
     return feats.merge(statics, on="COD_PREDIO", how="left")
 
 
-# ------------------------------------------------------------------------------------
-# Per-date + pixel-set tensors (LTAE / PSE-LTAE)
-# ------------------------------------------------------------------------------------
+# --- Per-date + pixel-set tensors (LTAE / PSE-LTAE) ---
 def _subsample_dates(doys: np.ndarray, t_max: int) -> np.ndarray:
     """Indices of at most ``t_max`` dates, evenly spread across the observed sequence."""
     if len(doys) <= t_max:
@@ -161,8 +156,8 @@ def build_tensors(px: pd.DataFrame, pd_med: pd.DataFrame,
 
     px = add_indices(px)
     px_g = dict(tuple(px.groupby("COD_PREDIO", sort=False)))
-    # pre-grouped parcel-date medians: a per-parcel boolean scan here is O(N^2) and takes
-    # hours at full scale (33k parcels x ~1M parcel-dates)
+    # pre-grouped: a per-parcel boolean scan here is O(N^2), hours at full scale
+    # (33k parcels x ~1M parcel-dates)
     med_g = dict(tuple(pd_med.groupby("COD_PREDIO", sort=False)))
     for i, cid in enumerate(cods):
         med = med_g[cid].sort_values("doy")
@@ -191,9 +186,7 @@ def build_tensors(px: pd.DataFrame, pd_med: pd.DataFrame,
             "XP": np.nan_to_num(XP), "pixmask": PIXMASK}
 
 
-# ------------------------------------------------------------------------------------
-# Entry point
-# ------------------------------------------------------------------------------------
+# --- Entry point ---
 def assemble(t_max: int = T_MAX, p_max: int = P_MAX,
              years: list[int] | None = None,
              feat_dir: Path | None = None,
@@ -203,11 +196,9 @@ def assemble(t_max: int = T_MAX, p_max: int = P_MAX,
              harmonize_coefficients: dict | None = None) -> None:
     """Raw pixel store -> the three model representations.
 
-    ``years`` restricts the input to those crop years and ``out_dir`` redirects the
-    outputs — together these give the multi-year panel one isolated bundle per year
-    (plan §7.0.1/§7.2). ``harmonize_oli`` applies the Roy et al. (2016) OLI->ETM+
-    coefficients to L8/L9 observations so a panel spanning the 2013 sensor boundary does
-    not inject a spurious trend (D7).
+    ``years`` + ``out_dir`` give the multi-year panel one isolated bundle per year
+    (plan §7.0.1/§7.2). ``harmonize_oli`` applies the Roy et al. (2016) OLI->ETM+ coefficients
+    to L8/L9 so a panel spanning the 2013 sensor boundary does not inject a spurious trend (D7).
     """
     feat_dir = feat_dir or feat()
     out_dir = out_dir or feat_dir

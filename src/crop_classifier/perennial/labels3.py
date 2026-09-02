@@ -1,20 +1,16 @@
 """3-class label table: PERENNIAL / ANNUAL / PASTURE_FALLOW (plan §3.2).
 
-Modelled on ``labels.py`` but much simpler: there is no intercrop ``merge`` map and no
-rare-class policy, because the 3-class map absorbs *every* crop token. A multi-crop parcel
-resolves by group priority (D3), so the 4,577 parcels the 12-class build drops as
-``multicrop_unmerged`` mostly survive here.
+Simpler than ``labels.py``: no intercrop ``merge`` map and no rare-class policy, because the
+3-class map absorbs every crop token. Multi-crop parcels resolve by group priority (D3), so
+most of the 4,577 the 12-class build drops as ``multicrop_unmerged`` survive here.
 
-Writes into the *current workspace* (``CC_PROC``; see ``crop_classifier.paths``):
+Writes into the current workspace (``CC_PROC``):
 
-* ``modeling_parcels.parquet`` — same schema as the 12-class table, so ``splits.py``,
-  ``data.py``, ``train.py`` and ``infer.py`` work on it unchanged;
-* ``label_map.json``, ``label_exclusions.csv`` — as before;
-* ``class_lexicon_resolved.csv`` — every crop token -> its group, how it resolved and its
-  record count. The audit trail, mirroring ``crop_normalization_map.csv``;
-* ``unassigned_tokens.csv`` — the ``crop``-category tokens that fell through to
-  ``crop_fallback`` (a guess, not a decision). The build **fails** if they exceed
-  ``max_unassigned_frac`` of all records.
+* ``modeling_parcels.parquet`` — same schema as the 12-class table;
+* ``label_map.json``, ``label_exclusions.csv``;
+* ``class_lexicon_resolved.csv`` — every crop token -> group, resolution, record count;
+* ``unassigned_tokens.csv`` — ``crop``-category tokens that fell through to
+  ``crop_fallback`` (a guess). The build fails if they exceed ``max_unassigned_frac``.
 
 Run with::
 
@@ -43,9 +39,8 @@ CONFIG_DIR = Path(__file__).resolve().parents[1] / "config"
 def source_tables() -> tuple[Path, Path]:
     """``(training_crop_polygon, training_crop_records)`` for the current workspace.
 
-    Prefers the workspace's own copies (``CC_PROC``) and falls back to the shared Piura
-    build. The 12-class and 3-class Piura workspaces both read the shared pair; the
-    all-Peru workspace writes its own, so it is picked up here without a flag.
+    Prefers the workspace's own copies (``CC_PROC``), falls back to the shared Piura build.
+    The all-Peru workspace writes its own, so it is picked up here without a flag.
     """
     for d in (proc(), PROC_SHARED):
         poly, rec = (d / "training_crop_polygon.parquet",
@@ -66,14 +61,12 @@ def load_config(path: Path | None = None) -> dict[str, Any]:
     return load_yaml_config(path or CONFIG_DIR / "perennial.yaml")
 
 
-# ------------------------------------------------------------------------------------
-# token -> group resolution
-# ------------------------------------------------------------------------------------
+# --- token -> group resolution ---
 def build_resolver(cfg: dict[str, Any]) -> dict[str, tuple[str | None, str]]:
     """Explicit ``token -> (group, source)`` map from the config lexicon.
 
-    ``source`` records *why* a token got its group so the audit CSV can show it. Later
-    entries do not silently win: a token listed twice raises.
+    ``source`` records why a token got its group, for the audit CSV. A token listed twice
+    raises rather than the later entry winning.
     """
     out: dict[str, tuple[str | None, str]] = {}
 
@@ -87,15 +80,13 @@ def build_resolver(cfg: dict[str, Any]) -> dict[str, tuple[str | None, str]]:
     for token in cfg.get("woody_noncrop") or []:
         _put(token, None if cfg["woody_noncrop_policy"] == "exclude" else "PERENNIAL",
              "woody_noncrop")
-    # In the 4-class diagnostic variant PASTURE_FALLOW does not exist: the explicit
-    # `pasture_fallow` list is bare/resting ground (DESCANSO misspellings, MACHACO, …)
-    # except for the few grazing tokens named in `pasture_tokens`.
+    # In the 4-class diagnostic variant PASTURE_FALLOW does not exist: `pasture_fallow` is
+    # bare/resting ground except for the grazing tokens named in `pasture_tokens`.
     four = bool(cfg.get("four_class"))
     names = cfg.get("four_class_names") or {}
     grazing = {t.strip().upper() for t in (cfg.get("pasture_tokens") or [])}
     pf_group = names.get("fallow", "FALLOW") if four else "PASTURE_FALLOW"
-    # config key -> group. Overridable so a variant label space (the 2-class
-    # PERENNIAL / NON_PERENNIAL collapse) can name its own lists without code changes.
+    # config key -> group, overridable so a variant label space can name its own lists.
     groups = cfg.get("lexicon_groups") or {
         "perennial": "PERENNIAL", "annual": "ANNUAL", "pasture_fallow": pf_group}
     for key, group in groups.items():
@@ -104,8 +95,8 @@ def build_resolver(cfg: dict[str, Any]) -> dict[str, tuple[str | None, str]]:
             if four and key == "pasture_fallow" and token.strip().upper() in grazing:
                 g = names.get("pasture", "PASTURE")
             _put(token, g, "lexicon")
-    # `annual_class` lets a variant label space name its non-perennial class (the 2-class
-    # collapse calls it NON_PERENNIAL) without this policy hard-coding "ANNUAL".
+    # `annual_class` lets a variant label space name its non-perennial class (2-class:
+    # NON_PERENNIAL) without hard-coding "ANNUAL".
     annual_class = cfg.get("annual_class", "ANNUAL")
     cana = "PERENNIAL" if cfg["cana_policy"] == "perennial" else annual_class
     for token in CANA_TOKENS:
@@ -114,8 +105,8 @@ def build_resolver(cfg: dict[str, Any]) -> dict[str, tuple[str | None, str]]:
 
 
 def category_group(cat: str, cfg: dict[str, Any]) -> tuple[str | None, str]:
-    """Group for a non-``crop`` category, honouring ``land_prep_policy`` and the
-    4-class diagnostic variant (D2)."""
+    """Group for a non-``crop`` category, honouring ``land_prep_policy`` and the 4-class
+    diagnostic variant (D2)."""
     if cat == "land_prep" and cfg.get("land_prep_policy") == "drop":
         return None, "land_prep_dropped"
     if cfg.get("four_class"):
@@ -126,8 +117,8 @@ def category_group(cat: str, cfg: dict[str, Any]) -> tuple[str | None, str]:
     return defaults.get(cat), "category_default"
 
 
-# Leading noise phrases that wrap a crop name: "PLANTACION DE VID", "ASOCIADO A TREBOL",
-# "CONTIENE RASTROJO DE MAIZ", "BOSQUE DE EUCALIPTOS". Stripped before re-resolution.
+# Leading noise phrases wrapping a crop name ("PLANTACION DE VID", "BOSQUE DE EUCALIPTOS");
+# stripped before re-resolution.
 _PREFIX_RE = re.compile(
     r"^(?:CONTIENE|TIENE|SEMBRADO|CULTIVADO)\s+|"
     r"^(?:ASOCIADO|ASOCIADA|ASOCIACION)\s+(?:A|DE|CON)\s+|"
@@ -139,9 +130,8 @@ def _lookup(resolver: dict[str, tuple[str | None, str]],
             token: str) -> tuple[str | None, str] | None:
     """Lexicon lookup that also tries the singular form.
 
-    The national registry is full of plurals the Piura normaliser never had to handle —
-    ``TUNAS``, ``PALTOS``, ``MELOCOTONES``, ``HUARANGOS``. Listing both forms of every
-    token would double the lexicon for no gain.
+    The national registry is full of plurals Piura never had (``TUNAS``, ``PALTOS``,
+    ``MELOCOTONES``); listing both forms of every token would double the lexicon for no gain.
     """
     hit = resolver.get(token)
     if hit is not None:
@@ -157,15 +147,11 @@ def _lookup(resolver: dict[str, tuple[str | None, str]],
 def _stage_regex(cfg: dict[str, Any]) -> re.Pattern | None:
     """Regex stripping growth-stage / association phrases off a crop token.
 
-    The Piura registrars wrote bare crop names. The sierra registrars very often wrote the
-    crop **plus its phenological stage** — ``MAIZ EN FLORACION``, ``PAPA EN FASE DE
-    CRECIMIENTO``, ``TRIGO EN ESPIGA``, ``KIKUYO ASOCIADO A TREBOL`` — which is a
-    *productive* pattern: any crop crossed with any stage. Enumerating the products in the
-    lexicon is hopeless (they are ~8 % of all all-Peru records across thousands of
-    variants), so the phrase is stripped and the base token re-resolved instead.
-
-    Stage is genuinely irrelevant here: the label is the parcel's land *state* for a whole
-    year, and "maize at flowering" and "maize at harvest" are the same annual crop.
+    Sierra registrars often wrote the crop plus its phenological stage (``MAIZ EN
+    FLORACION``, ``PAPA EN FASE DE CRECIMIENTO``) — a productive any-crop x any-stage
+    pattern that is ~8 % of national records across thousands of variants. Enumerating it is
+    hopeless, so the phrase is stripped and the base token re-resolved. Stage is irrelevant
+    here: the label is the year's land state.
     """
     words = [w.strip().upper() for w in (cfg.get("stage_words") or []) if w.strip()]
     if not words:
@@ -195,12 +181,10 @@ def resolve_token(crop: str, cat: str, cfg: dict[str, Any],
             if hit is not None:
                 return hit[0], f"stage_stripped:{hit[1]}"
         key = base or key
-    # Last resort before guessing: resolve the token's individual WORDS and combine them
-    # with the same `group_priority` used for a multi-crop parcel. "PLANTACION DE VID"
-    # yields VID, "CONTIENE RASTROJO DE MAIZ" yields {PASTURE_FALLOW, ANNUAL}. This is
-    # what keeps the national tail — 14,483 distinct tokens, mostly free-text phrases
-    # around a recognisable crop — from collapsing onto a blanket ANNUAL guess. Recorded
-    # as `word_match` so the audit separates it from an exact lexicon hit.
+    # Last resort before guessing: resolve the token's individual WORDS and combine them by
+    # `group_priority`, as for a multi-crop parcel ("PLANTACION DE VID" -> VID). Keeps the
+    # national tail (~14,483 free-text tokens around a recognisable crop) off a blanket
+    # ANNUAL guess. Recorded as `word_match` so the audit separates it from an exact hit.
     if cfg.get("word_match", False):
         found: list[str] = []
         for w in re.split(r"[^\wÑÁÉÍÓÚÜ]+", key):
@@ -242,14 +226,12 @@ def assign_group(crops: list[str], cats: list[str], cfg: dict[str, Any],
     for g in cfg["group_priority"]:
         if g in distinct:
             return g, ("single" if len(distinct) == 1 else "mixed_priority")
-    # a group_priority list that does not cover the lexicon is a config bug, not data
+    # group_priority not covering the lexicon is a config bug, not data
     raise ValueError(f"groups {sorted(distinct)} not covered by "
                      f"group_priority={cfg['group_priority']}")
 
 
-# ------------------------------------------------------------------------------------
-# audit: which tokens resolved how, and how many records rest on a guess
-# ------------------------------------------------------------------------------------
+# --- audit: which tokens resolved how, and how many records rest on a guess ---
 def token_audit(cfg: dict[str, Any], resolver: dict[str, tuple[str | None, str]],
                 records: pd.DataFrame,
                 stage_re: re.Pattern | None = None) -> pd.DataFrame:
@@ -264,9 +246,7 @@ def token_audit(cfg: dict[str, Any], resolver: dict[str, tuple[str | None, str]]
     return counts.sort_values("n_records", ascending=False).reset_index(drop=True)
 
 
-# ------------------------------------------------------------------------------------
-# build
-# ------------------------------------------------------------------------------------
+# --- build ---
 def build(config_path: Path | None = None, save: bool = True) -> gpd.GeoDataFrame:
     cfg = load_config(config_path)
     resolver = build_resolver(cfg)
@@ -285,16 +265,11 @@ def build(config_path: Path | None = None, save: bool = True) -> gpd.GeoDataFram
           f"{len(unassigned):,} unassigned `crop` tokens -> {cfg['crop_fallback']} "
           f"({unassigned['n_records'].sum():,} records, {frac:.2%})")
 
-    # ⚠️ Print the tail, sorted by frequency, top ten — always, not only on failure.
-    #
-    # An unmapped-token catch-all is never uniformly distributed, and the budget check
-    # cannot see that. Mapping the 2012 census vocabulary onto these classes left 4.09 % of
-    # tokens falling to a blanket ANNUAL, of which **80 % was the single token
-    # `VERGEL FRUTICOLA`** — "fruit orchard", a perennial. The headline moved from +2.4 pp
-    # to +12.5 pp when it was fixed, and the budget check had passed either way.
-    #
-    # The tail was already being written to unassigned_tokens.csv. It was written and not
-    # read, which for this purpose is the same as not written. (RESULTS.md §8.5)
+    # ⚠️ Print the tail, most-frequent first, always — not only on failure. A catch-all is
+    # never uniform and the budget check cannot see that: mapping the 2012 census left
+    # 4.09 % of tokens on a blanket ANNUAL, 80 % of it the single token `VERGEL FRUTICOLA`
+    # (a perennial), which moved a headline +2.4 pp -> +12.5 pp. The tail was already in
+    # unassigned_tokens.csv but unread. (RESULTS.md §8.5)
     if len(unassigned):
         top = unassigned.sort_values("n_records", ascending=False).head(10)
         share = top["n_records"].to_numpy() / max(unassigned["n_records"].sum(), 1)
@@ -357,8 +332,7 @@ def build(config_path: Path | None = None, save: bool = True) -> gpd.GeoDataFram
     cols = ["COD_PREDIO", "label", "label_id", "label_reason", "crop_set", "year",
             "area_ha", "n_pixels_est", "centroid_lon", "centroid_lat",
             "n_valid_obs", "max_gap", "quality_ok", "geometry"]
-    # `dept` exists only in the all-Peru build; it is the stratum for sampling and the
-    # held-out unit for leave-one-department-out, so it has to survive to this table.
+    # `dept` (all-Peru build only) is the sampling stratum and the LODO held-out unit
     if "dept" in df.columns:
         cols.insert(1, "dept")
     out = df[cols].reset_index(drop=True)

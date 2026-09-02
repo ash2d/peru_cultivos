@@ -5,12 +5,11 @@ The configs used to be a copy-forward chain — ``perennial_cenagro.yaml`` was
 lines deep, with two "Original header follows" markers in it. They are now diffs resolved
 by ``crop_classifier.config_loader``.
 
-Two things need pinning. The first is that the resolution is **correct** — every config
-still loads to a usable policy. The second is the one that matters scientifically: the
-derived lexicons claim to be **additive only**, because if a derived config reassigned an
-inherited token then part of a measured "change in the land" would be a change of
-definition (``RESULTS.md`` §8.5). That claim used to be a sentence in a header. Here it is
-a test.
+Two things need pinning: that resolution is **correct** (every config loads to a usable
+policy), and — the one that matters scientifically — that the derived lexicons are
+**additive only**: if a derived config reassigned an inherited token, part of a measured
+"change in the land" would be a change of definition (``RESULTS.md`` §8.5). That claim used
+to be a header sentence; here it is a test.
 """
 
 from __future__ import annotations

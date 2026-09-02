@@ -1,38 +1,26 @@
 """The extraction sample for the pre-trend-corrected tenure DiD (``docs/RESULTS.md`` §7).
 
-The v2 study stopped at N3 because its gate demanded *proof* that the pre-trend was
-negligible, and the equivalence test that would need 25,202 parcels per arm while all of Peru
-holds 6,559 (RESULTS.md §10.4). The v3 design measures the pre-trend and **subtracts** it,
-which is what the archive can actually support — so the sample is sized to take **every
-qualifying treated parcel**, not to reach a precision target that does not exist.
+v2 stopped at N3 because its gate demanded *proof* the pre-trend was negligible — an
+equivalence test needing 25,202 parcels per arm against Peru's 6,559 (§10.4). v3 measures
+the pre-trend and *subtracts* it, so the sample takes every qualifying treated parcel, not
+a precision target that does not exist.
 
 Design, in the order it binds:
+1. Population = R1-R4 survivors (``tenure_did.restrict``, over the *full* national table).
+   Treated = ``became_registered``; control = ``NO INSCRITO`` at both observations (N-D9).
+2. Strata = ``department x declaration-year cohort x arm`` (R5) — registration rate is
+   non-monotone in the gap, so the gap marks a campaign wave, not a duration.
+3. Treated is a census — all 6,559; no larger pool.
+4. Controls at 2:1 within stratum, region-first, preferring regions that already hold
+   treated parcels — the fix for G2's shared-region failure (0.366), where treatment was
+   collinear with the clustering unit.
+5. Whole 5 km regions, never scattered parcels.
+6. Sampling weights on every row — the draw is not proportional, so an unweighted share is
+   about the sample, not Peru.
 
-1. **Population** = R1-R4 survivors (``tenure_did.restrict``'s restrictions, applied here to
-   the *full* national parcel table rather than to a panel that was drawn for another
-   purpose). Treated = ``became_registered``; control = ``NO INSCRITO`` at both observations
-   (N-D9).
-2. **Strata** = ``department x declaration-year cohort x arm`` (**R5**) — the registration
-   rate is non-monotone in the gap between the two tenure observations, so the gap marks a
-   departmental campaign wave rather than a duration.
-3. **Treated is a census.** All 6,559 of them; there is no larger pool to draw from and
-   leaving any behind buys nothing.
-4. **Controls at 2:1 within stratum, preferring regions that already hold treated parcels.**
-   The existing panel failed G2's shared-region check at 0.366 — treatment was largely
-   collinear with the clustering unit, so the region-clustered SEs were not doing what they
-   appeared to. Drawing controls region-first is the fix that is available by design.
-5. **Whole 5 km regions**, never scattered parcels: crops grow in single-crop blocks, so a
-   scattered draw destroys spatial coherence and inflates apparent difficulty.
-6. **Sampling weights** travel with every row. The draw is deliberately not proportional —
-   *any share reported without them is a statement about the sample, not about Peru*.
-
-⚠️ **The 2:1 target is not reachable in the strata that need it, and topping up elsewhere
-would be waste, not rescue.** LA_LIBERTAD 2006 holds 2,849 treated parcels against 2,193
-eligible controls in the same department-cohort. Controls drawn from a stratum with no
-treated parcels are absorbed by the department x POST fixed effects and contribute **nothing**
-to the treatment coefficient, so the shortfall is taken as-is and reported.
-
-Run with::
+⚠️ The 2:1 target is not reachable in the strata that need it (LA_LIBERTAD 2006: 2,849
+treated vs 2,193 eligible controls), and topping up elsewhere is waste — controls in a
+stratum with no treated parcels are absorbed by the dept x POST FE and contribute nothing.
 
     CC_PROC=data/processed/all_peru_did CC_FEAT=data/processed/all_peru_did/features \\
     CC_RUNS=runs/all_peru uv run python -m crop_classifier.cli allperu did-sample \\
@@ -67,10 +55,9 @@ def build_population(source: Path | str, tenure: Path | str,
                      model_sample: Path | str | None = None) -> gpd.GeoDataFrame:
     """R1-R4 over the full national table, with arms, cohorts and 5 km regions attached.
 
-    ``model_sample`` is the *model's own* parcel table; joining its ``split`` is what makes
-    G2's training-set-membership diagnostic computable. A parcel absent from it was never
-    seen by the model at all, which is a third state and is kept as ``NaN`` rather than
-    folded into "not trainval".
+    ``model_sample`` is the model's own parcel table; joining its ``split`` makes G2's
+    training-membership diagnostic computable. A parcel absent from it is a third state,
+    kept ``NaN`` rather than folded into "not trainval".
     """
     post = post_windows or POST_WINDOWS
     first_post_year = min(WINDOWS[w][0] for w in post)
@@ -115,10 +102,9 @@ def draw(pop: gpd.GeoDataFrame, control_ratio: float = CONTROL_RATIO,
          max_per_region: int = MAX_PER_REGION, seed: int = 42) -> gpd.GeoDataFrame:
     """Every treated parcel, plus controls at ``control_ratio`` within each stratum.
 
-    Controls are taken **region-first**, and regions that already hold treated parcels of the
-    same stratum are offered first. That is the whole fix for G2's shared-region failure: a
-    region assigned entirely to one arm makes treatment collinear with the clustering unit
-    and turns every local shock into a confound.
+    Controls are taken region-first, regions already holding treated parcels of the same
+    stratum first — the fix for G2's shared-region failure, where a region assigned entirely
+    to one arm makes treatment collinear with the clustering unit.
     """
     rng = np.random.default_rng(seed)
     treated = pop[pop["arm"] == "treated"]
@@ -133,7 +119,7 @@ def draw(pop: gpd.GeoDataFrame, control_ratio: float = CONTROL_RATIO,
             shortfall.append({"dept": dept, "cohort": int(cohort), "n_treated": len(t_grp),
                               "quota": quota, "drawn": 0})
             continue
-        # regions holding treated parcels of this stratum come first, in random order
+        # regions holding treated parcels of this stratum first, in random order
         t_regions = set(t_grp["region_id"])
         order = pd.Series(pool["region_id"].unique())
         order = order.sample(frac=1.0, random_state=seed)
@@ -161,9 +147,8 @@ def draw(pop: gpd.GeoDataFrame, control_ratio: float = CONTROL_RATIO,
 
 def add_weights(sample: gpd.GeoDataFrame, pop: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """``sample_weight`` = stratum population / stratum sample, stratum = dept x cohort x arm.
-
-    Treated parcels are a census, so their weight is 1 by construction — which is exactly the
-    check that the weight is doing what it claims.
+    Treated parcels are a census, so their weight is 1 by construction — the check that the
+    weight does what it claims.
     """
     keys = ["dept", "cohort", "arm"]
     pop_n = pop.groupby(keys, observed=True).size()
@@ -217,8 +202,7 @@ def sample(source: Path | str, tenure: Path | str,
             if (d / name).exists():
                 raise FileExistsError(f"{d / name} exists — never overwrite a drawn sample")
         out.to_parquet(d / "modeling_parcels.parquet", index=False)
-        # the extraction reads panel_parcels.parquet; it is the same table here because the
-        # DiD panel *is* the sample — there is no second down-sampling stage.
+        # same table — the DiD panel *is* the sample, no second down-sampling stage
         out.to_parquet(d / "panel_parcels.parquet", index=False)
         src_map = Path(source) / "label_map.json"
         if src_map.exists():

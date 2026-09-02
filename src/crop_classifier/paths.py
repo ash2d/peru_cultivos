@@ -33,15 +33,15 @@ def proc() -> Path:
 def feat() -> Path:
     """Pixel/feature store directory. Override with ``CC_FEAT``.
 
-    The 12-class and 3-class perennial workspaces deliberately **share** this store: same
-    parcels, same years, same pixels, only the label column differs — so it defaults to
-    ``FEAT`` and those two never set ``CC_FEAT``.
+    The 12-class and 3-class perennial workspaces **share** this store (same parcels, years
+    and pixels, only the label differs), so it defaults to ``FEAT`` and neither sets
+    ``CC_FEAT``.
 
-    The all-Peru work (docs/RESULTS.md §4) is the first thing that needs a *different* store:
-    different parcels entirely. It sets ``CC_FEAT=data/processed/all_peru/features``, which
-    keeps the audited Piura store immutable.
+    The all-Peru work (§4) is the first that needs a *different* store — different parcels —
+    setting ``CC_FEAT=data/processed/all_peru/features``, which keeps the Piura store
+    immutable.
 
-    Same rule as ``proc()``: **call this at call time, never bind it at import.**
+    Same rule as ``proc()``: **call at call time, never bind at import.**
     """
     p = Path(os.environ.get("CC_FEAT", FEAT))
     p.mkdir(parents=True, exist_ok=True)
@@ -58,10 +58,10 @@ def runs() -> Path:
 def shared_input(name: str) -> Path:
     """A table that lives in the *national* workspace but is read from several others.
 
-    ``tenure_two_period.parquet`` is the case: it is built once over all 14 departments and
-    is then read by the DiD workspace, which has no copy of its own. Resolution is
-    ``CC_PROC`` first, then ``data/processed/all_peru`` — so a workspace that does have its
-    own copy still wins, and a clone that only has the committed national one still works.
+    ``tenure_two_period.parquet`` is the case: built once over 14 departments, read by the
+    DiD workspace which has no copy. Resolution is ``CC_PROC`` first, then
+    ``data/processed/all_peru`` — a workspace with its own copy wins, a clone with only the
+    committed national one still works.
     """
     here = proc() / name
     if here.exists():
@@ -75,10 +75,10 @@ def shared_input(name: str) -> Path:
 def labels_dir() -> Path:
     """Where one photo-interpretation campaign keeps its sample, chips and labels.
 
-    Defaults to ``<CC_PROC>/labels_s2`` — the campaign of record. Override with
-    ``CC_LABELS`` to run a **second round** (a new draw, new chips, new returned CSVs)
-    without writing over the first: the committed ``label_sample.parquet`` is the key that
-    every returned label of record is joined through, and a fresh draw would replace it.
+    Defaults to ``<CC_PROC>/labels_s2`` — the campaign of record. Override with ``CC_LABELS``
+    to run a **second round** without overwriting the first: the committed
+    ``label_sample.parquet`` is the key every returned label of record is joined through, and
+    a fresh draw would replace it.
 
     Same rule as ``proc()``: resolved at call time, never bound at import.
     """

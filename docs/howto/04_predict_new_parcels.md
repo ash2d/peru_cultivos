@@ -136,6 +136,13 @@ uv run cc -w mine2025 predict runs/s2_labels/ws_t3w_pilot__clim_temp/lightgbm \
     --tau 0.5 --out preds2025.parquet
 ```
 
+To put those predictions beside what was declared on the same parcels in 1997–2006 and
+recorded in the 2012 census, pass the file to the per-parcel export:
+
+```bash
+uv run cc -w national analysis parcel-table --preds preds2025.parquet
+```
+
 That path is the model of record. A model you trained yourself on a labelling round is under
 `runs/labels_s2_<round>/ws_<target>[__clim_<arm>]/<model>` — for example
 `runs/labels_s2_round2_all/ws_t3w__clim_temp/lightgbm`

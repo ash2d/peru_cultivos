@@ -1,20 +1,16 @@
 """The multi-year panel: annual inference over every parcel, every year (plan §7).
 
-This is the phase that turns a classifier into the deliverable. It is also where the bugs
-live, because the existing extraction assumes **one year per parcel**. The three landmines
-(plan §7.0) are handled as follows:
+The existing extraction assumes one year per parcel; the three landmines (plan §7.0):
 
-1. ``assemble`` grouped on ``(COD_PREDIO, doy)`` with no year -> fixed upstream with a
-   ``years`` filter, a per-year ``out_dir`` and ``assert_one_year_per_parcel``
-   (``tests/test_assemble_years.py``);
-2. ``run_coverage`` dedupes on ``COD_PREDIO`` and writes one file -> called **once per
-   year** with an explicit ``out=``;
-3. ``run_pixels`` hard-coded the shared feature dir -> now takes ``feat_dir``; the panel
-   writes to ``FEAT/"panel"`` so the audited training store stays immutable.
+1. ``assemble`` grouped on ``(COD_PREDIO, doy)`` with no year -> a ``years`` filter, a
+   per-year ``out_dir`` and ``assert_one_year_per_parcel``;
+2. ``run_coverage`` dedupes on ``COD_PREDIO`` and writes one file -> called once per year
+   with an explicit ``out=``;
+3. ``run_pixels`` hard-coded the shared feature dir -> takes ``feat_dir``; the panel writes
+   to ``FEAT/"panel"`` so the training store stays immutable.
 
-Cost: full inference over ~56 k parcels x 35 years is ~110 h of GEE. The panel is
-therefore a **stratified sample** (D6) whose size is chosen from a measured rate
-(``timing_probe``), with sampling weights so area shares expand to the population.
+Full inference over ~56 k parcels x 35 years is ~110 h of GEE, so the panel is a stratified
+sample (D6) sized from a measured rate (``timing_probe``), with sampling weights.
 """
 
 from __future__ import annotations
@@ -36,9 +32,8 @@ from crop_classifier.paths import feat, proc
 def panel_feat() -> Path:
     """Panel pixel store, a ``panel/`` subdirectory of the current feature store.
 
-    Call-time, not a constant, so ``CC_FEAT`` selects it (paths.py). Keeping the panel in
-    its own subdirectory is what stops a 28-year experimental extraction from mutating the
-    audited single-year training store.
+    Call-time, not a constant, so ``CC_FEAT`` selects it. Its own subdirectory keeps a
+    28-year experimental extraction from mutating the audited training store.
     """
     p = feat() / "panel"
     p.mkdir(parents=True, exist_ok=True)
@@ -46,23 +41,18 @@ def panel_feat() -> Path:
 
 
 # ---- mission policy: TM/ETM+ only, no OLI (user decision, 2026-08-04) ----------------
-# The classifier's training data is 52.8 % L5 (TM) + 47.2 % L7 (ETM+) and just 530 OLI
-# observations out of 5.65 M — it has effectively never seen L8/L9. Restricting the panel
-# to L5+L7 means **every year is inferred on radiometry the model was trained on**, which
-# removes the single largest transfer risk (a TM->OLI step landing in 2013, exactly where
-# an export-crop expansion would also appear) at the cost of the 2024+ years.
-# The Roy et al. harmonisation stays implemented but unused; re-enable by clearing this.
+# Training data is 52.8 % L5 + 47.2 % L7 with ~530 OLI obs of 5.65 M, so restricting the
+# panel to L5+L7 infers every year on radiometry the model was trained on — removing the
+# TM->OLI step risk at 2013 at the cost of 2024+. Roy harmonisation stays implemented but
+# unused; re-enable by clearing this.
 PANEL_MISSIONS: set[str] | None = {"L5", "L7"}
 
 # ---- year range: 1996-2023, measured ------------------------------------------------
-# Start 1996: the Landsat archive over Piura is essentially empty before it — gate pass
-# 3.7 % (1990), 0.0 % (1992, *zero* clear acquisitions), 4.7 % (1995) vs 100 % (1996).
-# End 2023: L7 acquisitions stop — measured gate pass 0.0 % in 2024 and 2025 (mean 0.07
-# and 0.00 clear observations per parcel). Without OLI there is no 2024+.
-# Thin years to flag rather than interpolate (measured, L5+L7): 1997 48.3 % (the 1997-98
-# El Nino), 2009 47.0 %, 2011 37.3 % (Landsat 5's degraded final years — adding L5 back
-# rescues neither, so they are thin under any TM/ETM+ policy), 2012 80.3 % (L7 SLC-off
-# alone). See docs/DATA.md §7.1.
+# Start 1996: the Piura Landsat archive is essentially empty before it (gate pass 0.0 % in
+# 1992, 4.7 % in 1995 vs 100 % in 1996). End 2023: L7 acquisitions stop (0.0 % in 2024-25);
+# without OLI there is no 2024+. Thin years to flag rather than interpolate (L5+L7): 1997
+# 48.3 % (El Nino), 2009 47.0 %, 2011 37.3 % (L5's degraded final years), 2012 80.3 %
+# (L7 SLC-off). See docs/DATA.md §7.1.
 PANEL_START_YEAR = 1996
 PANEL_END_YEAR = 2023
 DEFAULT_YEARS = list(range(PANEL_START_YEAR, PANEL_END_YEAR + 1))
@@ -71,32 +61,24 @@ DEFAULT_YEARS = list(range(PANEL_START_YEAR, PANEL_END_YEAR + 1))
 def panel_dirs(year: int, bundle_suffix: str = "") -> tuple[Path, Path]:
     """``(pixel store, per-year assembled bundle)`` for one panel year.
 
-    ``bundle_suffix`` selects an *alternative* assembly of the same year — e.g. the
-    quantile-aligned bundles of ``allperu.density.write_aligned_panel_bundles``, which live
-    in ``<panel>/<year>_qmap/``. Empty (the default) is the audited bundle, so no existing
-    caller moves.
+    ``bundle_suffix`` selects an alternative assembly of the same year (e.g. the
+    quantile-aligned bundles in ``<panel>/<year>_qmap/``). Empty (the default) is the
+    audited bundle.
     """
     pf = panel_feat()
     return pf, pf / f"{year}{bundle_suffix}"
 
 
-# ------------------------------------------------------------------------------------
-# 1. panel definition
-# ------------------------------------------------------------------------------------
+# --- 1. panel definition ---
 def build_panel(n: int = 12000, seed: int = 42, save: bool = True,
                 n_test_forced: int | None = 3000) -> gpd.GeoDataFrame:
     """Stratified sample by (label x region), plus locked-test parcels forced in.
 
-    Test parcels are forced in because the temporal-transfer check (§7.3) scores
-    predictions at label-year ± k against held-out labels. **Deviation from the plan:** it
-    assumed forcing in *every* test parcel, but this test set is 9,894 parcels — 81 % of a
-    12,000-parcel panel — which would leave the trend sample spatially confined to the 29
-    test regions. ``n_test_forced`` caps the forced subset (3,000 is ample for a per-k
-    accuracy curve) so the rest of the budget buys spatial coverage for the area-share
-    trend, which is the actual deliverable. Pass ``None`` for the plan's literal behaviour.
-
-    Sampling weights are written alongside: an area share computed on the sample must be
-    expanded to the population, never reported as-is.
+    Test parcels are forced in for the temporal-transfer check (§7.3). Deviation from the
+    plan: forcing in every test parcel (9,894, 81 % of a 12,000 panel) would confine the
+    trend sample to the 29 test regions, so ``n_test_forced`` caps the forced subset (3,000
+    is ample for a per-k curve) and the rest buys spatial coverage. ``None`` for the plan's
+    literal behaviour. Sampling weights are written alongside.
     """
     rng = np.random.default_rng(seed)
     parcels = gpd.read_parquet(proc() / "modeling_parcels.parquet")
@@ -105,7 +87,7 @@ def build_panel(n: int = 12000, seed: int = 42, save: bool = True,
     is_test = eligible["split"] == "test"
     forced = is_test
     if n_test_forced is not None and int(is_test.sum()) > n_test_forced:
-        # stratify the forced subset by label so rare classes keep their §7.3 support
+        # stratify the forced subset by label so rare classes keep §7.3 support
         keep = (eligible[is_test].groupby("label", group_keys=False, observed=True)
                 .apply(lambda g: g.sample(
                     max(1, int(round(n_test_forced * len(g) / int(is_test.sum())))),
@@ -134,9 +116,8 @@ def build_panel(n: int = 12000, seed: int = 42, save: bool = True,
     w = (pop / smp).rename("sample_weight")
     panel = panel.merge(w, left_on=["label", "region_id"], right_index=True, how="left")
     panel["sample_weight"] = panel["sample_weight"].fillna(1.0)
-    # If the workspace was itself a sample of a larger population (the all-Peru build, whose
-    # `population_weight` expands the modelling sample to all 14 departments), compose the
-    # two stages so a panel weight expands the whole way to the population.
+    # If the workspace was itself a sample (the all-Peru build's `population_weight`),
+    # compose the two stages so a panel weight expands all the way to the population.
     if "population_weight" in panel.columns:
         panel["sample_weight"] = panel["sample_weight"] * panel["population_weight"]
         print(f"composed with population_weight -> weights expand to "
@@ -155,22 +136,18 @@ def build_panel(n: int = 12000, seed: int = 42, save: bool = True,
     return panel
 
 
-# ------------------------------------------------------------------------------------
-# 2. cost calibration (§7.1) — measure before committing 20+ hours
-# ------------------------------------------------------------------------------------
+# --- 2. cost calibration (§7.1) — measure before committing 20+ hours ---
 def timing_probe(n_parcels: int = 500, years: tuple[int, ...] = (1995, 2005, 2015, 2023),
                  seed: int = 42, save: bool = True,
                  out: Path | None = None) -> pd.DataFrame:
     """Measure s/parcel-year and MB/parcel-year per era.
 
-    Landsat availability grows over time (more missions after 2013 => more observations
-    per parcel-year => slower and bigger), so the 1998-derived 0.19 s/parcel-year rate
-    must **not** be extrapolated to 2023.
+    Landsat availability grows over time (more missions after 2013), so the 1998-derived
+    0.19 s/parcel-year rate must not be extrapolated to 2023.
 
-    ``out`` names the destination CSV; it defaults to ``docs/figures/panel_budget.csv``,
-    the Piura panel's measured budget. **A second panel must pass its own path** — that file
-    is the record of what the first extraction cost and overwriting it destroys the only
-    evidence of a rate that was never supposed to be extrapolated.
+    ``out`` defaults to ``docs/figures/panel_budget.csv``, the Piura panel's measured
+    budget. A second panel must pass its own path — overwriting that file destroys the only
+    record of a rate that was never meant to be extrapolated.
     """
     lg.MISSION_FILTER = PANEL_MISSIONS
     panel = gpd.read_parquet(proc() / "panel_parcels.parquet")
@@ -208,18 +185,16 @@ def timing_probe(n_parcels: int = 500, years: tuple[int, ...] = (1995, 2005, 201
     return df
 
 
-# ------------------------------------------------------------------------------------
-# 3. extraction (§7.2)
-# ------------------------------------------------------------------------------------
+# --- 3. extraction (§7.2) ---
 def extract_panel(years: list[int] | None = None, chunk_size: int = 400,
                   pixel_chunk_size: int = 40, max_chunks: int | None = None) -> None:
     """Per year: coverage -> per-year gate -> pixels. Fully resumable.
 
-    The gate is applied **per year** into ``panel_coverage_{Y}.parquet``; it never touches
-    the label-year ``modeling_parcels.parquet``.
+    The gate is applied per year into ``panel_coverage_{Y}.parquet``; it never touches
+    ``modeling_parcels.parquet``.
     """
     years = years or DEFAULT_YEARS
-    lg.MISSION_FILTER = PANEL_MISSIONS       # TM/ETM+ only — see PANEL_MISSIONS above
+    lg.MISSION_FILTER = PANEL_MISSIONS       # TM/ETM+ only
     panel = gpd.read_parquet(proc() / "panel_parcels.parquet")
     pf = panel_feat()
     min_obs = 4
@@ -245,11 +220,10 @@ def extract_panel(years: list[int] | None = None, chunk_size: int = 400,
 def rebuild_year_stores(years: list[int] | None = None) -> pd.DataFrame:
     """Rebuild ``pixels_<year>.parquet`` from every chunk on disk, and count what it holds.
 
-    ``run_pixels`` combines a year by globbing **every** chunk present at the moment it runs,
-    so with concurrent workers on disjoint year ranges the worker that finishes first writes
-    a per-year store for years still being extracted. That is how `pixels_2023.parquet` once
-    sat on disk at 62 % of its parcels looking perfectly well-formed (RESULTS.md §7.1). Run
-    this once after **all** workers have exited.
+    ``run_pixels`` globs every chunk present when it runs, so with concurrent workers on
+    disjoint year ranges the first to finish writes a per-year store for years still
+    extracting — how `pixels_2023.parquet` once sat at 62 % looking well-formed (§7.1). Run
+    this once after all workers have exited.
     """
     pf = panel_feat()
     chunk_dir = pf / "pixels_chunks"
@@ -273,22 +247,17 @@ def rebuild_year_stores(years: list[int] | None = None) -> pd.DataFrame:
 def verify_years(years: list[int] | None = None, tol: float = 0.99) -> pd.DataFrame:
     """Count the parcels in each year's pixel store against that year's gate survivors.
 
-    **This is the only acceptable completeness check.** "The process ended", "the file
-    exists" and "no traceback" have each been wrong here at least once, and the failure mode
-    is a truncated year that looks well-formed. Returns a frame with a ``complete`` column;
-    the caller should refuse to assemble while any year is incomplete.
+    The only acceptable completeness check: "the process ended", "the file exists" and "no
+    traceback" have each been wrong, and the failure mode is a truncated year that looks
+    well-formed. The caller should refuse to assemble while any year is incomplete.
 
-    ⚠️ **There is a structural floor of a few tenths of a percent, and ``tol`` is set from
-    it rather than from taste.** Measured on the DiD panel (2026-08-12): every year loses the
-    *same* ~85 of 14,625 parcels — Jaccard 0.95 between 1999 and 2020, 86 parcels in the union
-    over six years — and they are sub-pixel (median 0.11 ha, 1.23 estimated pixels, against
-    1.00 ha / 11.06 for the sample). A parcel smaller than a Landsat pixel can pass the
-    *coverage* gate, which counts scene observations, and still return no pixel rows.
-
-    So an absolute ratio alone cannot separate "truncated" from "sub-pixel". The second
-    statistic is what does: a structural loss is **the same size in every year**, while a
-    truncated year is a year-specific outlier (the real incident was 62 % in one year and
-    ~99 % in the rest). ``deficit_ratio_to_median`` flags that, and is reported always.
+    ⚠️ There is a structural floor of a few tenths of a percent, so ``tol`` is set from it.
+    Measured on the DiD panel: every year loses the same ~85 of 14,625 parcels, all
+    sub-pixel (median 0.11 ha vs 1.00 for the sample) — smaller than a Landsat pixel, so
+    they pass the coverage gate (scene observations) but return no pixel rows. An absolute
+    ratio cannot separate "truncated" from "sub-pixel"; ``deficit_ratio_to_median`` can (a
+    structural loss is the same size every year, a truncated year is an outlier) and is
+    always reported.
     """
     pf = panel_feat()
     rows = []
@@ -310,9 +279,8 @@ def verify_years(years: list[int] | None = None, tol: float = 0.99) -> pd.DataFr
     med = float(df.loc[df["deficit"] > 0, "deficit"].median()) if (df["deficit"] > 0).any() \
         else 0.0
     df["deficit_ratio_to_median"] = df["deficit"] / med if med > 0 else 0.0
-    # A year is complete if it clears the absolute floor AND its deficit is not an outlier
-    # against the other years' — the second clause is what catches a truncated year even if
-    # the structural floor were ever large enough to hide one.
+    # complete = clears the absolute floor AND its deficit is not an outlier against the
+    # other years' — the second clause catches a truncated year the floor could hide.
     df["complete"] = ((df["gate_survivors"] > 0) & (df["frac"] >= tol)
                       & (df["deficit_ratio_to_median"] <= 3.0))
     print(df.to_string(index=False))
@@ -329,9 +297,8 @@ def assemble_panel(years: list[int] | None = None,
                    harmonize_oli: bool = False) -> None:
     """One isolated feature bundle per year (the §7.0.1 fix in action).
 
-    ``harmonize_oli`` defaults **off**: under ``PANEL_MISSIONS = {"L5", "L7"}`` there is no
-    OLI data to harmonise, and applying an unvalidated correction to nothing is worse than
-    not applying it. Turn it on only if OLI is re-admitted.
+    ``harmonize_oli`` defaults off: under ``PANEL_MISSIONS = {"L5", "L7"}`` there is no OLI
+    data to harmonise. Turn it on only if OLI is re-admitted.
     """
     years = years or DEFAULT_YEARS
     panel = gpd.read_parquet(proc() / "panel_parcels.parquet")
@@ -352,22 +319,18 @@ def assemble_panel(years: list[int] | None = None,
                      harmonize_oli=harmonize_oli)
 
 
-# ------------------------------------------------------------------------------------
-# 4. inference (§7.2)
-# ------------------------------------------------------------------------------------
+# --- 4. inference (§7.2) ---
 def infer_panel(run_dir: Path, years: list[int] | None = None,
                 tau: float = 0.0, save: bool = True,
                 out: Path | None = None, bundle_suffix: str = "") -> pd.DataFrame:
     """Score every panel year against its own feature bundle and stack the results.
 
     ``out`` overrides the default ``panel_predictions.parquet`` so a second model can be
-    inferred over the same panel without clobbering the first — the two are only
-    comparable if both survive.
+    inferred over the same panel without clobbering the first.
     """
     from crop_classifier.infer import infer
 
-    # Resolve the destination BEFORE the expensive loop. This used to be evaluated only
-    # after every year had been scored, so a bad --out threw away the whole run.
+    # Resolve the destination before the expensive loop, or a bad --out throws away the run.
     out_path = Path(out) if out is not None else proc() / "panel_predictions.parquet"
     if save and not out_path.parent.is_dir():
         raise NotADirectoryError(f"output directory does not exist: {out_path.parent}")
@@ -404,19 +367,16 @@ def infer_panel(run_dir: Path, years: list[int] | None = None,
     return panel_preds
 
 
-# ------------------------------------------------------------------------------------
-# 5. temporal transfer (§7.3) — the key internal check
-# ------------------------------------------------------------------------------------
+# --- 5. temporal transfer (§7.3) — the key internal check ---
 def temporal_transfer(panel_preds: pd.DataFrame, parcels: gpd.GeoDataFrame | None = None,
                       test_only: bool = True, k_max: int = 5) -> pd.DataFrame:
     """Accuracy vs temporal distance ``k`` from each parcel's label year.
 
-    A parcel labelled PERENNIAL in 1998 was almost certainly perennial in 1997 and 2000 —
-    orchards do not appear or vanish annually — so accuracy against the y0 label as a
-    function of k measures temporal transfer. **Caveat that must be stated:** real land-use
-    change also contributes to the decay, so this is a *lower bound* on model stability.
-    A cliff at a specific year (especially 2012, or the L8 boundary at 2013) is a sensor
-    artefact, not land-use change.
+    An orchard labelled PERENNIAL in 1998 was almost certainly perennial in 1997 and 2000,
+    so accuracy against the y0 label as a function of k measures temporal transfer. Real
+    land-use change also drives the decay, so this is a lower bound on model stability. A
+    cliff at a specific year (especially 2012, or the L8 boundary at 2013) is a sensor
+    artefact.
     """
     from sklearn.metrics import f1_score
 

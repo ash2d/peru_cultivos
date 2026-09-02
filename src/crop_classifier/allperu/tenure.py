@@ -1,32 +1,20 @@
 """Land-tenure (``ESTADO en RRPP``) per parcel — the treatment variable of the window pivot.
 
-``docs/RESULTS.md §5`` §M4/§4.5 makes the tenure contrast the deliverable, so the
-column has to come out of the raw workbooks and land on ``COD_PREDIO``. It is **not** in any
-processed table: ``build_training_data.load_sset()`` and ``allperu.build_labels.SSET_COLS``
-both omit it, so nothing downstream has ever seen it.
+RESULTS.md §5 makes the tenure contrast the deliverable, so the column has to come out of
+the raw workbooks onto ``COD_PREDIO`` — no processed table carries it.
 
-Three traps, all of which fail quietly:
+Three quiet traps:
+1. The sheet is not always ``DATOS`` — ``BD SSET(AREQUIPA-AYACUCHO-CAJAMARCA).xlsx`` splits
+   1.6 M rows across ``DATOS1``/``DATOS2`` (Excel's row ceiling). Every ``DATOS*`` is read.
+2. A department's rows are not confined to "its" workbook (``DATA.md`` §4.3) — scan all,
+   route by ``DEPARTAMENTO``.
+3. Keys are zero-padded on the bridge side, not in BD SSET — go through ``canon_key``.
 
-1. **The sheet is not always called ``DATOS``.** ``BD SSET(AREQUIPA-AYACUCHO-CAJAMARCA).xlsx``
-   splits 1.6 M rows across ``DATOS1``/``DATOS2`` (Excel's 1,048,576-row ceiling). Reading
-   ``wb.sheetnames[0]`` alone silently loses a department; every ``DATOS*`` sheet is read.
-2. **A department's rows are not confined to "its" workbook** (``docs/DATA.md`` §4.3), so
-   every workbook is scanned and rows are routed by their own ``DEPARTAMENTO`` value.
-3. **Keys are zero-padded on the bridge side and not in BD SSET**, so everything goes
-   through :func:`crop_classifier.allperu.build_labels.canon_key`.
-
-Tenure is recorded per *declaration*. Two aggregations are therefore needed and both are
-kept, because they answer different questions:
-
-* per ``CodigoSSET``  — several declarations of one parcel over the panel years;
-* per ``COD_PREDIO``  — several SSET keys can bridge to one polygon.
-
-Registration in the Registros Públicos is an **absorbing state** (a parcel does not become
-un-registered), so the default reconciliation of a conflicting group is ``any`` — INSCRITO if
-any declaration says so. ``mode`` is available for a sensitivity arm, and the disagreement
-rate is always reported as ``tenure_conflict`` so it can never be assumed away.
-
-Run with::
+Tenure is per *declaration*, so it is aggregated twice: per ``CodigoSSET`` (declarations of
+one parcel) and per ``COD_PREDIO`` (several SSET keys bridge to one polygon). Registration
+is an absorbing state, so the default reconciliation is ``any`` (INSCRITO if any declaration
+says so); ``mode`` is a sensitivity arm, and ``tenure_conflict`` always reports the
+disagreement rate.
 
     uv run python -m crop_classifier.allperu.tenure          # build caches + audit
 """
@@ -53,13 +41,12 @@ NO_INSCRITO = "NO INSCRITO"
 def _clean_tenure(s: pd.Series) -> pd.Series:
     """Free text -> ``INSCRITO`` / ``NO INSCRITO`` / NaN.
 
-    The column is documented as binary and 100 % non-null, but it is still free text in a
-    spreadsheet: check rather than trust. Anything that is neither value is returned as NaN
-    and counted by :func:`audit`, so an unexpected third value shows up as missingness
-    instead of being silently folded into one of the two groups.
+    Documented as binary and non-null, but still free text: anything else returns NaN and is
+    counted by :func:`audit`, so a third value shows up as missingness rather than being
+    folded into a group.
     """
-    # `.astype(str)` leaves NA as a float NaN under an Arrow-backed dtype, which would blow up
-    # in `unicodedata.normalize`; go through `string` + fillna so a null reads as "unparsed".
+    # `.astype(str)` leaves NA as float NaN under Arrow dtypes, which breaks
+    # `unicodedata.normalize`; go through `string` + fillna so a null reads as "unparsed".
     t = (s.astype("string").fillna("")
          .map(lambda x: unicodedata.normalize("NFKD", str(x))
               .encode("ascii", "ignore").decode())
@@ -74,9 +61,8 @@ def _clean_tenure(s: pd.Series) -> pd.Series:
 def workbook_tenure(path: Path, cache_dir: Path | None = None) -> pd.DataFrame:
     """One workbook's ``(dept, CodigoSSET, tenure, reg_year)`` rows, cached to parquet.
 
-    Reading a 200 MB xlsx with openpyxl costs minutes, so this is cached exactly like
-    ``build_labels.load_sset_workbook`` — and separately from it, because that cache was
-    written without the tenure column and must not be invalidated.
+    Reading a 200 MB xlsx costs minutes, so cache it — separately from
+    ``build_labels.load_sset_workbook``'s cache, which was written without the tenure column.
     """
     cd = cache_dir or CACHE
     cache = cd / f"tenure_{path.stem.replace(' ', '_')}.parquet"
@@ -129,9 +115,8 @@ def tenure_records(depts: list[Dept] | None = None,
 def _resolve(frac: pd.Series, policy: str) -> pd.Series:
     """``frac_inscrito`` -> a tenure value, vectorised.
 
-    ``any`` (default) calls a group INSCRITO if **any** declaration says so — registration in
-    the Registros Públicos is an absorbing state, so a later NO INSCRITO declaration is a
-    stale record, not a de-registration. ``mode`` takes the majority, ties to INSCRITO.
+    ``any`` (default): INSCRITO if any declaration says so — registration is absorbing, so a
+    later NO INSCRITO is stale, not a de-registration. ``mode``: majority, ties to INSCRITO.
     """
     cut = 0.0 if policy == "any" else 0.5
     op = frac.gt(cut) if policy == "any" else frac.ge(cut)
@@ -141,12 +126,11 @@ def _resolve(frac: pd.Series, policy: str) -> pd.Series:
 def aggregate(records: pd.DataFrame, by: str, policy: str = "any") -> pd.DataFrame:
     """Collapse declaration-level tenure onto ``by`` (``CodigoSSET`` or ``COD_PREDIO``).
 
-    Returns ``tenure`` (per ``policy``), ``tenure_conflict`` (the group held both values),
-    ``frac_inscrito``, ``n_tenure_records`` and the first ``reg_year``. The conflict rate is
-    the number that decides whether the policy matters at all.
+    Returns ``tenure`` (per ``policy``), ``tenure_conflict`` (group held both values),
+    ``frac_inscrito``, ``n_tenure_records`` and the first ``reg_year``.
 
-    Kept **fully vectorised** — there are ~4 M declarations over ~3 M keys, and a
-    ``groupby.apply`` with a Python lambda over that many groups runs for hours.
+    Fully vectorised — ~4 M declarations over ~3 M keys; a ``groupby.apply`` lambda over
+    that many groups runs for hours.
     """
     r = records[records["tenure"].notna()].copy()
     r["_insc"] = (r["tenure"] == INSCRITO).astype(float)
@@ -159,7 +143,7 @@ def aggregate(records: pd.DataFrame, by: str, policy: str = "any") -> pd.DataFra
         "n_tenure_records": grp.size(),
     })
     if "reg_year" in records.columns:
-        # earliest declaration year: the titling event, not a later re-declaration
+        # earliest declaration year = the titling event
         out["reg_year"] = grp["reg_year"].min().astype("Int64")
     return out.reset_index()
 
@@ -181,9 +165,8 @@ def tenure_by_predio(depts: list[Dept] | None = None, policy: str = "any",
                      cache_dir: Path | None = None) -> pd.DataFrame:
     """The table everything downstream joins: one row per ``COD_PREDIO``.
 
-    ``COD_PREDIO`` is the parcel key of the modelling tables; ``CodigoSSET`` is the crop
-    registry's. Several SSET keys can bridge to one polygon, so tenure is reconciled twice —
-    once within a key, once across the keys of a polygon — under the same ``policy``.
+    Several ``CodigoSSET`` keys bridge to one ``COD_PREDIO``, so tenure is reconciled twice
+    under the same ``policy`` — within a key, then across a polygon's keys.
     """
     depts = depts or departments()
     recs = tenure_records(depts, cache_dir=cache_dir)
@@ -205,23 +188,13 @@ def tenure_by_predio(depts: list[Dept] | None = None, policy: str = "any",
     return out
 
 
-# --------------------------------------------------------------------------------------
-# A SECOND, LATER tenure observation — the answer to RESULTS.md §7
-# --------------------------------------------------------------------------------------
-# The bridge .dta is not only a key table. It carries the cadastre's own titling-pipeline
-# status (`estado`, 20-26 distinct values) and the date the cadastre was cut (`fech_tran`,
-# a Stata day number that resolves to 2011-2012 in every department checked). BD SSET's
-# `ESTADO en RRPP` is the status at *declaration* (~1997-2006). Together they are **two dated
-# observations of registration status per parcel**, which is exactly what §6.2 says the
-# design needs and assumed did not exist.
-#
-# Caveats that must travel with any use of this:
-#  * `fech_tran` dates the cadastre *snapshot*, not the inscription event — so the timing of
-#    a change is bounded by the two snapshots, not observed;
-#  * `estado` is a pipeline state, not the same binary as `ESTADO en RRPP`. "RRPP: ENVIADO"
-#    (sent to the registry) is neither registered nor untouched;
-#  * it is one extra period, so this supports a two-period difference-in-differences, not a
-#    staggered event study.
+# --- A SECOND, LATER tenure observation — the answer to RESULTS.md §7 ---
+# The bridge .dta also carries the cadastre's titling-pipeline status (`estado`) and its cut
+# date (`fech_tran`, ≈2011-2012). With BD SSET's `ESTADO en RRPP` (status at declaration,
+# ~1997-2006) that is two dated observations of registration status per parcel — what §6.2
+# assumed did not exist. Caveats: `fech_tran` dates the snapshot not the inscription event
+# (timing is bounded, not observed); `estado` is a pipeline state, not the same binary
+# ("RRPP: ENVIADO" is neither); one extra period -> two-period DiD, not an event study.
 _REGISTERED_PREFIXES = ("RRPP: PROPIEDAD INSCRITA", "PREDIO INSCRITO ANTES DEL PETT",
                         "RRPP: RECTIFICACION INSCRITA")
 _POSSESSION = ("RRPP: POSESION INSCRITA",)
@@ -271,9 +244,8 @@ def tenure_two_period(depts: list[Dept] | None = None,
                       policy: str = "any") -> pd.DataFrame:
     """Join the ~1998-2006 SSET tenure to the ~2011 cadastre status, per parcel.
 
-    Adds ``became_registered``: NO INSCRITO at declaration, REGISTERED in the cadastre. That
-    flag is the treatment a two-period difference-in-differences would use, and its base rate
-    is what decides whether §6.2's causal route is available at all.
+    Adds ``became_registered`` (NO INSCRITO at declaration, REGISTERED in the cadastre) —
+    the two-period DiD treatment; its base rate decides whether §6.2's route is available.
     """
     depts = depts or departments()
     t0 = tenure_by_predio(depts, policy=policy)
@@ -288,8 +260,8 @@ def attach(parcels: pd.DataFrame, tenure: pd.DataFrame | None = None,
            policy: str = "any") -> pd.DataFrame:
     """Left-join tenure onto any table keyed by ``COD_PREDIO``, keeping unmatched rows.
 
-    Unmatched rows keep ``tenure = NaN`` rather than being dropped: the population of §2 is
-    defined as parcels *with* a non-null tenure, and it must be visible how many are lost.
+    Unmatched keep ``tenure = NaN``, not dropped — §2's population is parcels with non-null
+    tenure, and the loss must be visible.
     """
     t = tenure if tenure is not None else tenure_by_predio(policy=policy)
     cols = [c for c in ("COD_PREDIO", "tenure", "frac_inscrito", "tenure_conflict",

@@ -1,37 +1,31 @@
 """Two-period tenure difference-in-differences — ``docs/RESULTS.md §7`` v2.
 
-Four estimands failed because each needed the classifier to deliver a defensible *level* or
-*trend*, and the predicted probability drifts as the Landsat archive thins (§8.3). This design
-stops trying to fix that. Each parcel carries **two dated observations of its titling status**
-— status at its PETT declaration (parcel-specific, 1996-2009) and status at its cadastre
-transaction (mostly 2011-12). Comparing parcels that became registered against parcels that did
-not, before against after, **differences out any drift common to both arms**, which is the
-class of artefact that killed the window pivot.
+Four earlier estimands failed because each needed the classifier to deliver a defensible
+*level* or *trend*, and the predicted probability drifts as the Landsat archive thins (§8.3).
+This design differences that out: each parcel carries two dated titling observations — status
+at its PETT declaration (parcel-specific, 1996-2009) and status at its cadastre transaction
+(mostly 2011-12) — so drift common to both arms cancels, the class of artefact that killed
+the window pivot.
 
-The classifier still supplies the outcome, with all of its problems. What changes is that its
-errors now land on *both* sides of the comparison.
+The classifier still supplies the outcome, with all its problems; what changes is that its
+errors now land on both sides of the comparison.
 
-**The two observations are snapshots of a rolling programme, not two shared dates** (plan §1.1).
-Titling ran as continuous departmental campaigns, so registration happened at an unobserved
-moment inside each parcel's own interval. That forces the restrictions in :func:`restrict`:
+The two observations are snapshots of a rolling programme, not two shared dates (plan §1.1),
+which forces the restrictions in :func:`restrict`:
 
-* **R1** at-risk pool only (PETT label ``ANNUAL``) — both arms then start at a true perennial
-  share of ~0, so the class-specific component of the drift applies equally to both. Dropping
-  it rebuilds the design that already failed (§8.2).
-* **R2** both observations dated — 24.6 % of parcels carry a status with no date, and an
-  undated change cannot be placed on either side of a window.
-* **R3** cadastre date at or after the declaration, and strictly before the post-windows.
-* **R4** ⭐ the pre-window must end **before that parcel's own declaration year**, because
-  before the declaration is the only interval in which the parcel is *known* untreated. This is
-  the restriction that decides whether the design is identified, and it is the one the pilot
-  did not apply.
+* **R1** at-risk pool only (PETT label ``ANNUAL``) — both arms then start at ~0 perennial
+  share, so the class-specific drift applies equally. Dropping it rebuilds the design that
+  already failed (§8.2).
+* **R2** both observations dated — 24.6 % of parcels carry an undated status.
+* **R3** cadastre date at/after the declaration, strictly before the post-windows.
+* **R4** ⭐ the pre-window must end before that parcel's own declaration year — the only
+  interval in which the parcel is *known* untreated. This is what identifies the design, and
+  the pilot did not apply it.
 * **R5** treated and control compared within department x declaration-year cohort — the
-  registration rate is non-monotone in the gap between observations, so the gap marks a
-  campaign wave rather than a duration.
+  registration rate is non-monotone in the observation gap, so the gap marks a campaign wave.
 
 **N-D9**: the control is ``NO INSCRITO`` at *both* observations. Already-``INSCRITO`` parcels
-are a different kind of parcel carrying T1's differential false-positive rate (§8.5); they are
-a sensitivity arm, never the primary control.
+carry T1's differential false-positive rate (§8.5) — a sensitivity arm, never the primary.
 
 Run with::
 
@@ -58,13 +52,13 @@ WINDOWS: dict[str, tuple[int, int]] = {
     "W99": (1999, 2003), "W04": (2004, 2008), "W09": (2009, 2013),
     "W14": (2014, 2018), "W19": (2019, 2023),
 }
-# The pre-period split used for the R4-valid placebo. The powered cohort (reg_year >= 2004)
-# has exactly ONE window entirely before declaration (W99), so a pre-trend test has to be
-# built by splitting it. Both halves are still entirely pre-declaration.
+# Pre-period split for the R4-valid placebo. The powered cohort (reg_year >= 2004) has
+# exactly one window entirely before declaration (W99), so split it; both halves stay
+# pre-declaration.
 PRE_SUBWINDOWS: dict[str, tuple[int, int]] = {"P1": (1999, 2000), "P2": (2001, 2003)}
 
-MIN_YEARS = 3           # a 5-year window needs this many observed years to qualify
-MIN_YEARS_SUB = 2       # a 2-3 year sub-window needs this many
+MIN_YEARS = 3           # observed years a 5-year window needs to qualify
+MIN_YEARS_SUB = 2       # ... a 2-3 year sub-window
 POST_WINDOWS = ["W14", "W19"]
 
 # --- registered gate thresholds (plan §4). Fixed before the study; do not tune. ---
@@ -76,22 +70,18 @@ G3A_MAX_SE = 0.0025          # placebo resolution — the binding criterion
 G3B_MDE = 0.02               # headline effect the study must be powered for
 
 # --- the v3 reopening (plan §9): subtract the pre-trend instead of proving it away ---
-# The registered sensitivity grid. M = 0 is the uncorrected headline; the derived M (7 on
-# this window grid) assumes the pre-trend continues in a straight line for the whole
-# headline horizon and is the pessimistic end. **Report the curve, never one point.**
+# Registered sensitivity grid. M=0 is the uncorrected headline; the derived M (7 here)
+# assumes the pre-trend runs straight for the whole horizon. Report the curve, never a point.
 SENSITIVITY_M: tuple[float, ...] = (0.0, 1.0, 3.0, 5.0, 7.0)
 
 
-# ---------------------------------------------------------------------------------
-# inputs
-# ---------------------------------------------------------------------------------
+# --- inputs ---
 def load_inputs(preds: Path | str, parcels: Path | str,
                 tenure: Path | str) -> pd.DataFrame:
     """Panel predictions + parcel geography + the two tenure observations, one frame.
 
-    ``tenure_two_period.parquet`` carries duplicate ``COD_PREDIO`` rows (726,812 join hits
-    against 726,808 parcels); de-duplicating here is not optional — without it a handful of
-    parcels are silently double-weighted.
+    ``tenure_two_period.parquet`` carries duplicate ``COD_PREDIO`` rows; de-duplicating here
+    is not optional or a few parcels get double-weighted.
     """
     import geopandas as gpd
 
@@ -112,23 +102,18 @@ def load_inputs(preds: Path | str, parcels: Path | str,
     return out
 
 
-# ---------------------------------------------------------------------------------
-# R1-R5
-# ---------------------------------------------------------------------------------
+# --- R1-R5 ---
 def restrict(df: pd.DataFrame, cohort_min_year: int, control: str = "no_inscrito",
              post_windows: list[str] | None = None,
              apply_r2r3: bool = True) -> tuple[pd.DataFrame, dict]:
     """Apply R1-R4 and the N-D9 control definition. Returns ``(kept, attrition_report)``.
 
-    ``cohort_min_year`` implements **R4**: a parcel is kept only if every pre-window used for
-    identification ends before its declaration year. For the default pre-window ``W99``
-    (1999-2003) that means ``reg_year >= 2004``.
+    ``cohort_min_year`` implements R4: a parcel is kept only if every pre-window ends before
+    its declaration year (for the default ``W99`` 1999-2003, ``reg_year >= 2004``).
 
-    ``control`` selects the comparison arm:
-
-    * ``no_inscrito`` (**N-D9, the primary**) — ``NO INSCRITO`` at both observations;
-    * ``any`` — the pilot's definition, everything not treated, which mixes in
-      already-registered parcels and reintroduces T1's differential false-positive rate.
+    ``control``: ``no_inscrito`` (N-D9, primary) — ``NO INSCRITO`` at both observations;
+    ``any`` — the pilot's definition, which mixes in already-registered parcels and T1's
+    differential false-positive rate.
     """
     post = post_windows or POST_WINDOWS
     first_post_year = min(WINDOWS[w][0] for w in post)
@@ -170,8 +155,8 @@ def window_means(df: pd.DataFrame, spec: dict[str, tuple[int, int]],
                  min_years: int) -> pd.DataFrame:
     """Parcel x window mean probability, dropping windows with too few observed years.
 
-    A window that does not qualify is **dropped, not filled**: an abstained year and an
-    unchanged year are not the same thing, and filling makes them look alike (W-D2).
+    A window that does not qualify is dropped, not filled: an abstained year and an
+    unchanged year are not the same thing (W-D2).
     """
     parts = []
     carry = [c for c in ("treat", "region_id", "dept", "reg_year", "cohort", "area_ha",
@@ -189,18 +174,14 @@ def window_means(df: pd.DataFrame, spec: dict[str, tuple[int, int]],
     return pd.concat(parts, ignore_index=True) if parts else pd.DataFrame()
 
 
-# ---------------------------------------------------------------------------------
-# the estimator
-# ---------------------------------------------------------------------------------
+# --- the estimator ---
 def did(tab: pd.DataFrame, pre: str, post: list[str], cluster: str = "region_id",
         dept_window_fe: bool = True, extra_post_fe: str | None = None) -> dict:
     """Parcel FE + window FE (+ department x window FE) DiD, SEs clustered by ``cluster``.
 
-    Parcel FE absorbs every time-invariant parcel property, **including T1's differential
-    false-positive rate** (§8.5) — a level difference between kinds of parcel, which therefore
-    drops out. Department x window FE absorbs region-specific drift, the artefact class that
-    killed M2. Only parcels observed on **both** sides contribute, which is what makes the
-    comparison within-parcel.
+    Parcel FE absorbs every time-invariant parcel property, including T1's differential
+    false-positive rate (§8.5). Department x window FE absorbs region-specific drift (the
+    artefact that killed M2). Only parcels observed on both sides contribute.
     """
     import statsmodels.api as sm
 
@@ -208,11 +189,9 @@ def did(tab: pd.DataFrame, pre: str, post: list[str], cluster: str = "region_id"
     s["post"] = s["window"].isin(post).astype(float)
     both = s.groupby("COD_PREDIO")["post"].nunique()
     s = s[s["COD_PREDIO"].isin(both[both == 2].index)]
-    # Degenerate inputs return nan rather than raising. A single cluster makes the
-    # cluster-robust correction divide by (n_groups - 1) = 0 deep inside statsmodels, which
-    # surfaces as a ZeroDivisionError from a sandwich-estimator internal — unreadable, and it
-    # aborts any per-department loop on its smallest department instead of reporting nan
-    # for that one.
+    # Degenerate inputs return nan rather than raising. One cluster makes the cluster-robust
+    # correction divide by (n_groups - 1) = 0 inside statsmodels, aborting a per-department
+    # loop on its smallest department.
     if (s.empty or s["treat"].nunique() < 2
             or (cluster in s.columns and s[cluster].nunique() < 2)):
         return {"coef": float("nan"), "se": float("nan"), "p": float("nan"),
@@ -221,17 +200,15 @@ def did(tab: pd.DataFrame, pre: str, post: list[str], cluster: str = "region_id"
 
     X = s[["post", "tp"]].astype(float)
     if extra_post_fe and extra_post_fe in s.columns and s[extra_post_fe].nunique() > 1:
-        # R5's second half as a regression: declaration-year cohort gets its own time
-        # effect. Interacted with POST for the same rank reason as `dept` below.
+        # R5's second half as a regression: declaration-year cohort gets its own time effect,
+        # interacted with POST for the rank reason below.
         ex = pd.get_dummies(s[extra_post_fe].astype(str), drop_first=True, dtype=float)
         X = pd.concat([X, ex.mul(s["post"].to_numpy(), axis=0)
                        .add_prefix(f"post_x_{extra_post_fe}_")], axis=1)
     if dept_window_fe and "dept" in s.columns and s["dept"].nunique() > 1:
-        # Department-specific time effects. Interacting `dept` with the POST indicator is the
-        # only full-rank way to do this in a two-period design: a dept x window dummy set is
-        # collinear with the window dummies once the parcel FE is swept out (within a parcel
-        # the pre and post indicators are negatives of each other), which silently returns
-        # nan standard errors rather than an error.
+        # Department-specific time effects. Interacting `dept` with POST is the only
+        # full-rank way in a two-period design: a dept x window dummy set is collinear with
+        # the window dummies once the parcel FE is swept out, and returns nan SEs silently.
         dep = pd.get_dummies(s["dept"].astype(str), drop_first=True, dtype=float)
         dep = dep.mul(s["post"].to_numpy(), axis=0).add_prefix("post_x_")
         X = pd.concat([X, dep], axis=1)
@@ -258,25 +235,22 @@ def horizon_years(pre: str, post: list[str], spec: dict[str, tuple[int, int]]) -
     return float(np.mean([_midpoint(w, spec) for w in post]) - _midpoint(pre, spec))
 
 
-# ---------------------------------------------------------------------------------
-# G1 — the placebo, as an equivalence test with three outcomes
-# ---------------------------------------------------------------------------------
+# --- G1 — the placebo, as an equivalence test with three outcomes ---
 def placebo(tab: pd.DataFrame, pre: str, post: str,
             spec: dict[str, tuple[int, int]],
             band_per_decade: float = G1_BAND_PER_DECADE,
             dept_window_fe: bool = True) -> dict:
     """G1. Both windows are entirely pre-treatment, so the true coefficient is zero.
 
-    **Equivalence, not significance** (plan §4). The old criterion paired an equivalence bound
-    with "the CI contains 0"; those pull in opposite directions, because the second rewards an
-    imprecise estimate and punishes a precise one. Here:
+    Equivalence, not significance (plan §4): the old criterion also required "the CI
+    contains 0", which rewards an imprecise estimate.
 
     * **PASS** — the whole 95 % CI lies inside the band;
     * **FAIL** — the CI excludes 0 *and* the point estimate is outside the band;
-    * **INCONCLUSIVE** — anything else, i.e. the CI is wider than the band.
+    * **INCONCLUSIVE** — otherwise (CI wider than the band).
 
-    The band is expressed **per decade** so placebo contrasts of different lengths are held to
-    the same standard. ``+/-0.005`` over a 5-year step is ``0.010`` per decade.
+    The band is per decade so contrasts of different lengths meet one standard; ``+/-0.005``
+    over a 5-year step is ``0.010`` per decade.
     """
     r = did(tab, pre, [post], dept_window_fe=dept_window_fe)
     h = horizon_years(pre, [post], spec)
@@ -294,17 +268,14 @@ def placebo(tab: pd.DataFrame, pre: str, post: str,
             "verdict": verdict}
 
 
-# ---------------------------------------------------------------------------------
-# The v3 correction — measure the pre-trend and subtract it (plan §9)
-# ---------------------------------------------------------------------------------
+# --- The v3 correction — measure the pre-trend and subtract it (plan §9) ---
 def amplification_factor(pre: str, post: list[str], placebo_pre: str, placebo_post: str,
                          spec: dict[str, tuple[int, int]]) -> float:
     """``M`` — how many placebo horizons fit inside the headline horizon.
 
-    A pre-trend measured over a 2.5-year step contaminates a 17.5-year headline by **seven
-    times** its coefficient, not by its coefficient. ``M`` is therefore a property of the
-    **window grid**, not a constant, and is derived from window midpoints here so that
-    changing ``WINDOWS`` or ``PRE_SUBWINDOWS`` cannot silently leave a stale 7 behind.
+    A pre-trend measured over 2.5 years contaminates a 17.5-year headline by seven times its
+    coefficient. ``M`` is a property of the window grid, derived here from midpoints so
+    changing ``WINDOWS``/``PRE_SUBWINDOWS`` cannot leave a stale 7 behind.
     """
     h_head = horizon_years(pre, post, spec)
     h_plac = horizon_years(placebo_pre, [placebo_post], spec)
@@ -317,20 +288,16 @@ def corrected_effect(headline: dict, placebo: dict, m: float,
                      cov: float = 0.0) -> dict:
     """``headline - M * placebo``, carrying the placebo's uncertainty into the CI.
 
-    This is the whole point of the reopening. The v2 gate demanded *proof* that the
-    pre-trend was negligible (an equivalence test), and the sample that would need does not
-    exist in Peru — 25,202 parcels per arm against 6,559 (RESULTS.md §10.4). Measuring the
-    pre-trend and subtracting it is strictly less demanding and *is* achievable, at the cost
-    of a much wider interval::
+    The v2 gate demanded proof the pre-trend was negligible, needing a sample Peru does not
+    have — 25,202 parcels per arm against 6,559 (§10.4). Subtracting it is less demanding and
+    achievable, at a much wider interval::
 
         corrected = headline - M * placebo
         se        = sqrt(se_h^2 + M^2 * se_p^2 - 2 * M * cov)
 
-    ``cov`` defaults to **zero — the registered formula**, which treats the two coefficients
-    as independent. They are not: both are estimated on overlapping parcels and the placebo's
-    windows sit inside the headline's pre-period. A *positive* covariance would make the
-    registered SE conservative; ``bootstrap_covariance`` measures the sign and size and is
-    reported as a diagnostic. The registered number never moves on it.
+    ``cov`` defaults to zero — the registered formula. The two coefficients are not actually
+    independent (overlapping parcels, nested windows); ``bootstrap_covariance`` measures the
+    sign and size as a diagnostic. The registered number never moves on it.
     """
     from scipy.stats import norm
 
@@ -353,10 +320,9 @@ def sensitivity_curve(headline: dict, placebo: dict,
                       cov: float = 0.0) -> pd.DataFrame:
     """The corrected effect and its CI at every registered ``M``.
 
-    Registered as **always reported**: ``M = 0`` is the uncorrected headline and the derived
-    ``M`` assumes the pre-trend runs in a straight line for the whole headline horizon.
-    Neither is "the" answer — publishing the curve lets a reader choose their assumption,
-    and publishing one point without it invites the reader to assume the author chose.
+    Registered as always reported: ``M = 0`` is the uncorrected headline and the derived
+    ``M`` assumes the pre-trend runs straight for the whole horizon. Publishing one point
+    without the curve invites the reader to assume the author chose it.
     """
     return pd.DataFrame([corrected_effect(headline, placebo, m, cov=cov) for m in ms])
 
@@ -365,9 +331,9 @@ def decision(corrected: dict) -> dict:
     """The registered primary decision rule (plan §9, fixed before extraction).
 
     **REPORTED** — the 95 % CI of ``headline - M * placebo`` excludes zero.
-    **NOT-SEPARABLE** — anything else: the effect cannot be told apart from pre-existing
-    drift. That is a *complete outcome*, not a failure — it bounds the titling effect and
-    measures the anticipation trend, and it is written up to the same standard.
+    **NOT-SEPARABLE** — otherwise: the effect cannot be told from pre-existing drift. A
+    complete outcome, not a failure — it bounds the titling effect and measures the
+    anticipation trend, and is written up to the same standard.
     """
     ok = bool(corrected.get("excludes_zero"))
     return {"decision": "REPORTED" if ok else "NOT-SEPARABLE",
@@ -384,11 +350,10 @@ def bootstrap_covariance(tab: pd.DataFrame, pre: str, post: list[str],
                          dept_window_fe: bool = True) -> dict:
     """Cluster bootstrap of ``cov(headline, placebo)`` — a diagnostic, never the estimate.
 
-    Resamples **whole regions** (the clustering unit, and the spatial-autocorrelation range),
-    refits both coefficients on each replicate and reports their covariance and correlation.
-    The registered SE assumes ``cov = 0``; this says how wrong that is and in which
-    direction. It is deliberately *not* wired into the reported number — a registered formula
-    that moves after the data are seen is not registered.
+    Resamples whole regions, refits both coefficients per replicate, reports their
+    covariance and correlation. Says how wrong the registered ``cov = 0`` is, and in which
+    direction. Not wired into the reported number — a registered formula that moves after the
+    data are seen is not registered.
     """
     rng = np.random.default_rng(seed)
     regions = tab[cluster].dropna().unique()
@@ -418,9 +383,7 @@ def bootstrap_covariance(tab: pd.DataFrame, pre: str, post: list[str],
             "boot_se_placebo": float(p_arr.std(ddof=1))}
 
 
-# ---------------------------------------------------------------------------------
-# G2 — sample integrity
-# ---------------------------------------------------------------------------------
+# --- G2 — sample integrity ---
 def _smd(a: np.ndarray, b: np.ndarray) -> float:
     """Standardised mean difference, the conventional common-support statistic."""
     a, b = np.asarray(a, float), np.asarray(b, float)
@@ -435,15 +398,13 @@ def integrity(df: pd.DataFrame, tab: pd.DataFrame,
               spec: dict[str, tuple[int, int]]) -> dict:
     """G2 — four cheap checks, all computable before any extraction is funded.
 
-    Two of them are new to this plan and have never been run in this project: **differential
-    attrition** (window qualification depends on observation density, which depends on parcel
-    size, which correlates with titling) and **training-set membership** (the model was trained
-    on some of these parcels *labelled* ``ANNUAL``, which holds their predicted perennial
-    probability down in every window).
+    Two are new to this project: differential attrition (window qualification depends on
+    observation density -> parcel size -> titling) and training-set membership (the model was
+    trained on some of these parcels labelled ``ANNUAL``, holding their predicted probability
+    down).
 
-    ⚠️ Baseline ``p_mean`` is **reported and never acted on**. Trimming on the pre-period
-    outcome induces regression to the mean, which looks exactly like the pre-trend G1 hunts
-    for.
+    ⚠️ Baseline ``p_mean`` is reported and never acted on. Trimming on the pre-period outcome
+    induces regression to the mean, which mimics the pre-trend G1 hunts for.
     """
     one = df.drop_duplicates("COD_PREDIO")
     t, c = one[one.treat == 1], one[one.treat == 0]
@@ -512,26 +473,21 @@ def integrity(df: pd.DataFrame, tab: pd.DataFrame,
     return out
 
 
-# ---------------------------------------------------------------------------------
-# G3 — precision, sized for the gate that decides
-# ---------------------------------------------------------------------------------
+# --- G3 — precision, sized for the gate that decides ---
 def precision(df: pd.DataFrame, spec: dict[str, tuple[int, int]],
               pre: str, post: str, min_years: int,
               targets: tuple[int, ...] = (1300, 2000, 4000, 6500, 10000, 20000),
               band_per_decade: float = G1_BAND_PER_DECADE) -> dict:
     """G3a — the expected placebo SE at a range of sample sizes, from measured variance.
 
-    The old G4 powered the *headline* while N-D1 made the *placebo* decisive, so it would have
-    reported a comfortable pass on a sample that then coin-flips the gate that ends the study.
-    This computes the quantity that actually binds.
-
-    The DiD SE on a two-window contrast is driven by the SD of the **within-parcel change** in
-    window-mean probability, inflated by the intra-region correlation of that change::
+    The old G4 powered the headline while the placebo was decisive, so it could report a
+    pass on a sample that then coin-flips the gate that ends the study. This computes what
+    binds: the SD of the within-parcel change in window-mean probability, inflated by its
+    intra-region correlation::
 
         SE ~ SD(delta) * sqrt((1/n_t + 1/n_c) * deff_cluster)
 
-    Both inputs are measured on the panel in hand rather than assumed — this project's own rule
-    for GEE timing, applied to statistics.
+    Both inputs are measured on the panel in hand, not assumed.
     """
     a = window_means(df, {pre: spec[pre]}, min_years).set_index("COD_PREDIO")
     b = window_means(df, {post: spec[post]}, min_years).set_index("COD_PREDIO")
@@ -566,11 +522,10 @@ def precision(df: pd.DataFrame, spec: dict[str, tuple[int, int]],
 def population_ceiling(source: Path | str, tenure: Path | str,
                        cohort_min_year: int = 2004,
                        post_windows: list[str] | None = None) -> dict:
-    """How many parcels in **all of Peru** could ever enter this design, after R1-R4.
+    """How many parcels in all of Peru could ever enter this design, after R1-R4.
 
-    This is the number that decides whether G3a is reachable, and it is a property of the
-    archive rather than of the budget. If the required sample exceeds it, no amount of GEE
-    time buys the study — which is exactly the situation the plan's stop rule anticipates.
+    A property of the archive, not the budget: if the required sample exceeds it, no GEE time
+    buys the study.
     """
     post = post_windows or POST_WINDOWS
     first_post_year = min(WINDOWS[w][0] for w in post)
@@ -600,10 +555,9 @@ def population_ceiling(source: Path | str, tenure: Path | str,
 def feasibility(precision_result: dict, ceiling: dict) -> dict:
     """N3/G3a: can the population supply the sample the placebo gate needs?
 
-    This is the question that decides whether any GEE budget should be spent, and it is
-    answerable **before** spending a second of it. ``required_effective_n`` comes from measured
-    variance; ``available_effective_n`` from the archive after R1-R4. If the first exceeds the
-    second, the study is not fundable at any budget and the plan's stop rule applies.
+    Answerable before spending any GEE budget. ``required_effective_n`` from measured
+    variance, ``available_effective_n`` from the archive after R1-R4; if the first exceeds
+    the second the study is not fundable at any budget.
     """
     need_per_arm = precision_result.get("n_per_arm_required", float("nan"))
     need_eff = need_per_arm / 2.0
@@ -621,15 +575,12 @@ def feasibility(precision_result: dict, ceiling: dict) -> dict:
     }
 
 
-# ---------------------------------------------------------------------------------
-# registration — written BEFORE the extraction, never rewritten afterwards
-# ---------------------------------------------------------------------------------
+# --- registration — written BEFORE the extraction, never rewritten afterwards ---
 def registration(cohort_min_year: int = 2004, control: str = "no_inscrito") -> dict:
     """The pre-registered analysis, as a dict. ``write_registration`` persists it.
 
-    Everything here is decided before a single parcel-year is extracted. The project's whole
-    track record is pre-registered predictions being confirmed or refuted on the record
-    (plan.md §7b.1); a decision rule chosen after seeing the coefficient is not a rule.
+    Everything here is decided before a parcel-year is extracted; a decision rule chosen
+    after seeing the coefficient is not a rule.
     """
     full = {**PRE_SUBWINDOWS, **WINDOWS}
     pl_a, pl_b = list(PRE_SUBWINDOWS)
@@ -700,17 +651,15 @@ def write_registration(path: Path | str | None = None, cohort_min_year: int = 20
     return p
 
 
-# ---------------------------------------------------------------------------------
-# the run
-# ---------------------------------------------------------------------------------
+# --- the run ---
 def run(preds: Path | str, parcels: Path | str, tenure: Path | str, tag: str,
         cohort_min_year: int = 2004, control: str = "no_inscrito",
         apply_r4: bool = True, save: bool = True) -> dict:
     """Run the whole design on one panel and gate it. Returns the verdict dict.
 
-    ``apply_r4=False`` reproduces the **pilot** (calendar windows for every parcel, placebo
-    W99->W04), which is kept only so §9.6's numbers stay reproducible under N-D7. It is not a
-    valid specification: for a parcel declared in 1999, W04 may be entirely post-treatment.
+    ``apply_r4=False`` reproduces the pilot (calendar windows for every parcel, placebo
+    W99->W04), kept only so §9.6 stays reproducible. Not a valid specification: for a parcel
+    declared in 1999, W04 may be entirely post-treatment.
     """
     df = load_inputs(preds, parcels, tenure)
     spec_pre = PRE_SUBWINDOWS if apply_r4 else {"W99": WINDOWS["W99"], "W04": WINDOWS["W04"]}
@@ -771,17 +720,15 @@ def run_corrected(preds: Path | str, parcels: Path | str, tenure: Path | str, ta
                   cohort_min_year: int = 2004, control: str = "no_inscrito",
                   n_boot: int = 0, save: bool = True,
                   export_share: tuple[float, float] = (0.573, 0.772)) -> dict:
-    """The v3 estimate: placebo, headline, **corrected effect + sensitivity curve**, decision.
+    """The v3 estimate: placebo, headline, corrected effect + sensitivity curve, decision.
 
-    Order is deliberate and enforced by the code path: **the placebo is estimated first**.
-    A headline computed before its pre-trend is a number nobody can un-see.
+    The placebo is estimated first, by code path: a headline computed before its pre-trend is
+    a number nobody can un-see.
 
     ``export_share`` is §6.4's (export-only, export+mixed) split of PERENNIAL, applied to the
-    corrected coefficient so no sentence about *export* crops is written against an
-    undiscounted number.
+    corrected coefficient so no sentence about export crops uses an undiscounted number.
 
-    Writes ``did2_*`` artifacts under ``proc()`` and **refuses to overwrite** — the v2 run's
-    ``did_*`` files are the record of why the study stopped.
+    Writes ``did2_*`` artifacts under ``proc()`` and refuses to overwrite.
     """
     df = load_inputs(preds, parcels, tenure)
     d, rep = restrict(df, cohort_min_year, control=control, apply_r2r3=True)
@@ -816,9 +763,8 @@ def run_corrected(preds: Path | str, parcels: Path | str, tenure: Path | str, ta
     g1_thr = did(thr_tab, pl_a, [pl_b], dept_window_fe=True)
     corr_thr = corrected_effect(head_thr, g1_thr, m)
 
-    # R5's regression form, as a robustness arm: the declaration-year cohort gets its own
-    # time effect on top of the department's. The registered primary is the specification
-    # above; this says whether the campaign-wave confound is doing any of the work.
+    # R5's regression form as a robustness arm: declaration-year cohort gets its own time
+    # effect on top of the department's — says whether the campaign-wave confound is doing work.
     cohort_col = "cohort" if "cohort" in tab.columns else "reg_year"
     r5 = {"pre_post": did(tab, "W99", POST_WINDOWS, dept_window_fe=True,
                           extra_post_fe=cohort_col),
@@ -882,26 +828,21 @@ def run_corrected(preds: Path | str, parcels: Path | str, tenure: Path | str, ta
 def cross_sectional_contrast(preds: Path | str, parcels: Path | str, tenure: Path | str,
                              tag: str, windows: tuple[str, str] = ("W99", "W19"),
                              save: bool = True) -> dict:
-    """⚠️ **DESCRIPTIVE COMPANION, NOT AN ESTIMATE.** INSCRITO vs NO INSCRITO, by window.
+    """⚠️ DESCRIPTIVE COMPANION, NOT AN ESTIMATE. INSCRITO vs NO INSCRITO, by window.
 
-    This is the design the project started with and does **not** use: compare parcels that were
-    already registered at declaration against parcels that were not, and read the perennial
-    share. It is computed and reported because the number is asked for, and because *why* it is
-    uninterpretable is itself a result. Three reasons it cannot carry a causal claim:
+    The design the project started with and does not use. Computed because the number is
+    asked for, and because why it is uninterpretable is itself a result:
 
-    * **The classifier's error is differential by tenure.** Among at-risk (PETT-``ANNUAL``)
-      parcels the true perennial share at the label year is ~0 by construction, so the measured
-      W99 gap **is** the false-positive-rate gap (§8.5: −4.4 pp raw). Any endpoint gap is that
-      artefact plus the effect, and the endpoint error structure is unmeasured.
-    * **Registration at declaration is not random** — it is entangled with declaration year,
-      which is entangled with baseline perennial propensity, and with region, which is
-      entangled with crop suitability.
-    * **The endpoint level is where the model is least trustworthy** (observation density
-      collapses; both tenure groups roughly double into W19).
+    * The classifier's error is differential by tenure. Among at-risk (PETT-``ANNUAL``)
+      parcels the true perennial share at the label year is ~0, so the W99 gap IS the
+      false-positive-rate gap (§8.5: −4.4 pp raw); the endpoint error structure is unmeasured.
+    * Registration at declaration is not random — entangled with declaration year, baseline
+      perennial propensity and region.
+    * The endpoint level is where the model is least trustworthy (observation density
+      collapses).
 
-    The **per-department** breakdown is returned and printed alongside the national figure and
-    is not optional: the contrast's *sign* is department-specific, so a pooled number hides a
-    quantity that does not exist.
+    The per-department breakdown is returned and not optional: the contrast's sign is
+    department-specific, so a pooled number hides a quantity that does not exist.
     """
     df = load_inputs(preds, parcels, tenure)
     d = df[~df.get("abstained", pd.Series(False, index=df.index)).astype(bool)]

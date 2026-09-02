@@ -82,9 +82,9 @@ class TestKappa:
     def test_reports_both_4way_and_perennial_vs_rest(self):
         """Both numbers are needed because they can diverge in either direction.
 
-        Here the labellers agree perfectly on what is perennial and disagree only on
-        OTHER vs WOODY_NON_CROP *inside* the rest — so the 4-way number looks bad while
-        the distinction the research question turns on is in fact unanimous.
+        Here the labellers agree perfectly on what is perennial and disagree only on OTHER vs
+        WOODY_NON_CROP *inside* the rest — the 4-way number looks bad while the distinction
+        the research question turns on is unanimous.
         """
         rows = ([_row(f"M{i:05d}", lab, "PERENNIAL")
                  for i in range(10) for lab in ("A", "B")]
@@ -123,10 +123,10 @@ class TestResolve:
 
 
 class TestNoConfidenceField:
-    """Confidence was a second, softer abstain sitting beside UNSURE.
+    """Confidence was a second, softer abstain beside UNSURE.
 
-    Two ways to record doubt split the signal: the hard one the gates read, and a graded
-    one nobody moved off its default. Removing it is only safe if nothing downstream still
+    Two ways to record doubt split the signal: the hard one the gates read, and a graded one
+    nobody moved off its default. Removing it is safe only if nothing downstream still
     reaches for the column.
     """
 
@@ -269,11 +269,10 @@ class TestUnsure:
 class TestNonAgriculture:
     """The sixth value, carved out of `OTHER`.
 
-    `OTHER` used to mean both "farmable land not currently cropped" (pasture, fallow,
-    prepared ground) and "not farmland at all" (water, built-up, road, riverbed). Those are
-    different things here: a fallow field can convert to a perennial and a road cannot, so
-    pooling them puts a structurally impossible outcome in the same class as the one the
-    project is trying to measure.
+    `OTHER` used to mean both "farmable land not currently cropped" (pasture, fallow, prepared
+    ground) and "not farmland at all" (water, built-up, road). A fallow field can convert to
+    a perennial and a road cannot, so pooling them puts a structurally impossible outcome in
+    the class the project is measuring.
     """
 
     def test_it_is_a_real_class_not_an_abstain(self):

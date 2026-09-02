@@ -133,9 +133,7 @@ def _align(panel_preds: pd.DataFrame, parcels: list[str], col: str) -> np.ndarra
     return s.reindex(parcels).to_numpy(dtype=float)
 
 
-# ------------------------------------------------------------------------------------
-# §9.5 sensitivity battery
-# ------------------------------------------------------------------------------------
+# --- §9.5 sensitivity battery ---
 def perennial_share_trend(share: pd.DataFrame) -> dict:
     """Slope + direction of the PERENNIAL share over time (criterion S6 is *direction*)."""
     s = share[share["class"] == "PERENNIAL"].dropna(subset=["share"])

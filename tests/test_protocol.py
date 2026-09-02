@@ -69,7 +69,7 @@ def _row(rows, split):
     return next(r for r in rows if r.split == split)
 
 
-# ── the floor ────────────────────────────────────────────────────────────────────────────
+# --- the floor ---
 
 def test_floor_is_the_always_guess_the_largest_class_score():
     y = pd.Series([0] * 60 + [1] * 25 + [2] * 15)
@@ -85,7 +85,7 @@ def test_the_floor_rises_when_the_label_space_collapses():
     assert P.majority_class_floor(two) > P.majority_class_floor(four)
 
 
-# ── reading predictions ──────────────────────────────────────────────────────────────────
+# --- reading predictions ---
 
 def test_probability_columns_are_mapped_through_the_label_map_not_column_order():
     """`prob_ANNUAL, prob_PASTURE_FALLOW, prob_PERENNIAL` is alphabetical and happens to
@@ -102,7 +102,7 @@ def test_hard_predictions_are_used_as_is():
     assert list(P._y_pred(d, None)) == [0, 2, 2]
 
 
-# ── the table ────────────────────────────────────────────────────────────────────────────
+# --- the table ---
 
 def test_cv_reports_the_recorded_fold_statistics_not_a_recomputed_one(run_dir, proc_dir):
     """If this command recomputed CV from the pooled predictions it would print a number

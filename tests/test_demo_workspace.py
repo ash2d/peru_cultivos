@@ -1,16 +1,15 @@
 """The demo workspace runs on a clone with no data and no Earth Engine account.
 
-This is the promise `README.md` makes in its quickstart, and it is the one most likely to rot
-silently: the demo is not on anyone's daily path, so the first person to find it broken is a
-new collaborator on their first hour with the repository.
+The promise `README.md` makes in its quickstart, and the one most likely to rot silently:
+the demo is not on anyone's daily path, so the first to find it broken is a new collaborator.
 
 It is a real sample of the national build, so these tests also guard the two properties that
 make a small sample honest — whole regions move together into a split, and more than one
 department is present so that leave-one-department-out can actually run.
 
-The training arm runs in a **subprocess**. LightGBM and torch each bundle their own libomp and
-co-loading them on macOS segfaults the interpreter (exit 139), which in a test session takes
-the whole run down rather than failing one test.
+The training arm runs in a **subprocess**: LightGBM and torch each bundle their own libomp
+and co-loading them on macOS segfaults the interpreter (exit 139), which in a test session
+takes the whole run down.
 """
 
 from __future__ import annotations
@@ -70,9 +69,8 @@ def test_it_has_the_columns_the_real_loader_requires():
 
 
 def test_no_region_is_split_across_train_and_test():
-    """The discipline the demo is supposed to teach: whole regions move together. Splitting
-    parcels at random puts a parcel's neighbours in its own training set, which is the
-    cheapest way there is to manufacture an inflated CV score."""
+    """The discipline the demo teaches: whole regions move together. Random parcel splits put
+    a parcel's neighbours in its own training set — the cheapest way to inflate a CV score."""
     g = gpd.read_parquet(DEMO / "modeling_parcels.parquet")
     per_region = g.groupby("region_id")["split"].nunique()
     assert (per_region == 1).all(), "a region appears in more than one split"

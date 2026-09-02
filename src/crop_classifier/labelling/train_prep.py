@@ -1,19 +1,16 @@
 """Turn returned S2 labels into a trainable workspace, then drive the model arms.
 
-``ingest`` writes ``labelled_parcels.parquet``, which stores the annotator's label
-**verbatim** over six values and deliberately takes no modelling decision. This module
-takes those decisions explicitly, one workspace per target, so that every arm is a file on
-disk that can be re-read rather than a flag threaded through a training call.
+``ingest`` writes ``labelled_parcels.parquet`` (the annotator's label verbatim over six
+values, no modelling decision). This module takes those decisions explicitly, one workspace
+per target, so every arm is a file on disk rather than a flag threaded through a call.
 
 Each workspace is a ``CC_PROC`` directory holding ``modeling_parcels.parquet`` +
-``label_map.json`` in exactly the schema ``data.load_parcels`` expects, so ``train.py``,
-``evaluate.py`` and the model registry run **unmodified** against it. The feature store is
-pointed at ``features_s2/`` via ``CC_FEAT``; the S2 summary block is symlinked to the name
-``data.FN_LGBM`` expects rather than copied.
+``label_map.json`` in the schema ``data.load_parcels`` expects, so ``train.py``,
+``evaluate.py`` and the model registry run unmodified. ``CC_FEAT`` points at
+``features_s2/``; the S2 summary block is symlinked to the name ``data.FN_LGBM`` expects.
 
-⚠️ **Never import this module in the same process as a torch model.** It reaches LightGBM
-through ``train``/``baseline``; macOS co-loading of the two libomp copies segfaults. The
-CLI runs one arm per process for exactly that reason.
+⚠️ Never import this module in the same process as a torch model — it reaches LightGBM
+through ``train``/``baseline`` and macOS co-loading of the two libomp copies segfaults.
 """
 
 from __future__ import annotations
@@ -31,23 +28,17 @@ from crop_classifier.paths import ROOT, labels_dir
 # ---------------------------------------------------------------------------------
 # Targets
 # ---------------------------------------------------------------------------------
-# The label spaces live in `config/labels/*.yaml`, one file each, with the reasoning for
-# the choice written next to it. They used to be a literal here, which made adding one —
-# the thing most likely to be needed when new labels arrive — a Python edit inside a module
-# that must never be imported alongside torch.
-#
-# `TARGETS` and `RULES_INCOMPATIBLE` are resolved on every access rather than bound at
-# import, so a label set added to that directory is usable immediately, with no reload and
-# no code change. See `crop_classifier/label_sets.py` and the README beside the configs.
+# Label spaces live in `config/labels/*.yaml`, one file each. `TARGETS` and
+# `RULES_INCOMPATIBLE` resolve on every access rather than at import, so a label set added
+# to that directory is usable with no code change. See `crop_classifier/label_sets.py`.
 
 
 def __getattr__(name: str):                     # PEP 562
     if name == "FEAT_S2":
-        # The S2 feature store of whichever round is in play. `--round <name>` moves the
-        # store to `features_s2_<name>` and `campaign combine` writes a merged one, so
-        # binding this at import trained a new round's parcels against the campaign of
-        # record's features — silently, because a parcel missing from the table comes out
-        # all-NaN rather than as an error.
+        # The S2 feature store of whichever round is in play. `--round <name>` and
+        # `campaign combine` move it, so binding at import would silently train a new
+        # round's parcels against another round's features (a missing parcel is all-NaN, not
+        # an error).
         import os
         return Path(os.environ["CC_FEAT"]) if os.environ.get("CC_FEAT") else _FEAT_S2_DEFAULT
     if name == "TARGETS":
@@ -59,8 +50,8 @@ def __getattr__(name: str):                     # PEP 562
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-# `OTHER` is "farmable land not currently a crop" — the codebook narrowed it to exactly
-# that — which is what `PASTURE_FALLOW` means in the Landsat label space.
+# `OTHER` is "farmable land not currently a crop" — what `PASTURE_FALLOW` means in the
+# Landsat label space.
 TO_LANDSAT = {"PERENNIAL": "PERENNIAL", "ANNUAL": "ANNUAL", "OTHER": "PASTURE_FALLOW"}
 
 _FEAT_S2_DEFAULT = ROOT / "data" / "processed" / "all_peru" / "features_s2"
@@ -72,9 +63,7 @@ def ws_dir(target: str, include_pilot: bool = False) -> Path:
     return labels_dir() / f"ws_{target}{'_pilot' if include_pilot else ''}"
 
 
-# ---------------------------------------------------------------------------------
-# Workspace construction
-# ---------------------------------------------------------------------------------
+# --- Workspace construction ---
 def _xy(df: gpd.GeoDataFrame, crs: int) -> np.ndarray:
     p = df.geometry.representative_point().to_crs(crs)
     return np.c_[p.x.values, p.y.values]
@@ -83,11 +72,10 @@ def _xy(df: gpd.GeoDataFrame, crs: int) -> np.ndarray:
 def _reassign_folds(df: pd.DataFrame, seed: int) -> pd.Series:
     """Fold ids for a trainval set that now includes the pilot.
 
-    The frozen assignment is **preserved** for every parcel that already had one; a pilot
-    parcel in a region that is already spoken for inherits that region's fold, and only the
-    genuinely new regions are drawn. Reshuffling the whole thing would have made the two
-    arms differ in fold membership as well as in sample size, and then nothing could be
-    attributed to the extra data.
+    The frozen assignment is preserved for every parcel that had one; a pilot parcel in an
+    already-assigned region inherits that region's fold, and only genuinely new regions are
+    drawn. Reshuffling would make the two arms differ in fold membership as well as sample
+    size, so nothing could be attributed to the extra data.
     """
     fold = df["fold"].astype(int).copy()
     by_region = (df.loc[fold >= 0].groupby("region_id")["fold"].first())
@@ -97,8 +85,7 @@ def _reassign_folds(df: pd.DataFrame, seed: int) -> pd.Series:
 
     new = df.index[fold < 0]
     if len(new):
-        # round-robin over the new regions, smallest fold first, so the added parcels land
-        # where they most even out the fold sizes
+        # round-robin over the new regions, smallest fold first, to even out fold sizes
         rng = np.random.default_rng(seed)
         regions = list(df.loc[new, "region_id"].unique())
         rng.shuffle(regions)
@@ -156,10 +143,9 @@ def build_workspace(target: str, include_pilot: bool = False,
     classes = sorted(df["label"].unique())
     label_map = {c: i for i, c in enumerate(classes)}
     df["label_id"] = df["label"].map(label_map).astype(int)
-    # `quality_ok` gates `load_parcels`. It is a *Landsat* extraction-quality flag and is
-    # NA for every parcel in this campaign, which would silently drop the entire sample;
-    # the S2 equivalents (`no_s2_observations`, `sub_pixel_parcel`) were already applied by
-    # `ingest`, so what survives to here is by construction quality-passed.
+    # `quality_ok` gates `load_parcels`. It is a Landsat flag, NA for this whole campaign
+    # (which would drop the entire sample); the S2 equivalents were already applied by
+    # `ingest`, so what reaches here is quality-passed by construction.
     df["quality_ok"] = True
 
     if include_pilot:
@@ -187,10 +173,9 @@ def build_workspace(target: str, include_pilot: bool = False,
         if tgt.exists():
             link.symlink_to(tgt)
 
-    # Count the parcels the feature table actually covers. A labelled parcel with no row
-    # there trains as an all-NaN example and reports nothing: LightGBM takes NaN natively,
-    # so a round assembled into the wrong store, or not assembled at all, would score as a
-    # slightly worse model rather than as an error.
+    # A labelled parcel with no row in the feature table trains as an all-NaN example
+    # (LightGBM takes NaN natively), so a mis-assembled store scores as a slightly worse
+    # model rather than an error. Check coverage explicitly.
     lgbm = feat_s2 / "s2_features_lightgbm.parquet"
     if not lgbm.exists():
         raise SystemExit(
@@ -221,23 +206,18 @@ def build_workspace(target: str, include_pilot: bool = False,
     return out
 
 
-# ---------------------------------------------------------------------------------
-# The Landsat baseline, transferred
-# ---------------------------------------------------------------------------------
+# --- The Landsat baseline, transferred ---
 def landsat_baseline(run: Path, target: str = "t3",
                      include_pilot: bool = False) -> pd.DataFrame:
-    """Score the saved Landsat primary on the labelled parcels' **S2** features.
+    """Score the saved Landsat primary on the labelled parcels' S2 features.
 
-    ⚠️ This is a **lower bound on the Landsat model, not a measurement of it.** The booster
-    was fitted on Landsat 5/7 surface reflectance and is being fed Sentinel-2 surface
-    reflectance under the same column names. RESULTS.md §9.3.2 established on this project's
-    own data that the sensor difference is cover-type dependent and that no global linear
-    map removes it, so the transfer costs an unknown, non-uniform amount of skill. It
-    answers "what does the model the project already has say about these parcels", which is
-    worth knowing, and it cannot adjudicate G4.
+    ⚠️ A lower bound on the Landsat model, not a measurement of it: the booster was fitted on
+    Landsat 5/7 reflectance and is fed S2 reflectance under the same column names. RESULTS.md
+    §9.3.2 showed the sensor difference is cover-type dependent with no global linear fix, so
+    the transfer costs an unknown non-uniform amount of skill. Cannot adjudicate G4.
 
-    The alternative — the Landsat panel predictions computed on genuine Landsat features —
-    covers 22 of the labelled parcels and is reported beside this as a direction check.
+    The alternative — panel predictions on genuine Landsat features — covers 22 parcels and
+    is reported beside this as a direction check.
     """
     from crop_classifier.models.trees import LightGBMModel
 
@@ -304,9 +284,8 @@ def report_baseline(out: pd.DataFrame, ws: Path) -> pd.DataFrame:
 def panel_check() -> pd.DataFrame | None:
     """The 22 labelled parcels that also carry genuine Landsat panel predictions.
 
-    Too few to be a result. It exists to say whether the cross-sensor transfer above points
-    the same way as the same model on its own sensor, which is the only thing 22 parcels can
-    settle.
+    Too few to be a result — it only says whether the cross-sensor transfer above points the
+    same way as the same model on its own sensor.
     """
     proc = ROOT / "data" / "processed" / "all_peru"
     f = proc / "panel_predictions_nolat_aug_yleak10.parquet"
@@ -317,12 +296,10 @@ def panel_check() -> pd.DataFrame | None:
     lab["COD_PREDIO"] = lab["COD_PREDIO"].astype(str)
     pan = pd.read_parquet(f)
     pan["COD_PREDIO"] = pan["COD_PREDIO"].astype(str)
-    # `pred_label` is null wherever the panel abstained; those parcel-years carry no
-    # prediction and must not vote
+    # `pred_label` is null where the panel abstained — those parcel-years must not vote
     pan = pan[(pan["year"] >= 2019) & pan["pred_label"].notna()]
     pan["pred_label"] = pan["pred_label"].astype(str)
-    # one row per parcel: the modal prediction over 2019-23, so a single noisy year does
-    # not decide it
+    # one row per parcel: modal prediction over 2019-23, so a single noisy year doesn't decide
     modal = (pan.groupby("COD_PREDIO")["pred_label"]
              .agg(lambda v: v.mode().iat[0]).rename("pred_panel"))
     j = lab[["COD_PREDIO", "label"]].join(modal, on="COD_PREDIO", how="inner")
@@ -335,9 +312,9 @@ def report(target: str | None = None, include_pilot: bool | None = None
            ) -> pd.DataFrame:
     """Every fitted arm, its CV spread and its LODO mean, in one table.
 
-    Reports the **fold spread**, not just the mean. At 35-71 parcels per fold a difference
-    of 0.05 macro-F1 sits inside one fold's variation, and a table of bare means invites
-    exactly the selection error CLAUDE.md opens with.
+    Reports the fold spread, not just the mean: at 35-71 parcels per fold a 0.05 macro-F1
+    difference sits inside one fold's variation, and bare means invite the selection error
+    CLAUDE.md opens with.
     """
     rdir = ROOT / "runs" / "s2_labels"
     rows = []
@@ -371,33 +348,28 @@ def report(target: str | None = None, include_pilot: bool | None = None
     return t
 
 
-# ---------------------------------------------------------------------------------
-# Leave-one-department-out
-# ---------------------------------------------------------------------------------
+# --- Leave-one-department-out ---
 def dept_transfer(target: str = "t4", model_name: str = "lightgbm",
                   model_kw: dict | None = None, min_labels: int = 35,
                   include_pilot: bool = True, ws: Path | None = None,
                   tag: str = "") -> pd.DataFrame:
-    """Hold out a whole **department**, train on the rest, score the held-out one.
+    """Hold out a whole department, train on the rest, score the held-out one.
 
-    This is the only out-of-distribution axis this campaign has. Cross-validation here
-    holds out 5 km regions *inside departments the model has already seen*, and every
-    parcel is photo-interpreted at a single endpoint epoch, so there is no year axis to
-    hold out either (LOYO/LODYO do not apply to this store). CLAUDE.md's headline result
-    — ``centroid_lat`` gaining +0.047 on CV and losing 0.060 on LODO — is a result about
-    exactly this gap, so a CV number here is reported *with* its LODO number or not at all.
+    The only out-of-distribution axis this campaign has: CV here holds out 5 km regions
+    inside seen departments, and every parcel is a single endpoint epoch so there is no year
+    axis (LOYO/LODYO do not apply). CLAUDE.md's headline (``centroid_lat`` +0.047 CV /
+    −0.060 LODO) is about exactly this gap, so a CV number here is reported with its LODO
+    number or not at all.
 
-    The **locked test split is excluded outright** from both sides: this is a
-    trainval(+pilot) procedure and it must not spend the held-out set. The pilot is folded
-    in by default because it is a separate pool from the test set, so using it costs
-    nothing that is being kept.
+    The locked test split is excluded from both sides. The pilot is folded in by default —
+    it is a separate pool from the test set, so using it costs nothing kept.
 
     Writes ``lodo_<model>.csv`` beside the workspace, one row per department.
     """
     import os
 
     # `ws` overrides the workspace so a feature-set variant (labelling.climate_arms) can
-    # reuse this procedure unchanged; `tag` names its output file.
+    # reuse this unchanged; `tag` names its output file.
     ws = Path(ws) if ws is not None else ws_dir(target, include_pilot)
     os.environ["CC_PROC"] = str(ws)
     os.environ["CC_FEAT"] = str(ws / "features")
@@ -429,8 +401,8 @@ def dept_transfer(target: str = "t4", model_name: str = "lightgbm",
         train_ds = make_dataset(model.input_kind, parcels, tr_idx)
         norm = getattr(train_ds, "normalizer", None)
         test_ds = make_dataset(model.input_kind, parcels, te_idx, normalizer=norm)
-        # early stopping needs a validation set that is not the held-out department;
-        # a random 15 % of the training departments serves, so no held-out row is seen
+        # early-stopping validation: a random 15 % of the training departments, never a
+        # held-out row
         rng = np.random.default_rng(0)
         va = rng.random(len(tr_idx)) < 0.15
         val_ds = make_dataset(model.input_kind, parcels, tr_idx[va], normalizer=norm)

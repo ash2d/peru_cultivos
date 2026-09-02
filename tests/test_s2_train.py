@@ -1,15 +1,10 @@
 """Guards on the S2 label -> trainable workspace path and the LTAE sequence tensor.
 
-Two of these pin traps that return a plausible wrong answer rather than an error, which is
-this project's recurring failure shape:
-
-* **the position axis wraps.** `ag_year` is Aug 1 - Jul 31, so a day-of-year encoding runs
-  365 -> 1 in the middle of every parcel's series and the sinusoidal encoder then places
-  midwinter observations next to the first week of August. Nothing raises; the model just
-  learns worse.
-* **`quality_ok` is NA for every parcel in this campaign** and `load_parcels` filters on
-  `== True`, so a workspace that forwards the column untouched trains on zero rows and
-  reports it as an empty dataset, not as an error.
+Two pin traps that return a plausible wrong answer rather than an error: the position axis
+wraps (`ag_year` is Aug 1 - Jul 31, so a day-of-year encoding runs 365 -> 1 mid-series and
+the sinusoidal encoder places midwinter next to early August), and `quality_ok` is NA for
+every parcel here while `load_parcels` filters on `== True` (a workspace forwarding it
+untouched trains on zero rows and reports an empty dataset, not an error).
 """
 
 from __future__ import annotations
@@ -26,9 +21,7 @@ from crop_classifier.features.s2_assemble import build_sequence_tensor
 from crop_classifier.labelling.train_prep import TARGETS, TO_LANDSAT, _reassign_folds
 
 
-# ------------------------------------------------------------------------------------
-# the sequence tensor
-# ------------------------------------------------------------------------------------
+# --- the sequence tensor ---
 def _px(cod: str, dates: list[str]) -> pd.DataFrame:
     n = len(dates)
     return pd.DataFrame({
@@ -78,9 +71,7 @@ def test_tensor_carries_the_eleven_channels_in_order():
     assert t["X"].shape[2] == len(CHANNELS) == 11
 
 
-# ------------------------------------------------------------------------------------
-# label targets
-# ------------------------------------------------------------------------------------
+# --- label targets ---
 def _apply(target: str, labels: list[str]) -> list[str]:
     m = TARGETS[target]
     return [v for v in (m.get(x, x) for x in labels) if v is not None]
@@ -113,15 +104,13 @@ def test_t3w_keeps_every_parcel_and_folds_woody_into_perennial():
 
 
 def test_only_the_three_landsat_mappable_classes_have_a_counterpart():
-    # the baseline must never silently score WOODY_NON_CROP or NON_AGRICULTURE against a
-    # model whose label space cannot express them
+    # the baseline must never score WOODY_NON_CROP / NON_AGRICULTURE against a model whose
+    # label space cannot express them
     assert set(TO_LANDSAT) == {"PERENNIAL", "ANNUAL", "OTHER"}
     assert set(TO_LANDSAT.values()) == {"PERENNIAL", "ANNUAL", "PASTURE_FALLOW"}
 
 
-# ------------------------------------------------------------------------------------
-# folding the pilot in
-# ------------------------------------------------------------------------------------
+# --- folding the pilot in ---
 def _fold_frame() -> pd.DataFrame:
     return pd.DataFrame({
         "region_id": ["r1", "r1", "r2", "r3", "r1", "r9", "r9", "r8"],
@@ -151,9 +140,7 @@ def test_no_parcel_is_left_unassigned():
     assert (_reassign_folds(_fold_frame(), seed=42) >= 0).all()
 
 
-# ------------------------------------------------------------------------------------
-# workspace schema
-# ------------------------------------------------------------------------------------
+# --- workspace schema ---
 REQUIRED = ["COD_PREDIO", "label", "label_id", "split", "fold", "quality_ok",
             "year", "area_ha", "n_valid_obs", "max_gap", "buffer_excl_test",
             *[f"buffer_excl_fold{k}" for k in range(5)]]
@@ -167,8 +154,7 @@ def test_built_workspace_has_what_the_trainer_reads(target):
         pytest.skip(f"{ws.name} not built")
     df = gpd.read_parquet(ws / "modeling_parcels.parquet")
     assert not set(REQUIRED) - set(df.columns)
-    # `quality_ok` is NA on every parcel in the campaign and `load_parcels` filters on
-    # `== True`; forwarding it untouched trains on nothing and says so as an empty dataset
+    # `quality_ok` is NA on every campaign parcel and `load_parcels` filters on `== True`
     assert (df["quality_ok"] == True).all()  # noqa: E712
     labels = json.loads((ws / "label_map.json").read_text())
     assert set(df["label"]) == set(labels)
@@ -186,15 +172,11 @@ def test_geometry_survives_the_workspace_build():
     assert isinstance(df.geometry.iloc[0].representative_point(), Point)
 
 
-# ------------------------------------------------------------------------------------
-# leave-one-department-out must not spend the locked test
-# ------------------------------------------------------------------------------------
+# --- leave-one-department-out must not spend the locked test ---
 def test_lodo_predictions_contain_no_locked_test_parcel():
-    """The one invariant that cannot be recovered if it is broken.
-
-    `dept_transfer` drops `split == "test"` before it does anything else, so no held-out
-    department can contain a locked-test parcel and no training department can either. If
-    this ever fails the test set is spent and there is no second one.
+    """The one invariant that cannot be recovered if broken: `dept_transfer` drops
+    `split == "test"` first, so no held-out or training department contains a locked-test
+    parcel. If this fails the test set is spent and there is no second one.
     """
 
     from crop_classifier.paths import labels_dir
@@ -225,9 +207,7 @@ def test_every_department_is_held_out_exactly_once():
     assert d.groupby("dept")["COD_PREDIO"].nunique().min() >= 35
 
 
-# ------------------------------------------------------------------------------------
-# the two-class collapse
-# ------------------------------------------------------------------------------------
+# --- the two-class collapse ---
 def test_t2_is_perennial_versus_everything_else():
     assert TARGETS["t2"] == {"ANNUAL": "NON_PERENNIAL", "OTHER": "NON_PERENNIAL",
                              "NON_AGRICULTURE": "NON_PERENNIAL",
@@ -246,10 +226,8 @@ def test_t2w_puts_woody_on_the_perennial_side_and_t2_does_not():
 
 
 def test_the_two_class_targets_never_reuse_the_name_OTHER():
-    """`OTHER` means the specific state "farmable but not cropped" in t3/t4/t5.
-
-    Reusing it for "not perennial" would silently redefine a class name across workspaces,
-    so the negative class is called NON_PERENNIAL.
+    """`OTHER` means "farmable but not cropped" in t3/t4/t5; reusing it for "not perennial"
+    would redefine a class name across workspaces, so the negative class is NON_PERENNIAL.
     """
     for t in ("t2", "t2w"):
         assert "OTHER" not in set(TARGETS[t].values())
@@ -257,11 +235,9 @@ def test_the_two_class_targets_never_reuse_the_name_OTHER():
 
 
 def test_the_rule_model_is_refused_on_the_two_class_targets():
-    """It would run and return a meaningless number, which is worse than an error.
-
-    `RuleModel._class_ids` maps three semantic names onto label ids and falls back to
-    position when a name is absent; in a two-class space `PASTURE_FALLOW` falls back to
-    id 1, which is `PERENNIAL`.
+    """It would run and return a meaningless number. `RuleModel._class_ids` falls back to
+    position when a name is absent, so in a two-class space `PASTURE_FALLOW` -> id 1 =
+    `PERENNIAL`.
     """
     from crop_classifier.labelling.train_prep import RULES_INCOMPATIBLE
     assert RULES_INCOMPATIBLE == {"t2", "t2w"}
@@ -275,11 +251,9 @@ def test_the_rule_model_is_refused_on_the_two_class_targets():
 
 
 def test_majority_baseline_rises_as_classes_are_removed():
-    """macro-F1 is not comparable across targets, and this is why.
-
-    Averaging F1 over 2 classes when only one is ever predicted still collects a full score
-    on that one and divides by 2. The floor roughly triples from t5 to t2, so a macro-F1
-    that goes up when the label space is collapsed may be a model that got worse.
+    """Why macro-F1 is not comparable across targets: averaging F1 over 2 classes when only
+    one is predicted still collects a full score and divides by 2. The floor roughly triples
+    t5 -> t2, so a macro-F1 that rises on collapse may be a model that got worse.
     """
     from crop_classifier.labelling.report_s2 import majority_baseline
     from crop_classifier.labelling.train_prep import ws_dir
@@ -291,10 +265,8 @@ def test_majority_baseline_rises_as_classes_are_removed():
 
 
 def test_eval_test_refuses_the_rules_control():
-    """`--eval-test` spends a one-way resource, so it may not be spent on a control.
-
-    `rules` is a floor exercise (RESULTS.md §8.2/§8.8b), never a candidate model. Scoring it
-    on the locked test would burn the set for a number nothing would ever adopt.
+    """`--eval-test` spends a one-way resource. `rules` is a floor exercise (RESULTS.md
+    §8.2/§8.8b), never a candidate — scoring it would burn the set for an unusable number.
     """
     import subprocess
     import sys
@@ -308,11 +280,9 @@ def test_eval_test_refuses_the_rules_control():
 
 
 def test_prep_refuses_labels_the_feature_table_does_not_cover(tmp_path, monkeypatch):
-    """A labelled parcel with no feature row trains as all-NaN and reports nothing.
-
-    LightGBM takes NaN natively, so a round assembled into the wrong store — or not
-    assembled at all — used to come out as a slightly worse model instead of an error.
-    That is the failure mode this project keeps meeting, so `prep` counts the coverage.
+    """A labelled parcel with no feature row trains as all-NaN. LightGBM takes NaN natively,
+    so a round assembled into the wrong store used to be a slightly worse model, not an
+    error — so `prep` counts the coverage.
     """
     import geopandas as gpd
     import pandas as pd
@@ -335,7 +305,7 @@ def test_prep_refuses_labels_the_feature_table_does_not_cover(tmp_path, monkeypa
     for fn in ("labelled_parcels.parquet", "label_sample.parquet"):
         gpd.read_parquet(src / fn).to_parquet(labels / fn, index=False)
 
-    # a feature table that covers nothing
+    # feature table that covers nothing
     pd.DataFrame({"COD_PREDIO": ["nobody"]}).to_parquet(
         feats / "s2_features_lightgbm.parquet", index=False)
 

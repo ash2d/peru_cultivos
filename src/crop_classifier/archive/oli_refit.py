@@ -1,16 +1,15 @@
 """Refit the OLI->ETM+ correction on *this* data — the follow-up to the step-3a failure.
 
 ``perennial/harmonization.py`` carries the Roy et al. (2016) coefficients. Step 3a ran them
-for the first time and found them **worse than no correction at all**: the PETT-``PERENNIAL``
-control pool shifts −0.0423 with raw OLI and **−0.1073** once the published correction is
-applied (RESULTS.md §9.3.2). Those coefficients were fitted on Collection-1 data over North
-America; this pipeline reads Collection-2 Level-2 surface reflectance over Peru.
+for the first time and found them **worse than no correction**: the PETT-``PERENNIAL``
+control pool shifts −0.0423 with raw OLI and **−0.1073** with the published correction
+(RESULTS.md §9.3.2). Those were fitted on Collection-1 data over North America; this pipeline
+reads Collection-2 Level-2 surface reflectance over Peru.
 
-The fix is to stop borrowing them. Landsat 7 and Landsat 8 fly 8 days apart, but adjacent WRS
-paths overlap, so a parcel in a sidelap is imaged by **both sensors on the same day** — same
-ground, same illumination, same atmosphere, different instrument. Over 2015/2019/2022 the
-panel has **~35,000 such same-day parcel-date pairs**, which is exactly the observational
-design Roy used, on our own data.
+The fix is to stop borrowing them. L7 and L8 fly 8 days apart, but adjacent WRS paths
+overlap, so a parcel in a sidelap is imaged by **both sensors on the same day** — same
+ground, illumination and atmosphere, different instrument. Over 2015/2019/2022 the panel has
+**~35,000 such same-day parcel-date pairs**: Roy's observational design on our own data.
 
 What this can and cannot fix, stated before running (T-D6):
 
@@ -85,10 +84,9 @@ def fit_coefficients(pairs: pd.DataFrame, bands: tuple[str, ...] = tuple(BANDS),
                      clip: float = 0.005) -> dict:
     """Per band, OLS of the ETM+ value on the OLI value: ``etm = slope · oli + intercept``.
 
-    Same functional form and direction as Roy et al., so the result is a drop-in replacement
-    for ``ROY2016_OLI_TO_ETM``. A Theil-Sen fit is computed alongside as a robustness check —
-    surface reflectance has a heavy tail from thin cloud and shadow that the cloud mask
-    misses, and if the two fits disagree materially the OLS one should not be trusted.
+    Same form as Roy et al., so a drop-in replacement for ``ROY2016_OLI_TO_ETM``. Theil-Sen
+    is computed alongside as a robustness check — surface reflectance has a heavy tail from
+    cloud-mask misses, and if the two fits disagree materially OLS should not be trusted.
     """
     from scipy import stats
 
@@ -121,16 +119,14 @@ def as_coefficient_map(fit: dict, kind: str = "offset") -> dict[str, tuple[float
     """``fit`` -> the ``{band: (slope, intercept)}`` form ``harmonization.oli_to_etm`` takes.
 
     ``kind="offset"`` is the **default and the only one this data supports**: gain fixed at
-    1.0 and a per-band additive bias. The paired sample cannot identify a *slope* — on the
-    same parcel on the same day the two sensors' band medians correlate at only 0.12-0.60 and
-    the SD of their difference (0.064-0.102) **exceeds the SD of either sensor's own values**
-    (0.065-0.088). Under that much noise in the regressor, OLS is diluted to nonsense (a blue
-    slope of 0.12 against a physical expectation near 0.85) and Theil-Sen is not reliable
-    either. The *mean* difference, however, is estimated from 27,573 pairs and is precise
-    (SE ~0.0006), so an offset is what the data identifies and an offset is what is offered.
+    1.0, a per-band additive bias. The paired sample cannot identify a *slope* — same-day band
+    medians correlate at only 0.12-0.60 and the SD of their difference (0.064-0.102)
+    **exceeds the SD of either sensor's own values** (0.065-0.088), so OLS is diluted to
+    nonsense (blue slope 0.12 vs a physical ~0.85) and Theil-Sen is unreliable too. The
+    *mean* difference is precise (27,573 pairs, SE ~0.0006), so an offset is what the data
+    identifies.
 
-    ``"ols"`` and ``"theilsen"`` are kept so the diluted fits can be reproduced and rejected,
-    not because they should be used.
+    ``"ols"`` and ``"theilsen"`` are kept so the diluted fits can be reproduced and rejected.
     """
     if kind == "offset":
         return {b: (1.0, float(v["raw_bias_l7_minus_oli"])) for b, v in fit.items()}

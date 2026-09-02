@@ -25,9 +25,7 @@ from crop_classifier.data import FN_STATICS, Normalizer
 from crop_classifier.labelling import climate_arms as C
 
 
-# ------------------------------------------------------------------------------------
-# arm definitions
-# ------------------------------------------------------------------------------------
+# --- arm definitions ---
 def test_the_control_arm_is_coordinates_and_carries_no_climate():
     assert C.CLIMATE_SETS["latlon"] == ["centroid_lat", "centroid_lon"]
     assert not set(C.CLIMATE_SETS["latlon"]) & set(C.CLIMATE_ONLY)
@@ -52,9 +50,7 @@ def test_every_other_arm_gets_its_own_workspace(arm):
     assert C.ws_dir("t4", arm, True).name == f"ws_t4_pilot__clim_{arm}"
 
 
-# ------------------------------------------------------------------------------------
-# the majority-class floor printed beside every macro-F1
-# ------------------------------------------------------------------------------------
+# --- the majority-class floor printed beside every macro-F1 ---
 def test_the_floor_is_the_always_guess_the_largest_class_score():
     counts = pd.Series({"a": 50, "b": 30, "c": 20})
     p = 0.5
@@ -66,14 +62,12 @@ def test_the_floor_rises_when_classes_are_pooled():
     four = pd.Series({"a": 444, "b": 165, "c": 141, "d": 115})
     two = pd.Series({"a": 444, "rest": 421})
     assert C._majority_floor(two) > C._majority_floor(four)
-    # RESULTS.md §8.2c/§8.8 print 0.171 for `t4`; these are the 865-usable counts rather
-    # than the 704 trainval ones, so the check is on the same value to 2 dp
+    # RESULTS.md §8.2c/§8.8 print 0.171 for `t4`; these are 865-usable counts not 704
+    # trainval, so checked to 2 dp
     assert C._majority_floor(four) == pytest.approx(0.170, abs=0.002)
 
 
-# ------------------------------------------------------------------------------------
-# statics: absent must mean absent
-# ------------------------------------------------------------------------------------
+# --- statics: absent must mean absent ---
 def test_a_store_without_a_statics_file_yields_no_statics(tmp_path, monkeypatch):
     ds = _seq_dataset(tmp_path, monkeypatch, statics=None)
     assert ds.statics is None and ds.n_static == 0
@@ -122,9 +116,7 @@ def test_a_state_written_before_statics_existed_still_loads():
     assert back.smean is None
 
 
-# ------------------------------------------------------------------------------------
-# helpers
-# ------------------------------------------------------------------------------------
+# --- helpers ---
 def _seq_dataset(tmp_path, monkeypatch, statics, statics_cods=None, normalizer=None):
     """A two-parcel `SeqDataset` over a synthetic feature directory."""
     import geopandas as gpd
@@ -152,15 +144,12 @@ def _seq_dataset(tmp_path, monkeypatch, statics, statics_cods=None, normalizer=N
     return SeqDataset("sequence", parcels, parcels.index, normalizer, feat_dir=fd)
 
 
-# ------------------------------------------------------------------------------------
-# §8.8b: the bracket, the control comparison and the WOODY boundary probe
-# ------------------------------------------------------------------------------------
+# --- §8.8b: the bracket, the control comparison and the WOODY boundary probe ---
 def test_the_control_is_never_one_of_the_arms_it_is_compared_against():
-    """`control_paired` must compare temp/rain/both against latlon, never latlon to itself.
+    """`control_paired` compares temp/rain/both against latlon, never latlon to itself.
 
-    ARMS is ordered `none, temp, rain, both, latlon` and the slice `ARMS[1:-1]` relies on
-    the control being last. If a sixth arm were appended, that slice would silently start
-    testing `latlon` against the new arm instead — a comparison that would still print.
+    The slice `ARMS[1:-1]` relies on the control being last; a sixth arm appended would make
+    it test `latlon` against the new arm instead — and that would still print.
     """
     assert C.ARMS[0] == "none"
     assert C.ARMS[-1] == "latlon"
@@ -171,9 +160,8 @@ def test_the_woody_probe_returns_nothing_on_a_target_that_has_no_woody_class(tmp
                                                                              monkeypatch):
     """`t3w` folds WOODY_NON_CROP into PERENNIAL, so the sub-problem does not exist there.
 
-    It has to come back empty rather than raise or, worse, index some other class into
-    `iW` — §8.8b reads the `t4` table as evidence about `t3w`, so a silently wrong `t3w`
-    row would be read as a comparison.
+    Must come back empty, not raise or index some other class into `iW`: §8.8b reads the `t4`
+    table as evidence about `t3w`, so a silently wrong row reads as a comparison.
     """
     import json
 
@@ -194,9 +182,8 @@ def test_the_bracket_needs_two_targets_to_be_a_bracket(monkeypatch):
 
 
 def test_the_bracket_suffixes_every_metric_with_its_target():
-    """The floor moves between targets (0.171 -> 0.228), so no column may be shared.
-
-    An unsuffixed metric column would silently carry one target's value for both.
+    """The floor moves between targets (0.171 -> 0.228), so no column may be shared — an
+    unsuffixed metric would carry one target's value for both.
     """
     cols = ["cv_macro_f1", "lodo_macro_f1", "lodo_sd", "n_dept", "cv_skill", "lodo_skill",
             "cv_perennial_f1", "lodo_perennial_f1", "d_cv_macro_f1", "d_lodo_macro_f1",

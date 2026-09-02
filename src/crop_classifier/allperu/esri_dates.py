@@ -45,18 +45,12 @@ def probe(args):
             if not v:
                 continue
             d = dt.datetime.utcfromtimestamp(v / 1000)
-            # Resolution is already fixed by the layer loop, which stops at the first
-            # layer that answers — so the only choice left is between several dated
-            # footprints overlapping this point at that resolution. Take the **most
-            # recent**: it is the one Esri is most likely to be rendering, and this is a
-            # 2019+ endpoint campaign.
-            #
-            # This previously read `(res, d) < (best["res"], best["date"])`, which with
-            # `res` constant keeps the *oldest* — the opposite of what the comment beside
-            # it claimed. Measured before changing it: of 200 sampled campaign parcels,
-            # **0 have more than one dated feature**, so the branch never fired and no
-            # drawn parcel's `imagery_date` changes. Fixed so the next dataset does not
-            # inherit a silent disagreement between code and comment.
+            # Resolution is fixed by the layer loop (stops at the first layer that answers),
+            # so the only choice left is between dated footprints overlapping this point at
+            # that resolution. Take the **most recent**: the one Esri is most likely
+            # rendering, and this is a 2019+ endpoint campaign. Measured: of 200 sampled
+            # campaign parcels, 0 have more than one dated feature, so this branch never
+            # fires and no drawn parcel's `imagery_date` changes.
             if best is None or d > best["date"]:
                 best = {"res": res, "date": d, "desc": a.get("SRC_DESC"),
                         "src_res": a.get("SRC_RES")}
@@ -73,14 +67,14 @@ def probe_frame(parcels: gpd.GeoDataFrame, workers: int = 8,
                 cache: Path | None = None, chunk: int = 500) -> pd.DataFrame:
     """Probe an **arbitrary** parcel frame — one row per ``COD_PREDIO``.
 
-    The original :func:`main` hard-codes the at-risk pool and 4 departments; the S2
-    labelling campaign needs the same probe over a national candidate pool of thousands
-    (docs/s2_labelling/plan.md), so the loop lives here and ``main`` keeps its behaviour.
+    :func:`main` hard-codes the at-risk pool and 4 departments; the S2 campaign needs the same
+    probe over a national pool of thousands (docs/s2_labelling/plan.md), so the loop lives
+    here.
 
-    ``cache`` is a CSV appended chunk by chunk. ~2,500 probes are ~2,500 HTTPS round trips
-    and a dropped connection halfway through should not cost the whole run, so anything
-    already in the cache is skipped on a re-run. Persist the **full** result including
-    ineligible parcels — the eligible fraction per department is gate G0.
+    ``cache`` is a CSV appended chunk by chunk, so a dropped connection midway through ~2,500
+    HTTPS round trips does not cost the whole run — cached rows are skipped on re-run. Persist
+    the **full** result including ineligible parcels — the eligible fraction per department is
+    gate G0.
     """
     need = parcels.copy()
     done = pd.DataFrame()

@@ -38,7 +38,7 @@ def assign(crops, cats, cfg, resolver):
     return labels3.assign_group(crops, cats, cfg, resolver)
 
 
-# ---- single tokens -------------------------------------------------------------------
+# --- single tokens ---
 def test_single_crop_per_group(cfg, resolver):
     assert assign(["MANGO"], ["crop"], cfg, resolver) == ("PERENNIAL", "single")
     assert assign(["ARROZ"], ["crop"], cfg, resolver) == ("ANNUAL", "single")
@@ -61,7 +61,7 @@ def test_unlisted_crop_token_falls_back_to_annual(cfg, resolver):
     assert labels3.resolve_token("QUINUA", "crop", cfg, resolver)[1] == "crop_fallback"
 
 
-# ---- multi-crop (D3) -----------------------------------------------------------------
+# --- multi-crop (D3) ---
 def test_same_group_multicrop(cfg, resolver):
     assert assign(["CAFE", "MANGO"], ["crop", "crop"], cfg, resolver) \
         == ("PERENNIAL", "single")
@@ -81,7 +81,7 @@ def test_priority_order_is_config_driven(cfg, resolver):
         == ("ANNUAL", "mixed_priority")
 
 
-# ---- policy flags --------------------------------------------------------------------
+# --- policy flags ---
 def test_woody_noncrop_excludes_whole_parcel(cfg, resolver):
     assert assign(["ALGARROBO"], ["crop"], cfg, resolver) == (None, "woody_noncrop")
     # …even when a real crop is also declared: the parcel's class would be unreadable
@@ -124,7 +124,7 @@ def test_four_class_variant(cfg):
     assert assign(["DESCANSO"], ["fallow"], four, r) == ("FALLOW", "single")
 
 
-# ---- config integrity ----------------------------------------------------------------
+# --- config integrity ---
 def test_duplicate_token_in_two_groups_raises(cfg):
     bad = {**cfg, "annual": ["ARROZ", "MANGO"]}
     with pytest.raises(ValueError, match="two groups"):
@@ -141,7 +141,7 @@ def test_token_lookup_is_case_and_space_insensitive(cfg, resolver):
     assert labels3.resolve_token("  mango ", "crop", cfg, resolver)[0] == "PERENNIAL"
 
 
-# ---- the unassigned-token budget -----------------------------------------------------
+# --- the unassigned-token budget ---
 def test_token_audit_reports_source_and_counts(cfg, resolver):
     records = pd.DataFrame({
         "crop": ["ARROZ"] * 90 + ["MANGO"] * 5 + ["QUINUA"] * 5,

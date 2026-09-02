@@ -25,9 +25,7 @@ from crop_classifier.allperu import density as D
 from crop_classifier.data import DROP_SETS, ORDER_FEATURES, resolve_drop_features
 
 
-# ------------------------------------------------------------------------------------
-# helpers
-# ------------------------------------------------------------------------------------
+# --- helpers ---
 def make_px(n_parcels: int = 4, n_dates: int = 20, n_px: int = 10,
             seed: int = 0) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
@@ -43,9 +41,7 @@ def make_px(n_parcels: int = 4, n_dates: int = 20, n_px: int = 10,
     return pd.DataFrame(rows)
 
 
-# ------------------------------------------------------------------------------------
-# degradation
-# ------------------------------------------------------------------------------------
+# --- degradation ---
 def test_degradation_removes_whole_dates_not_observations_within_a_date():
     """An acquisition either happened and was clear or it did not. Thinning a date's pixels
     would model cloud, not archive depth — only the SLC-off stripe may do that."""
@@ -111,9 +107,7 @@ def test_targets_are_rank_matched_so_the_degraded_marginal_matches_the_endpoint(
     assert (np.diff(vals) >= 0).all()
 
 
-# ------------------------------------------------------------------------------------
-# the 1a audit
-# ------------------------------------------------------------------------------------
+# --- the 1a audit ---
 def test_fe_cluster_slopes_matches_statsmodels():
     sm = pytest.importorskip("statsmodels.api")
     rng = np.random.default_rng(0)
@@ -150,9 +144,7 @@ def test_order_drop_set_covers_every_channel_extreme_and_nothing_else():
     assert DROP_SETS["order"] is ORDER_FEATURES
 
 
-# ------------------------------------------------------------------------------------
-# 1c — density-conditional temperature
-# ------------------------------------------------------------------------------------
+# --- 1c: density-conditional temperature ---
 def test_density_temperature_is_monotone_in_log_n():
     p = np.array([[0.7, 0.2, 0.1]] * 4)
     n = np.array([4.0, 10.0, 20.0, 40.0])
@@ -193,9 +185,7 @@ def test_recalibration_updates_pred_label_to_match_the_new_probabilities():
     assert out.loc[0, "pred_label"] == "PERENNIAL"
 
 
-# ------------------------------------------------------------------------------------
-# augmentation plumbing
-# ------------------------------------------------------------------------------------
+# --- augmentation plumbing ---
 def test_augmented_features_are_appended_not_merged(tmp_path):
     """A degraded copy must add a *row* for the parcel, not overwrite or widen it: the
     training signal is the same label seen at two densities."""

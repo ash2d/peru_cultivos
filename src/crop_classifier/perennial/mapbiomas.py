@@ -1,42 +1,23 @@
 """MapBiomas Peru benchmark: extraction + class mapping (plan §8).
 
-MapBiomas Peru Collection 3 (1985-2024, 30 m, annual) is the only external product
-covering the whole period, so it is the external benchmark — and, if it predicts the PETT
-labels better than our model does, the honest recommendation is to use it instead (§8.4,
-criterion S3).
+MapBiomas Peru Collection 3 (1985-2024, 30 m, annual) is the only external product covering
+the whole period, so it is the benchmark for criterion S3: if it predicts the PETT labels
+better than our model, the honest recommendation is to use it instead (§8.4).
 
-**Independence caveat, to be restated wherever these numbers appear:** MapBiomas Peru is
-itself Landsat-derived at 30 m, so it shares sensors, cloud regimes and mixed-pixel
-problems with our model. It is a benchmark, not ground truth, and agreement between the
-two is not evidence that either is correct.
+⚠️ Independence caveat, to restate wherever these numbers appear: MapBiomas Peru is itself
+Landsat-derived at 30 m, sharing sensors, cloud regimes and mixed-pixel problems with our
+model. It is a benchmark, not ground truth; agreement is not evidence either is correct.
 
-Legend
-------
-Verified two ways rather than assumed (the plan's table was explicitly marked "do not
-trust blind"):
+``LEGEND`` was verified two ways rather than assumed: the published Collection-3 legend-code
+table, and empirically by cross-tabulating codes inside parcels of known PETT crop.
 
-1. the published MapBiomas **Collection 3 legend-code table** for the shared
-   RAISG/Andean scheme (Bolivia Col-3 legend PDF, identical code structure), and
-2. **empirically**, by cross-tabulating the codes inside parcels whose PETT crop we know:
-   code 40 covers 54 % of ARROZ parcels' pixels but ~1 % of orchards' -> 40 is Rice;
-   code 21 covers 84 % of mango/lime orchards; code 4 is the Piura dry forest.
-
-**The finding that matters.** The codes actually present over the Piura parcel bbox,
-1990-2024, are::
-
-    3, 4, 5, 9, 11, 12, 13, 21, 23, 24, 25, 27, 29, 30, 32, 33, 40, 66, 68, 72
-
-The only agricultural ones are **21 (mosaic of uses), 40 (rice) and 72 (other crops)**.
-Codes 36/46/47/48 (perennial crop, coffee, citrus, other perennial) and 15 (pasture)
-**never appear** — MapBiomas Peru Collection 3 assigns no perennial-crop and no pasture
-class anywhere in Piura. Inside our parcels it is ~63 % class 21, with orchards (84 %),
-coffee (45 %) and fallow (58 %) all landing in that same class.
-
-So MapBiomas cannot separate perennial from annual in this landscape at all. That is a
-*result*, not a bug: it settles criterion S3 in the custom model's favour, but for a
-reason that must be reported plainly rather than as a win on a level playing field. The
-codes are kept in ``LEGEND`` anyway so the mapping stays correct if a later collection
-starts using them.
+The finding (§8.4): the only agricultural codes present over Piura 1990-2024 are 21 (mosaic
+of uses), 40 (rice) and 72 (other crops). Codes 36/46/47/48 (perennial) and 15 (pasture)
+never appear — MapBiomas Peru Collection 3 assigns no perennial-crop and no pasture class
+anywhere in Piura, and inside our parcels it is ~63 % class 21 (orchards, coffee and fallow
+all landing there). So it cannot separate perennial from annual here at all: that settles S3
+in the custom model's favour, but for a reason to report plainly, not as a level-field win.
+The unused codes stay in ``LEGEND`` so the mapping holds if a later collection uses them.
 """
 
 from __future__ import annotations
@@ -138,9 +119,7 @@ def histogram_to_row(hist: dict[str, float], cid: str, year: int) -> dict:
     return row
 
 
-# ------------------------------------------------------------------------------------
-# extraction (mirrors landsat_gee's chunked, resumable, content-addressed pattern)
-# ------------------------------------------------------------------------------------
+# --- extraction: mirrors landsat_gee's chunked, resumable, content-addressed pattern ---
 def mapbiomas_chunk(chunk: gpd.GeoDataFrame, years: list[int]) -> pd.DataFrame:
     """One ``getInfo`` for a chunk over **all** years at once — every year is a band of
     one image, so the whole benchmark costs a fraction of the Landsat extraction."""
@@ -199,9 +178,7 @@ def run(parcels: gpd.GeoDataFrame | None = None, years: list[int] | None = None,
     return panel
 
 
-# ------------------------------------------------------------------------------------
-# the comparison (§8.4)
-# ------------------------------------------------------------------------------------
+# --- the comparison (§8.4) ---
 def code_histogram(panel: pd.DataFrame) -> pd.DataFrame:
     """What MapBiomas actually assigns inside our parcels — build the map from this, not
     from an assumed legend."""

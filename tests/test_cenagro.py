@@ -2,10 +2,9 @@
 
 The trap here is not silent data corruption but a **silent change of question**. PETT
 recorded a land *state* and can say "EN DESCANSO"; CENAGRO question 024 asks which crop is
-grown, so a fallow parcel contributes no row and simply leaves the frame. Crossing the two
-raw makes `PASTURE_FALLOW` appear to collapse from 17.9 % to 1.1 % — a difference of
-instruments read as a change in land. These tests hold the like-for-like restriction that
-makes the comparison mean anything, and hold the class-priority collapse that turns a
+grown, so a fallow parcel contributes no row. Crossing the two raw makes `PASTURE_FALLOW`
+appear to collapse 17.9 % → 1.1 % — a difference of instruments read as a change in land.
+These tests hold the like-for-like restriction, and the class-priority collapse that turns a
 farmer-level link into one row per parcel.
 """
 
@@ -67,9 +66,7 @@ def test_shares_of_all_three_classes_sum_to_the_resolved_total():
     assert t["change_pp"].sum() == pytest.approx(0.0, abs=0.2)
 
 
-# ------------------------------------------------------------------------------------
-# the built tables, if they exist in this workspace
-# ------------------------------------------------------------------------------------
+# --- the built tables, if they exist in this workspace ---
 def test_the_like_for_like_table_drops_fallow_from_both_sides():
     f = C.OUT_DIR / "pett_to_cenagro_cropped_only.csv"
     if not f.exists():

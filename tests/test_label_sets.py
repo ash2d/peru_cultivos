@@ -44,8 +44,7 @@ def test_t3_and_t3w_differ_only_in_where_woody_lands():
 
 def test_the_two_class_sets_refuse_the_rules_baseline():
     """`rules` maps three semantic groups onto label ids; in a two-class space its fallback
-    resolves PASTURE_FALLOW to PERENNIAL. It would return a number, and the number would be
-    meaningless — worse than an error."""
+    resolves PASTURE_FALLOW to PERENNIAL — a meaningless number, worse than an error."""
     assert L.rules_incompatible() == {"t2", "t2w"}
 
 

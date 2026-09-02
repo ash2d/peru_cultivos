@@ -1,17 +1,14 @@
 """Ingest returned label CSVs (docs/s2_labelling/plan.md).
 
 Reads the CSVs the labelling HTML downloads, joins ``item_id`` -> ``COD_PREDIO``, computes
-**Cohen's kappa on the double-labelled overlap** (over the called parcels, over all six
-values, and perennial-vs-rest separately),
-resolves disagreements by adjudication rather than majority — with two labellers a
-majority does not exist — and writes the labelled parcel table.
+Cohen's kappa on the double-labelled overlap (called parcels, all six values, and
+perennial-vs-rest), resolves disagreements by adjudication rather than majority — two
+labellers have no majority — and writes the labelled parcel table.
 
-**``label`` is stored exactly as the annotator recorded it.** Whether ``WOODY_NON_CROP``
-trains as ``OTHER`` or is dropped, and how the 3-class target is formed, is a modelling
-decision taken later against this table rather than baked into it. The only rows held out
-of training regardless are ``boundary_mismatch=True``, ``label == "UNSURE"`` and parcels
-with too few usable S2 pixels — the first and last are label noise, and the second carries
-no class information at all. All three stay in the table, flagged in ``exclude_reason``.
+``label`` is stored exactly as recorded. How ``WOODY_NON_CROP`` and the 3-class target are
+handled is a later modelling decision. Held out regardless: ``boundary_mismatch=True``,
+``label == "UNSURE"`` and parcels with too few usable S2 pixels — all kept in the table,
+flagged in ``exclude_reason``.
 """
 
 from __future__ import annotations
@@ -23,22 +20,16 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 
-# Key order, matching `build_html.LABELS` — `UNSURE` stays on 5 and `NON_AGRICULTURE`,
-# added later, takes 6.
+# Key order, matching `build_html.LABELS` — UNSURE on 5, NON_AGRICULTURE (added later) on 6.
 LABELS = ["PERENNIAL", "ANNUAL", "OTHER", "WOODY_NON_CROP", "UNSURE",
           "NON_AGRICULTURE"]
-# The five that carry class information. `UNSURE` is an abstain, so it is stored verbatim
-# but can never train anything and is not a class that has to meet a per-class gate.
-#
-# `NON_AGRICULTURE` was carved out of `OTHER`, which used to mean both "farmable land not
-# currently cropped" and "not farmland at all". Those are different things for this project:
-# a fallow field can convert to a perennial and a road cannot, so pooling them puts a
-# structurally impossible outcome into the same class as the interesting one. The codebook's
-# separating test is whether the ground could be sown next season as it stands.
+# The five that carry class information; UNSURE is an abstain, stored verbatim but never
+# trainable and not held to a per-class gate. NON_AGRICULTURE was carved out of OTHER — a
+# road cannot convert to a perennial but a fallow field can, so pooling them puts a
+# structurally impossible outcome in with the interesting one.
 CLASSES = ["PERENNIAL", "ANNUAL", "OTHER", "WOODY_NON_CROP", "NON_AGRICULTURE"]
 ABSTAIN = "UNSURE"
-# No `confidence`. It was a second, softer abstain beside UNSURE; two ways to record doubt
-# split the signal, and the graded one was never moved off its default.
+# No `confidence` — a second, softer abstain that split the signal.
 CSV_COLUMNS = ["item_id", "labeller", "label", "crop_guess",
                "boundary_mismatch", "seconds_spent", "timestamp"]
 MIN_PIXELS = 5
@@ -71,14 +62,11 @@ def read_csvs(paths: list[Path] | Path) -> pd.DataFrame:
     return out
 
 
-# ------------------------------------------------------------------------------------
-# Agreement
-# ------------------------------------------------------------------------------------
+# --- Agreement ---
 def cohens_kappa(a: pd.Series, b: pd.Series, classes: list[str] | None = None) -> float:
     """Cohen's kappa for two aligned label series.
 
-    Hand-rolled rather than taken from sklearn so the kappa reported in a gate is the one
-    the test suite pins against a worked example.
+    Hand-rolled, not sklearn, so the gate's kappa is the one the test suite pins.
     """
     a, b = pd.Series(list(a)), pd.Series(list(b))
     classes = classes or sorted(set(a) | set(b))
@@ -93,11 +81,10 @@ def cohens_kappa(a: pd.Series, b: pd.Series, classes: list[str] | None = None) -
 
 
 def agreement(labels: pd.DataFrame) -> dict:
-    """Kappa on the parcels two labellers both saw — multi-class **and** perennial-vs-rest.
+    """Kappa on the parcels two labellers both saw — multi-class and perennial-vs-rest.
 
-    The plan asks for both because the gap between them is essentially
-    ``WOODY_NON_CROP``/``PERENNIAL`` confusion, the hardest call in the codebook, and it
-    tells a later modelling decision how much to trust that distinction.
+    The gap between the two is essentially ``WOODY_NON_CROP``/``PERENNIAL`` confusion, the
+    hardest call in the codebook, and tells a later modelling decision how far to trust it.
     """
     dup = labels.groupby("item_id")["labeller"].nunique()
     both = dup[dup >= 2].index
@@ -115,12 +102,9 @@ def agreement(labels: pd.DataFrame) -> dict:
                    (b == "PERENNIAL").map({True: "PER", False: "REST"})
     cm = pd.crosstab(a, b)
 
-    # Two kappas over the label vocabulary, and they answer different questions.
-    # `kappa_all` includes UNSURE as a category, so it is depressed whenever the two
-    # labellers abstain on different parcels — which is a real disagreement about
-    # difficulty but not about land cover. `kappa_called` is computed on the parcels
-    # **both** actually called, which is the number the codebook is responsible for and
-    # the one gate G1 reads.
+    # `kappa_all` includes UNSURE, so it is depressed when the two abstain on different
+    # parcels (a real disagreement about difficulty, not land cover). `kappa_called` is on
+    # the parcels both actually called — what the codebook owns, and what gate G1 reads.
     both_called = idx[(a != ABSTAIN) & (b != ABSTAIN)]
     ac, bc = a[both_called], b[both_called]
     return {
@@ -142,10 +126,9 @@ def resolve(labels: pd.DataFrame, adjudication: dict[str, str] | None = None
             ) -> pd.DataFrame:
     """One row per ``item_id``.
 
-    With two labellers there is no majority, so disagreements are settled by an explicit
-    ``adjudication`` map (``item_id -> label``). An unadjudicated disagreement is **kept
-    and flagged**, not silently resolved to the first labeller — it is a real measurement
-    of ambiguity, and dropping it would flatter the campaign.
+    Two labellers have no majority, so disagreements are settled by an explicit
+    ``adjudication`` map (``item_id -> label``). An unadjudicated disagreement is kept and
+    flagged, not resolved to the first labeller — it is a real measurement of ambiguity.
     """
     adjudication = adjudication or {}
     rows = []
@@ -157,8 +140,7 @@ def resolve(labels: pd.DataFrame, adjudication: dict[str, str] | None = None
         elif item in adjudication:
             lab, how = adjudication[item], "adjudicated"
         elif len(set(called)) == 1:
-            # one labeller abstained and the other called it: that is not a disagreement
-            # about land cover, and discarding the call would waste a real observation
+            # one abstained, the other called it — not a land-cover disagreement
             lab, how = called[0], "one_abstained"
         else:
             lab, how = g.sort_values("labeller")["label"].iloc[0], "unresolved"
@@ -173,9 +155,7 @@ def resolve(labels: pd.DataFrame, adjudication: dict[str, str] | None = None
     return pd.DataFrame(rows)
 
 
-# ------------------------------------------------------------------------------------
-# Entry point
-# ------------------------------------------------------------------------------------
+# --- Entry point ---
 def ingest(csv_dir: Path, sample: gpd.GeoDataFrame, item_key: pd.DataFrame,
            s2_meta: pd.DataFrame | None = None,
            adjudication: dict[str, str] | None = None,
@@ -196,20 +176,18 @@ def ingest(csv_dir: Path, sample: gpd.GeoDataFrame, item_key: pd.DataFrame,
 
     kappa = agreement(raw)
     resolved = resolve(raw, adjudication)
-    # The sample carries its own `item_id`; so does the key. Merging on COD_PREDIO with
-    # both present silently produces `item_id_x`/`item_id_y` and the next merge fails on a
-    # missing column. The **key is authoritative** — it records what was actually emitted
-    # into a shard — so the sample's copy is dropped rather than reconciled.
+    # Both the sample and the key carry `item_id`; merging on COD_PREDIO with both would
+    # produce `item_id_x`/`item_id_y`. The key is authoritative (it records what was emitted
+    # into a shard), so the sample's copy is dropped.
     out = (sample.drop(columns=["item_id"], errors="ignore")
            .merge(key, on="COD_PREDIO", how="inner")
            .merge(resolved, on="item_id", how="inner"))
 
-    # ---- the exclusions that hold regardless of any later modelling decision ----
+    # ---- exclusions that hold regardless of any later modelling decision ----
     out["exclude_reason"] = ""
     out.loc[out.boundary_mismatch, "exclude_reason"] = "boundary_mismatch"
-    # UNSURE carries no class information, so it cannot train anything — but it is a real
-    # measurement of what the imagery could not resolve, so the row is kept and flagged
-    # rather than dropped. It is also the numerator of gate G2.
+    # UNSURE cannot train anything but records what the imagery could not resolve, so it is
+    # kept and flagged. It is also the numerator of gate G2.
     m = (out["label"] == ABSTAIN) & (out.exclude_reason == "")
     out.loc[m, "exclude_reason"] = "unsure"
     if s2_meta is not None:
@@ -256,10 +234,7 @@ def _gates(out: pd.DataFrame, kappa: dict) -> dict:
                             "pass": bool(k is not None and k >= 0.75),
                             "note": "on parcels BOTH labellers called; kappa_all "
                                     "(abstains included) is in the kappa report"},
-        # G2 is now a single number. It used to carry
-        # `low_confidence_share_among_called` beside it as a softer reading of the same
-        # thing; with the confidence control gone there is one measure of doubt and it is
-        # the one the gate reads.
+        # G2 is a single number now that the confidence control is gone.
         "G2_unsure_share": {"value": round(unsure, 4), "criterion": "< 0.25",
                             "pass": bool(unsure < 0.25)},
         "G3_min_per_dept": {"value": int(per_dept.min()) if len(per_dept) else 0,
@@ -304,19 +279,15 @@ def _report(out: pd.DataFrame, kappa: dict, gates: dict) -> None:
               f"{g['value']} (criterion {g['criterion']})")
 
 
-# ------------------------------------------------------------------------------------
-# §11 step 10 — the campaign's second deliverable
-# ------------------------------------------------------------------------------------
+# --- §11 step 10 — the campaign's second deliverable ---
 def transition_matrix(labelled: pd.DataFrame, weighted: bool = True) -> pd.DataFrame:
     """Weighted declared (1996-2006) -> observed (2019+) transition matrix.
 
-    A descriptive conversion estimate read straight off the labels with **no classifier in
-    it** — the question this project has never been able to answer. Rows are the declared
-    PETT class, columns the photo-interpreted label, cells are weighted row shares with a
-    binomial CI from the effective sample size.
+    A descriptive conversion estimate read straight off the labels with no classifier in it.
+    Rows are the declared PETT class, columns the photo-interpreted label, cells weighted
+    row shares with a binomial CI from the effective sample size.
     """
-    # `usable` already drops UNSURE, boundary mismatches and sub-pixel parcels, so the
-    # transition matrix describes the parcels that were actually called.
+    # `usable` already drops UNSURE, boundary mismatches and sub-pixel parcels
     d = labelled[labelled.usable].copy()
     d["w"] = d["weight"].fillna(1.0) if weighted else 1.0
     tab = d.pivot_table(index="declared_class", columns="label", values="w",

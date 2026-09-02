@@ -53,9 +53,8 @@ class TestBands:
         """`add_indices` writes a column called `NDVI` from the band *medians*.
 
         The per-pixel quantiles are a different quantity — a quantile of a ratio is not the
-        ratio of the quantiles — so sharing the name would let one silently overwrite the
-        other depending on call order, and the plotted median could then sit outside its
-        own p25-p75 band.
+        ratio of the quantiles — so sharing the name would let one overwrite the other by
+        call order, and the plotted median could sit outside its own p25-p75 band.
         """
         assert S2_NDVI_BAND != "NDVI"
         assert "NDVI" not in NDVI_PX_COLS

@@ -3,17 +3,15 @@
 One file per shard of 200 parcels: two base64 JPEGs + an inline SVG NDVI trace per item
 (~58 KB), so a shard is ~12 MB — openable from disk with no server.
 
-**The annotator types their own name.** The letter in the filename (``shard01_A.html``) is
-only a suggestion of who should take that shard; whatever is typed into the name box is
-what lands in the CSV and in the download filename. Progress in ``localStorage`` is keyed
-by shard *and* name, so two people can share a browser without overwriting each other.
+The annotator types their own name; the filename letter (``shard01_A.html``) is only a
+suggestion. Progress in ``localStorage`` is keyed by shard *and* name, so two people can
+share a browser without overwriting each other.
 
-**Blindness is a guarantee, not an intention.** The declared PETT class, the train/test
-assignment and the fold must not appear *anywhere* in the emitted file, not merely be
-un-rendered: a labeller anchored on the 1998 declaration manufactures agreement between
-declaration and endpoint, which is the human form of the ``centroid_lat`` failure. The
-embedded JSON therefore carries an explicit allow-list of fields and
-``tests/test_build_html.py`` asserts on the raw string.
+Blindness is a guarantee, not an intention: the declared PETT class, the train/test
+assignment and the fold must not appear anywhere in the file — a labeller anchored on the
+1998 declaration manufactures agreement, the human form of the ``centroid_lat`` failure.
+The embedded JSON carries an explicit allow-list and ``tests/test_build_html.py`` asserts
+on the raw string.
 
 Run::
 
@@ -30,34 +28,26 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-# 200, not the plan's 250. Measured on real chips: two base64 JPEGs plus a ~6 KB SVG trace
-# come to ~58 KB per item, so 250 items is ~14.5 MB against a 16 MB cap — inside it, but
-# with no room for the handful of parcels whose chips compress badly. 200 lands at ~11.6 MB.
+# 200, not the plan's 250. Measured: ~58 KB per item, so 250 items is ~14.5 MB against a
+# 16 MB cap with no margin for badly-compressing chips; 200 lands at ~11.6 MB.
 SHARD_SIZE = 200
-# Everything the labeller may see. Anything not on this list never reaches the file.
+# Everything the labeller may see; anything not listed never reaches the file.
 ITEM_FIELDS = ["item_id", "dept", "imagery_date", "imagery_res", "area_ha",
                "n_obs", "trace"]
-# Six values: five real classes and an abstain.
+# Six values: five real classes and an explicit abstain.
 #
-# `UNSURE` is an explicit abstain. The plan originally forced a choice and made
-# `confidence = 1` the abstain signal, on the reasoning that a forced label plus a
-# confidence flag loses nothing. In practice a control that has to be *actively* set is not
-# used — the labeller picks a class and moves on — so the abstain silently never got
-# recorded and parcels that could not really be called were indistinguishable from ones
-# that could. A key that costs the same as any other class key is the only version that
-# gets pressed. **Confidence has since been removed entirely**: it was a second, softer
-# abstain competing with the first, and two ways to say "I am not sure" split the signal.
+# UNSURE is a class key, not a confidence flag: a control that must be actively set is never
+# used, so the abstain silently never got recorded. Confidence was removed for the same
+# reason — a second, softer abstain that split the signal.
 #
-# ⚠️ **Order is key order, and `UNSURE` deliberately stays on 5.** `NON_AGRICULTURE` was
-# added after the codebook was written, and renumbering the abstain to make the list read
-# tidily would silently change what an already-briefed labeller's fingers do.
+# ⚠️ Order is key order. UNSURE stays on 5: NON_AGRICULTURE was added later, and renumbering
+# would change what an already-briefed labeller's fingers do.
 LABELS = ["PERENNIAL", "ANNUAL", "OTHER", "WOODY_NON_CROP", "UNSURE",
           "NON_AGRICULTURE"]
 
-# ⚠️ Translation touches the **display name only**. The value written to the CSV, and every
-# value `ingest.py` compares against, stays the canonical English constant above. Localising
-# the stored value would mean the ingest silently matched nothing and reported an empty
-# label distribution rather than an error — the same class of failure as the four data traps.
+# ⚠️ Translation touches the display name only. The stored value, and everything
+# `ingest.py` compares against, stays the canonical English constant — localising it would
+# make the ingest silently match nothing.
 LABEL_DISPLAY = {
     "en": {lab: lab for lab in LABELS},
     "es": {"PERENNIAL": "PERENNE", "ANNUAL": "ANUAL", "OTHER": "OTRO",
@@ -74,38 +64,28 @@ SVG_W, SVG_H = 340, 116
 NDVI_LO, NDVI_HI = -0.1, 1.0     # fixed y-axis so parcels are comparable across the set
 
 
-# ------------------------------------------------------------------------------------
-# NDVI trace -> inline SVG
-# ------------------------------------------------------------------------------------
+# --- NDVI trace -> inline SVG ---
 def trace_svg(dates: list[str], ndvi: list[float], centre: str,
               w: int = SVG_W, h: int = SVG_H,
               lo: list[float] | None = None,
               hi: list[float] | None = None) -> str:
     """24-month NDVI trace: points on a light line, a vertical rule at ``centre``.
 
-    Inline SVG rather than a rendered PNG — sharper, about a third of the size, and
-    readable at any zoom. The y-axis is **fixed** at -0.1 to 1.0 so a flat fallow parcel
-    and a peaking annual are visually comparable across the whole set; an autoscaled axis
-    would make every parcel look like it has a season.
+    Inline SVG, not a PNG — sharper and ~1/3 the size. The y-axis is fixed at -0.1 to 1.0 so
+    a flat fallow parcel and a peaking annual are comparable across the set.
 
-    ``lo``/``hi`` are the p25/p75 of NDVI **across the parcel's pixels on each date**, and
-    when given they are drawn as a shaded ribbon behind the line. That spread is a real
-    discriminator the median alone hides: a uniform annual field is internally consistent
-    and reads as a narrow ribbon, whereas an orchard (crowns against bare inter-row) and a
-    part-converted or mixed parcel are wide. It is **not** a confidence interval on the
-    median and the codebook says so — a wide ribbon means a heterogeneous parcel, not a
-    poorly measured one.
-
-    Both are optional: a store without the quantile columns still renders the plain median
-    line, so the page degrades rather than failing.
+    ``lo``/``hi`` are the p25/p75 of NDVI across the parcel's pixels on each date; when
+    given they are drawn as a shaded ribbon behind the line. It is a heterogeneity signal
+    (orchard crowns vs bare inter-row read wide), not a confidence interval — the codebook
+    says so. Both are optional: a store without the quantile columns still renders the
+    median line.
     """
     pad_l, pad_r, pad_t, pad_b = 26, 6, 8, 16
     iw, ih = w - pad_l - pad_r, h - pad_t - pad_b
     t = pd.to_datetime(pd.Series(dates))
     c = pd.Timestamp(centre)
-    # `t_lo`/`t_hi`, not `lo`/`hi`: those names are the p25/p75 arguments. The first
-    # version of the ribbon reused them here and the band was silently drawn from
-    # timestamps.
+    # `t_lo`/`t_hi`, not `lo`/`hi` — those names are the p25/p75 arguments; an early version
+    # reused them and drew the band from timestamps.
     t_lo = c - pd.DateOffset(months=12)
     t_hi = c + pd.DateOffset(months=12)
     span = (t_hi - t_lo).days or 1
@@ -119,12 +99,9 @@ def trace_svg(dates: list[str], ndvi: list[float], centre: str,
 
     parts = [f'<svg class="trace" viewBox="0 0 {w} {h}" width="{w}" height="{h}" '
              f'xmlns="http://www.w3.org/2000/svg">']
-    # Clip the data marks to the plot area. The extraction window and `centre` agree by
-    # construction, so nothing *should* fall outside — but Y is clamped and X never was, and
-    # a filled ribbon that escapes the axes is a smear across the whole card, where a stray
-    # circle was merely a dot. Cheap insurance against a mismatch nobody would look for.
-    # One trace is in the DOM at a time (the page injects the current item), so a fixed id
-    # cannot collide.
+    # Clip the data marks to the plot area: X is never clamped, and a filled ribbon that
+    # escapes the axes smears the whole card. One trace is in the DOM at a time, so the
+    # fixed id cannot collide.
     parts.append(f'<defs><clipPath id="tclip"><rect x="{pad_l}" y="{pad_t}" '
                  f'width="{iw}" height="{ih}"/></clipPath></defs>')
     parts.append(f'<rect x="{pad_l}" y="{pad_t}" width="{iw}" height="{ih}" '
@@ -149,8 +126,7 @@ def trace_svg(dates: list[str], ndvi: list[float], centre: str,
         m += pd.DateOffset(months=1)
 
     parts.append('<g clip-path="url(#tclip)">')
-    # The ribbon is drawn FIRST so the median line and its points sit on top of it. A band
-    # painted over the line would hide exactly the series it is meant to qualify.
+    # Ribbon first, so the median line and points sit on top of it.
     if lo is not None and hi is not None:
         band = [(X(ts), Y(a), Y(b)) for ts, v, a, b in zip(t, ndvi, lo, hi)
                 if pd.notna(v) and pd.notna(a) and pd.notna(b)]
@@ -178,14 +154,10 @@ def trace_svg(dates: list[str], ndvi: list[float], centre: str,
 def build_traces(px: pd.DataFrame) -> dict[str, dict]:
     """``COD_PREDIO -> {dates, ndvi, lo, hi}`` from the per-date S2 store.
 
-    **The line and the ribbon must be the same quantity.** When the store carries the
-    per-pixel NDVI quartiles (``NDVI_px_p25/p50/p75``, see ``s2_gee.S2_NDVI_BAND``) the
-    line is the per-pixel *p50*, not the NDVI recomputed from the band medians. The two
-    differ — a quantile of a ratio is not the ratio of the quantiles, measured at ~0.0025
-    NDVI median absolute difference on this store — and mixing them would let the plotted
-    median sit visibly outside its own p25-p75 band on some dates, which reads as a bug.
-
-    A store without those columns (anything extracted before 2026-08-13) falls back to the
+    The line and the ribbon must be the same quantity: when the store carries the per-pixel
+    NDVI quartiles (``NDVI_px_p25/p50/p75``) the line is the per-pixel p50, not NDVI
+    recomputed from band medians — mixing them would let the median sit outside its own band
+    on some dates. A store without those columns (pre 2026-08-13) falls back to the
     band-median NDVI and no ribbon.
     """
     from crop_classifier.features.indices import add_indices, scale_sr_s2
@@ -207,9 +179,7 @@ def build_traces(px: pd.DataFrame) -> dict[str, dict]:
     return out
 
 
-# ------------------------------------------------------------------------------------
-# Items
-# ------------------------------------------------------------------------------------
+# --- Items ---
 def _b64(path: Path) -> str:
     return base64.b64encode(path.read_bytes()).decode("ascii")
 
@@ -218,11 +188,9 @@ def build_items(sample: pd.DataFrame, chip_dir: Path, traces: dict[str, dict],
                 dropped: list[dict] | None = None) -> list[dict]:
     """One embedded record per parcel — only :data:`ITEM_FIELDS`, nothing else.
 
-    A parcel with no rendered chip cannot be labelled and is left out, but it is
-    **appended to ``dropped``** rather than vanishing: a shard that is quietly 40 parcels
-    short is a 4 % cut to the campaign that nobody would notice until the gates ran.
-    Parcels with a chip but *no S2 trace* are kept — the labeller can still call them from
-    the imagery, and the empty trace is visible on the page.
+    A parcel with no rendered chip cannot be labelled and is left out, but is appended to
+    ``dropped`` rather than vanishing. Parcels with a chip but no S2 trace are kept — the
+    labeller can still call them from the imagery.
     """
     items = []
     for _, r in sample.iterrows():
@@ -259,17 +227,14 @@ def shard(items: list[dict], size: int = SHARD_SIZE) -> list[list[dict]]:
 def _stable_seed(text: str) -> int:
     """Deterministic 32-bit seed from a string.
 
-    ``hash()`` is randomised per interpreter run (PYTHONHASHSEED), so seeding a shuffle
-    with it means rebuilding the shards reshuffles them — the same parcels in a different
-    order, which is harmless but makes two builds impossible to diff.
+    ``hash()`` is randomised per run (PYTHONHASHSEED), so seeding a shuffle with it makes
+    two builds impossible to diff.
     """
     import hashlib
     return int(hashlib.md5(text.encode()).hexdigest()[:8], 16)
 
 
-# ------------------------------------------------------------------------------------
-# HTML
-# ------------------------------------------------------------------------------------
+# --- HTML ---
 _CSS = """
 :root{--bg:#0b0f14;--panel:#121821;--ink:#e6edf3;--dim:#8b98a5;--line:#232c36;
       --acc:#ffdd33;--ok:#4ade80}
@@ -315,13 +280,9 @@ kbd{background:#0f151d;border:1px solid var(--line);border-radius:3px;padding:1p
 @media (max-width:1000px){.card{grid-template-columns:1fr}.card img{width:100%;height:auto}}
 """
 
-# ------------------------------------------------------------------------------------
-# User-visible strings
-#
-# Every user-visible string lives here and is injected as `const T` next to the payload;
-# the JS below only ever reads `T.*` and `NAMES[...]`. One code path serves both languages,
-# so a fix to the labelling logic cannot land in one language and miss the other.
-# ------------------------------------------------------------------------------------
+# --- User-visible strings ---
+# All live here and are injected as `const T`; the JS only reads `T.*` and `NAMES[...]`, so
+# one code path serves both languages.
 UI = {
     "en": {
         "title": "Parcel labelling", "your_name": "your name",
@@ -393,16 +354,12 @@ const KEYS={'1':'PERENNIAL','2':'ANNUAL','3':'OTHER','4':'WOODY_NON_CROP','5':'U
 const NAMEK='s2label_annotator';
 let i=0, store={}, t0=Date.now(), who='';
 
-// The annotator types their own name; the filename's letter is only a suggestion of who
-// should do this shard. The name is stored globally (one key, not per shard) so it is
-// typed once even when someone works through several files, and the per-shard progress
-// store is keyed BY that name so two people sharing a browser never overwrite each other.
+// Name stored globally (typed once across several files); the per-shard store is keyed by
+// it so two people sharing a browser never overwrite each other.
 function shardKey(){ return 's2label_'+SHARD_ID+'_'+(who||'anon'); }
 function loadStore(){ try{store=JSON.parse(localStorage.getItem(shardKey())||'{}')}
   catch(e){store={}} }
-// No `confidence` field. It was a second, softer abstain sitting beside UNSURE, and two
-// ways to say "I am not sure" split that signal between a hard one the gates can read and
-// a graded one nobody moved off its default.
+// No `confidence` field — it was a second, softer abstain beside UNSURE that split the signal.
 function rec(id){ return store[id] || (store[id]={label:'',crop_guess:'',
   boundary_mismatch:false,seconds_spent:0}); }
 function save(){ try{localStorage.setItem(shardKey(),JSON.stringify(store))}catch(e){} }
@@ -412,8 +369,7 @@ function setWho(v){
   who=(v||'').trim();
   const nw=shardKey();
   if(nw!==old&&had&&!localStorage.getItem(nw)){
-    // they started labelling before typing a name — carry that work over rather than
-    // stranding it under the anonymous key
+    // labelled before typing a name — carry that work over from the anonymous key
     try{localStorage.setItem(nw,JSON.stringify(store));localStorage.removeItem(old);}catch(e){}
   } else if(nw!==old){ loadStore(); }
   try{localStorage.setItem(NAMEK,who)}catch(e){}
@@ -490,8 +446,8 @@ function csv(){
                 r.timestamp||''].join(','));});
   const text=lines.join('\n')+'\n';
   const name=SHARD_ID+'_'+who.replace(/[^A-Za-z0-9_-]+/g,'_')+'.csv';
-  // Plain Blob + <a download> so the file works with the page opened straight from disk;
-  // window.claude.downloads.save is used only when the page is running as an artifact.
+  // Plain Blob + <a download> for the page opened straight from disk;
+  // window.claude.downloads.save is used only when running as an artifact.
   if(window.claude&&window.claude.downloads&&window.claude.downloads.save){
     try{ window.claude.downloads.save(name,text); return; }catch(e){}
   }
@@ -529,11 +485,10 @@ def render_html(items: list[dict], shard_id: str, labeller: str,
                 codebook_html: str | None = None, lang: str = "en") -> str:
     """One self-contained shard file, in ``lang``.
 
-    Written as flat concatenation rather than an indented triple-quoted template: the CSS
-    and JS blocks interpolated into it contain unindented lines, so ``textwrap.dedent``
-    silently does nothing and the emitted file's structure stops matching what the code
-    reads like. ``ITEMS_OPEN``/``ITEMS_CLOSE`` are exact delimiters so the embedded
-    payload can be recovered byte-for-byte by a test.
+    Flat concatenation, not an indented template: the interpolated CSS/JS blocks contain
+    unindented lines, so ``textwrap.dedent`` would silently do nothing.
+    ``ITEMS_OPEN``/``ITEMS_CLOSE`` are exact delimiters so a test can recover the payload
+    byte-for-byte.
     """
     if lang not in LANGS:
         raise ValueError(f"lang must be one of {LANGS}, got {lang!r}")
@@ -580,14 +535,10 @@ def render_html(items: list[dict], shard_id: str, labeller: str,
 _CB_WRAP = ("""<div style="background:#121821;border:1px solid #232c36;border-radius:8px;"""
             """padding:14px;margin-bottom:12px;font-size:13px;line-height:1.55">""")
 
-# The codebook the labeller actually reads. Deliberately short: it is opened mid-task, on a
-# parcel that is already confusing, and every sentence that is not a decision rule competes
-# with the ones that are. The long-form reasoning (why UNSURE exists, why confidence was
-# removed, why WOODY_NON_CROP must never fold into PERENNIAL) belongs in
-# docs/s2_labelling/plan.md §3, not here.
+# The codebook the labeller actually reads. Deliberately short: it is opened mid-task on an
+# already-confusing parcel. Long-form reasoning is in docs/s2_labelling/plan.md §3.
 #
-# WARNING: docs/s2_labelling/codebook.md must carry the same rules. What a labeller reads and what
-# is on the record cannot be allowed to drift apart.
+# WARNING: docs/s2_labelling/codebook.md must carry the same rules.
 CODEBOOK_HTML = {}
 
 CODEBOOK_HTML["en"] = _CB_WRAP + """
@@ -736,22 +687,16 @@ guarda solo en este navegador, así que el CSV es la única copia que llega.</di
 """
 
 
-# ------------------------------------------------------------------------------------
-# Entry point
-# ------------------------------------------------------------------------------------
+# --- Entry point ---
 def build(sample: pd.DataFrame, chip_dir: Path, px: pd.DataFrame, out_dir: Path,
           shard_size: int = SHARD_SIZE, seed: int = 20260812,
           lang: str = "en") -> pd.DataFrame:
     """Emit every shard, plus the item_id -> COD_PREDIO key the ingest joins on.
 
-    Shard assignment follows the campaign's structure (§2.1): the main parcels are split
-    into shards divided between the two labellers, and the 100 double-labelled overlap
-    parcels go into **one further shard that both labellers receive**. That keeps the kappa
-    set from depending on how the two happened to divide the work, and makes it a single
-    file that can be handed to a third person if adjudication is needed.
-
-    Item order inside every shard is randomised with a per-shard seed, so the department
-    and class structure of the draw is not legible as an ordering.
+    Shard assignment follows §2.1: main parcels split into shards divided between the two
+    labellers, and the 100 double-labelled overlap parcels go into one further shard both
+    receive, so the kappa set does not depend on how the work was divided. Item order
+    inside every shard is randomised with a per-shard seed.
     """
     if lang not in LANGS:
         raise ValueError(f"lang must be one of {LANGS}, got {lang!r}")
@@ -765,10 +710,8 @@ def build(sample: pd.DataFrame, chip_dir: Path, px: pd.DataFrame, out_dir: Path,
     for shard_id, (rows_df, labellers) in plan.items():
         base = build_items(rows_df, chip_dir, traces, dropped)
         for lab in labellers:
-            # Seeded per (shard, labeller), not per shard. The overlap set goes to both
-            # labellers, and giving them the same order would let fatigue and drift line
-            # up between them — inflating kappa for a reason that has nothing to do with
-            # the codebook.
+            # Seeded per (shard, labeller): the overlap set goes to both, and the same
+            # order would let fatigue and drift line up between them, inflating kappa.
             rng = np.random.default_rng(
                 _stable_seed(f"{shard_id}|{lab}") ^ seed)
             items = [base[k] for k in rng.permutation(len(base))]
@@ -807,8 +750,8 @@ def _shard_plan(sample: pd.DataFrame, shard_size: int) -> dict:
     overlap = main[main.overlap]
     solo = main[~main.overlap].reset_index(drop=True)
     n_shards = max(1, int(np.ceil(len(solo) / shard_size)))
-    # Greedy least-loaded, not "first half to A": with an odd shard count a positional
-    # split hands one labeller 600 parcels and the other 292.
+    # Greedy least-loaded, not "first half to A": an odd shard count would hand one
+    # labeller 600 parcels and the other 292.
     load = {"A": 0, "B": 0}
     for k in range(n_shards):
         rows = solo.iloc[k * shard_size:(k + 1) * shard_size]

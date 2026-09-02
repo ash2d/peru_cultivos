@@ -1,21 +1,18 @@
 """National CENAGRO 2012 ⇄ PETT link, by farmer name — Chain B for 14 departments.
 
-`allperu/cenagro.py` compares the PETT declaration with the 2012 census on **Piura only**,
-because the crosswalk it reads (`merged_parcels.parquet`) was built by notebook 02 for Piura.
-The 25-department census extract (`DATA.md` §1.5) removes that limit for the **14 departments
-the cadastral bridge covers** (§3).
+`allperu/cenagro.py` compares PETT with the 2012 census on **Piura only** (its crosswalk was
+built by notebook 02 for Piura). The 25-department extract (`DATA.md` §1.5) removes that limit
+for the **14 departments the cadastral bridge covers** (§3).
 
-⚠️ **The census carries no parcel key.** No `COD_PREDIO`, no `CodigoSSET`, no DNI. The only
-link is the farmer's **name**, so the link is *farmer-level, not parcel-level*: a producer with
-three parcels is matched to a person, and which of their polygons a census row describes is
-uncertain. Every number built on this must be reported by `link_confidence`, because that is
-the only honest way to show how much of the answer is the link rather than the land.
+⚠️ **The census carries no parcel key** — no `COD_PREDIO`, `CodigoSSET` or DNI. The only link
+is the farmer's **name**, so it is *farmer-level, not parcel-level*: a producer with three
+parcels is matched to a person, and which polygon a census row describes is uncertain. Report
+every number built on this by `link_confidence`.
 
-The national link is **structurally simpler** than notebook 02's. That notebook matched the
-census against three different Piura files (SSET, catastro, polygons) and reconciled them.
-Nationally, `Grafica_Tabular/<Dept>.dta` already carries `COD_PREDIO`, `CodigoSSET`, `NOMBRES`
-**and** a 6-digit district `id_dist` in one table — the same district code the census builds as
-`UBIGEO` from `P001+P002+P003`. So one target, with a district check for free.
+The national link is **structurally simpler** than notebook 02's (which reconciled three
+Piura files). `Grafica_Tabular/<Dept>.dta` already carries `COD_PREDIO`, `CodigoSSET`,
+`NOMBRES` **and** a 6-digit district `id_dist` in one table — the same code the census builds
+as `UBIGEO` from `P001+P002+P003`. One target, with a district check for free.
 
 Three match routes, strictest first, exactly as notebook 02 defined them:
 
@@ -23,11 +20,10 @@ Three match routes, strictest first, exactly as notebook 02 defined them:
 * ``tokset`` the same tokens, order-insensitive (the two surnames are often swapped)
 * ``core``   paterno | materno | 1º nombre only (drops given-name variation)
 
-⚠️ **A name is not a key and common names are not uniformly common.** Matching is done
-**within department**, and a name key that pulls more than `MAX_CANDIDATES` distinct parcels is
-**dropped, not resolved** — at that multiplicity the match carries no information, and keeping
-it would quietly load the sample with the departments that have the most repeated surnames.
-`build()` reports how many producers that removes.
+⚠️ **A name is not a key.** Matching is **within department**, and a name key pulling more
+than `MAX_CANDIDATES` distinct parcels is **dropped, not resolved** — at that multiplicity it
+carries no information, and keeping it loads the sample toward departments with the most
+repeated surnames. `build()` reports how many producers that removes.
 """
 
 from __future__ import annotations
@@ -45,8 +41,8 @@ CENAGRO_DIR = ROOT / "data" / "raw" / "Cenagro_IV"
 BRIDGE_DIR = ROOT / "data" / "raw" / "Grafica_Tabular"
 OUT_DIR = ROOT / "data" / "processed" / "cenagro"
 
-# A name key matching more than this many distinct parcels in one department is not an
-# identifying match. Dropped rather than resolved; the count is reported.
+# A name key matching more than this many distinct parcels in one department is not
+# identifying: dropped, not resolved; the count is reported.
 MAX_CANDIDATES = 25
 
 # census file stem -> Grafica_Tabular file stem, for the 14 linkable departments (DATA.md §3)
@@ -63,7 +59,6 @@ ROUTES = [("full", "name_full"), ("tokset", "name_tokset"), ("core", "name_core"
 _ROUTE_RANK = {"full": 0, "tokset": 1, "core": 2}
 
 
-# --------------------------------------------------------------------------------------
 def norm_txt(s: object) -> str | None:
     """Uppercase, strip accents, drop punctuation, collapse spaces."""
     if s is None or (isinstance(s, float) and np.isnan(s)):
@@ -89,9 +84,9 @@ def _glue_particles(toks: list[str]) -> list[str]:
 def parse_full_name(raw: object) -> tuple[str | None, str | None, list[str]]:
     """One concatenated name -> (apellido paterno, materno, [given names]).
 
-    ⚠️ **Assumption**: with no field boundaries, the first two tokens are the two surnames and
-    the rest are given names (Peruvian convention). A comma, where present, is the true
-    surname/given split and overrides the heuristic. Leading particles glue to the next token.
+    ⚠️ **Assumption**: with no field boundaries, the first two tokens are the surnames and the
+    rest given names (Peruvian convention). A comma overrides it as the true split. Leading
+    particles glue to the next token.
     """
     if raw is None or (isinstance(raw, float) and np.isnan(raw)):
         return None, None, []
@@ -127,7 +122,6 @@ def name_keys(ap1: pd.Series, ap2: pd.Series, givens: pd.Series) -> pd.DataFrame
     return out
 
 
-# --------------------------------------------------------------------------------------
 def census_names(dept: str) -> pd.DataFrame:
     """One row per census producer, with the three match keys and the district UBIGEO."""
     d = pd.read_parquet(CENAGRO_DIR / f"{dept}.parquet",

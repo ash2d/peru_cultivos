@@ -1,10 +1,9 @@
 """Spatial blocks, locked test set, CV folds, buffered dead-zone (plan.md §5, A2).
 
-Test/fold units are **contiguous super-regions** (``region_km`` grid, default 5 km), not
-scattered 1 km blocks: the buffer dead-zone costs training data in proportion to the
-held-out *perimeter*, and 329 scattered test blocks + a 1.5 km buffer sterilised 69 % of
-all parcels (33,245/48,289). A few large regions hold out the same test share for a
-fraction of that cost. 1 km ``block_id`` is kept for reporting/fine structure.
+Test/fold units are contiguous super-regions (``region_km`` grid, default 5 km), not
+scattered 1 km blocks: the buffer dead-zone costs training data in proportion to held-out
+*perimeter*, and 329 scattered test blocks + a 1.5 km buffer sterilised 69 % of parcels.
+1 km ``block_id`` is kept for reporting.
 
 Adds to ``modeling_parcels.parquet``:
 
@@ -45,20 +44,16 @@ from crop_classifier.paths import proc
 CONFIG_DIR = Path(__file__).resolve().parent / "config"
 
 # Metric CRS for block gridding, the autocorrelation audit and the buffer dead-zone.
-# Piura sits inside UTM 17S, so 32717 is exact there and stays the default. The all-Peru
-# workspace spans zones 17S-19S and overrides it via `metric_crs:` in its split config —
-# one zone for the whole country, because block ids must come from a single continuous
-# grid. UTM 18S is the choice there: Peru reaches ~6.4 deg either side of its central
-# meridian, a scale error under ~0.7 %, i.e. <11 m on the 1.5 km buffer.
+# Piura is inside UTM 17S so 32717 is exact and the default. The all-Peru workspace spans
+# 17S-19S and overrides via `metric_crs:` to one zone (block ids need one continuous grid);
+# UTM 18S there gives a scale error <0.7 %, <11 m on the 1.5 km buffer.
 DEFAULT_METRIC_CRS = 32717  # WGS84 / UTM 17S
 METRIC_CRS = DEFAULT_METRIC_CRS  # back-compat alias; assign() reads the config
 
 
 def out_paths() -> tuple[Path, Path, Path]:
     """``(modeling_parcels, splits_meta, class_block_counts)`` in the current workspace.
-
-    Resolved at call time so ``CC_PROC`` selects the workspace (see paths.py).
-    """
+    Resolved at call time so ``CC_PROC`` selects the workspace (see paths.py)."""
     p = proc()
     return (p / "modeling_parcels.parquet", p / "splits_meta.json",
             p / "class_block_counts.csv")
@@ -68,15 +63,12 @@ def load_config(path: Path | None = None) -> dict[str, Any]:
     return load_yaml_config(path or CONFIG_DIR / "split.yaml")
 
 
-# ------------------------------------------------------------------------------------
-# Autocorrelation audit (sets/justifies block size + buffer)
-# ------------------------------------------------------------------------------------
+# --- Autocorrelation audit (sets/justifies block size + buffer) ---
 def autocorrelation_audit(xy: np.ndarray, label_id: np.ndarray, cfg: dict) -> dict:
     """Neighbour label-agreement vs distance -> decorrelation range estimate.
 
-    Samples parcels, finds neighbours within ``audit_max_dist_m``, bins pair agreement by
-    distance. Baseline = expected agreement of two random parcels (sum p_i^2). The
-    decorrelation range r is the first bin whose agreement is within 10 % of baseline.
+    Bins sampled-pair agreement by distance. Baseline = agreement of two random parcels
+    (sum p_i^2); the decorrelation range r is the first bin within 10 % of baseline.
     """
     rng = np.random.default_rng(cfg["seed"])
     n = len(xy)
@@ -90,7 +82,7 @@ def autocorrelation_audit(xy: np.ndarray, label_id: np.ndarray, cfg: dict) -> di
     for i in idx:
         js = tree.query_ball_point(xy[i], max_d)
         js = [j for j in js if j > i]
-        if len(js) > 40:  # cap per-parcel pair count to keep it fast & unbiased-ish
+        if len(js) > 40:  # cap per-parcel pair count for speed
             js = list(rng.choice(js, 40, replace=False))
         for j in js:
             pairs_d.append(np.hypot(*(xy[i] - xy[j])))
@@ -112,15 +104,11 @@ def autocorrelation_audit(xy: np.ndarray, label_id: np.ndarray, cfg: dict) -> di
     return {"baseline_agreement": baseline, "curve": curve, "decorrelation_range_m": r}
 
 
-# ------------------------------------------------------------------------------------
-# Test-region selection + folds + buffer
-# ------------------------------------------------------------------------------------
+# --- Test-region selection + folds + buffer ---
 def _joint_tv_distance(df: pd.DataFrame, test: set[str], unit_col: str,
                        cols: list[str]) -> float:
-    """Total-variation distance between test and trainval on the joint ``cols`` histogram.
-
-    Half the L1 distance between the two normalised joint distributions: 0 = identical
-    composition, 1 = disjoint. Used to score candidate test draws (§4.4).
+    """Total-variation distance between test and trainval on the joint ``cols`` histogram
+    (half the L1 of the normalised distributions: 0 identical, 1 disjoint). Scores test draws.
     """
     is_test = df[unit_col].isin(test)
     if not is_test.any() or is_test.all():
@@ -136,8 +124,8 @@ def _joint_tv_distance(df: pd.DataFrame, test: set[str], unit_col: str,
 def _draw_test_units(df: pd.DataFrame, unit_col: str, test_frac: float,
                      rng: np.random.Generator) -> set[str]:
     """One shuffled draw of whole units up to ``test_frac`` of parcels, class-repaired."""
-    # np.asarray(..., object): `unique()` on an Arrow-backed column returns an ArrowStringArray,
-    # which numpy shuffles unsafely (it warns that the result may contain duplicates).
+    # np.asarray(..., object): `unique()` on an Arrow column returns an ArrowStringArray,
+    # which numpy shuffles unsafely.
     units = np.asarray(df[unit_col].unique(), dtype=object)
     rng.shuffle(units)
     target = test_frac * len(df)
@@ -148,11 +136,11 @@ def _draw_test_units(df: pd.DataFrame, unit_col: str, test_frac: float,
             break
         test.add(b)
         acc += int(sizes[b])
-    # ensure every class appears in test: move in the smallest unit containing it
+    # every class must appear in test: add the smallest unit containing it
     for cls, sub in df.groupby("label"):
         if not sub[unit_col].isin(test).any():
             test.add(sub.groupby(unit_col).size().idxmin())
-    # ensure every class still appears in trainval (never move a class's only units out)
+    # ... and still in trainval: never move a class's only units out
     train_classes = set(df.loc[~df[unit_col].isin(test), "label"])
     for cls in set(df["label"]) - train_classes:   # give the largest unit back
         test.discard(df[df["label"] == cls].groupby(unit_col).size().idxmax())
@@ -162,19 +150,13 @@ def _draw_test_units(df: pd.DataFrame, unit_col: str, test_frac: float,
 def pick_test_units(df: pd.DataFrame, unit_col: str, test_frac: float, seed: int,
                     balance_cols: list[str] | None = None,
                     n_candidates: int = 1) -> set[str]:
-    """Choose the locked-test units, optionally **balanced on ``balance_cols``** (§4.4).
+    """Choose the locked-test units, optionally balanced on ``balance_cols`` (§4.4).
 
-    The original draw was a single shuffle, and ``splits.py`` never read ``year``. Titling
-    swept region by region, so a purely spatial draw is also a temporal draw: Piura's locked
-    test came out **48.3 % label-year 1998 against trainval's 32.9 %** — an accidental
-    temporal split nobody designed, and one that interacts with the 1997-98 El Niño and with
-    the year↔label confound (1998 is 0.4 % perennial, 2000 is 33.8 %).
-
-    The fix is cheap: draw ``n_candidates`` independent region sets at the same target
-    fraction and keep the one minimising the total-variation distance between test and
-    trainval on the joint ``year × label`` distribution. Spatial contiguity, the class
-    repairs and the test fraction are all unchanged — only *which* equally-valid draw is
-    taken. ``n_candidates=1`` reproduces the original behaviour exactly.
+    Titling swept region by region, so a purely spatial draw is also a temporal one: Piura's
+    locked test came out 48.3 % label-year 1998 vs trainval's 32.9 %, interacting with the
+    El Niño and the year↔label confound. Fix: draw ``n_candidates`` region sets and keep the
+    one minimising the TV distance on joint ``year × label``. ``n_candidates=1`` reproduces
+    the original single-draw behaviour.
     """
     rng = np.random.default_rng(seed)
     cols = [c for c in (balance_cols or []) if c in df.columns]
@@ -236,10 +218,8 @@ def assign(config_path: Path | None = None, save: bool = True) -> gpd.GeoDataFra
               f"neighbour leakage is only partially controlled. FLAGGED for review.")
 
     # ---- locked test (contiguous regions: buffer cost scales with perimeter) ----
-    # `balance_test_on` + `n_test_candidates` add the window-pivot split work
-    # (docs/RESULTS.md §5): pick
-    # the best of N equally-valid draws on the joint year x label composition. Defaults keep
-    # the original single-draw behaviour so existing splits stay reproducible.
+    # `balance_test_on` + `n_test_candidates` (RESULTS.md §5): pick the best of N draws on
+    # joint year x label. Defaults keep the original single-draw behaviour.
     balance_cols = cfg.get("balance_test_on") or []
     n_cand = int(cfg.get("n_test_candidates", 1))
     test_regions = pick_test_units(df, "region_id", cfg["test_frac"], cfg["seed"],
@@ -248,8 +228,7 @@ def assign(config_path: Path | None = None, save: bool = True) -> gpd.GeoDataFra
     print(f"test: {int((df['split'] == 'test').sum()):,} parcels in "
           f"{len(test_regions):,} contiguous {cfg['region_km']:g} km regions "
           f"({(df['split'] == 'test').mean():.1%})")
-    # Always measured and recorded, whether or not it was optimised — an accidental temporal
-    # split is invisible unless someone writes the number down.
+    # always measured, optimised or not — an accidental temporal split is invisible otherwise
     tv_dist = {}
     for cols in ([balance_cols] if balance_cols else []) + [["year", "label"], ["year"],
                                                             ["label"]]:

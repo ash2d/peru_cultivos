@@ -5,9 +5,9 @@ them come back at group level, and the ones that were never extracted have
 ``quality_ok = NA``. Without this step the 3-class model would silently train on a subset
 and the "more parcels" advantage would evaporate.
 
-Everything writes into the **shared** feature store (D5): same parcels, same years, same
-pixels — only the label column differs, so the extraction is genuinely shared. The
-resulting store is a superset of what the 12-class runs used, keyed by ``COD_PREDIO``.
+Everything writes into the **shared** feature store (D5): same parcels, years and pixels,
+only the label differs. The result is a superset of what the 12-class runs used, keyed by
+``COD_PREDIO``.
 
 Run with::
 
@@ -36,8 +36,8 @@ def statics_union() -> pd.DataFrame:
     """Static columns for **every** parcel in either workspace.
 
     ``assemble`` merges statics onto the feature rows; feeding it only the 3-class table
-    would blank ``area_ha``/``n_valid_obs``/… for parcels that exist solely in the 12-class
-    table and so corrupt the shared store for the completed 12-class runs.
+    would blank ``area_ha``/``n_valid_obs``/… for 12-class-only parcels and corrupt the
+    shared store for the completed 12-class runs.
     """
     cols = ["COD_PREDIO", "area_ha", "n_pixels_est", "centroid_lat", "n_valid_obs",
             "max_gap"]

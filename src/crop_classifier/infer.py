@@ -56,9 +56,9 @@ def infer(run_dir: Path, polygons: Path | None = None, out: Path | None = None,
     scored = base[ok]
     norm = Normalizer.from_state(model.normalizer_state) \
         if getattr(model, "normalizer_state", None) else None
-    # Score on exactly the columns the model was fitted on, in that order. This is what
-    # makes an ablated model (RESULTS.md §4.6) stay ablated at inference: withheld columns
-    # are still present in the panel store, and without this they would silently return.
+    # Score on exactly the columns the model was fitted on, in order. This keeps an ablated
+    # model (RESULTS.md §4.6) ablated at inference: withheld columns are still in the panel
+    # store and would otherwise silently return.
     feature_names = getattr(model, "feature_names", None) or None
     ds = make_dataset(model.input_kind, base, scored.index, normalizer=norm,
                       feat_dir=feat_dir, feature_names=feature_names)

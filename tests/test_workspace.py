@@ -48,9 +48,9 @@ def test_names_preserve_file_order(cfg):
 
 
 def test_relative_roots_resolve_against_the_config_file_not_the_cwd(cfg, monkeypatch, tmp_path):
-    """`data_root: ./data` must mean "next to workspaces.yaml". If it were resolved against
-    the process cwd, running a command from a subdirectory would silently target a
-    different, probably empty, store — the exact failure this layer exists to remove."""
+    """`data_root: ./data` must mean "next to workspaces.yaml". Resolved against the process
+    cwd, a command run from a subdirectory would silently target a different, probably empty,
+    store."""
     sub = tmp_path / "somewhere" / "else"
     sub.mkdir(parents=True)
     monkeypatch.chdir(sub)
@@ -138,11 +138,10 @@ def test_the_repo_config_parses_and_every_workspace_resolves(monkeypatch):
         assert ws.proc.is_absolute() and ws.feat.is_absolute() and ws.runs.is_absolute()
 
 
-# ── the portability guard ────────────────────────────────────────────────────────────────
-# Two absolute paths to one laptop shipped in `src/` for months: a OneDrive mount and a
-# Google Cloud project id. Neither failed on the machine that wrote them, and both would
-# have failed on a collaborator's first run, inside someone else's library rather than at a
-# line naming the file to edit. A grep is the only thing that notices.
+# --- the portability guard ---
+# Two absolute paths to one laptop shipped in `src/` for months: a OneDrive mount and a GCP
+# project id. Neither failed on the machine that wrote them; both would have failed on a
+# collaborator's first run, inside someone else's library. A grep is the only thing that notices.
 
 _MACHINE_SPECIFIC = (
     "/Users/",

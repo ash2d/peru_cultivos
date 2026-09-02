@@ -1,10 +1,9 @@
 """How many labelled parcels does a land-state classifier need? — measured, not assumed.
 
-Sizes a photo-interpretation campaign (`docs/s2_labelling/plan.md`) by running a
-learning curve on the **existing** national Landsat store and PETT labels. That is a proxy for
-a Sentinel-2 campaign, and a deliberately conservative one: S2 gives ~9x the pixels per parcel,
-so the achievable ceiling should be higher. What transfers is the *shape* — where the curve
-flattens — which is the question a budget needs answered.
+Sizes a photo-interpretation campaign (`docs/s2_labelling/plan.md`) with a learning curve on
+the **existing** national Landsat store and PETT labels — a conservative proxy for a
+Sentinel-2 campaign (S2 gives ~9x the pixels per parcel, so the ceiling should be higher).
+What transfers is the *shape* — where the curve flattens.
 
 Two draw protocols, because the difference between them turns out to be worth ~8x the budget:
 
@@ -33,8 +32,8 @@ from crop_classifier.paths import proc
 SIZES = (500, 1000, 2000, 4000, 8000, 16000)
 FOLDS = (0, 1, 2)
 SEEDS = (0, 1, 2)
-# Location features are withheld throughout: LODO showed centroid_lat is spatial
-# memorisation, and a label-budget curve computed with it would be measuring the wrong thing.
+# Location features withheld throughout: LODO showed centroid_lat is spatial memorisation,
+# so a curve computed with it measures the wrong thing.
 NOLAT = ("centroid_lat", "centroid_lon")
 
 

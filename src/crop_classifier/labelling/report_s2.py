@@ -1,8 +1,7 @@
 """Readable results for the S2 endpoint-labelling campaign.
 
-Everything this module prints is meant to be pasted into a document and understood there:
-each table carries its own units, its own n, and — where a gate is involved — the criterion
-next to the reading, so nothing has to be looked up elsewhere.
+Everything this module prints is meant to be pasted into a document: each table carries its
+own units, its own n, and — where a gate is involved — the criterion next to the reading.
 
 ⚠️ **Nothing here touches the locked test split.** Every number is either cross-validation
 inside ``trainval`` or leave-one-department-out over ``trainval`` + pilot. The 201-parcel
@@ -58,7 +57,6 @@ def oof(run_dir: Path) -> pd.DataFrame:
     return d
 
 
-# ---------------------------------------------------------------------------------
 def headline() -> pd.DataFrame:
     """The full arm table: CV and LODO macro-F1 side by side, with fold/department spread."""
     rows = []
@@ -89,8 +87,8 @@ def headline() -> pd.DataFrame:
 def paired_folds(target: str, pilot: bool, a: str, b: str) -> dict:
     """Paired per-fold difference ``a - b`` in macro-F1, with a two-sided t-test.
 
-    Paired because both models see identical folds; a t-test on 5 paired differences is
-    weak evidence and is reported as such rather than as a verdict.
+    Paired because both models see identical folds; a t-test on 5 paired differences is weak
+    evidence, reported as such not as a verdict.
     """
     from scipy import stats
     suf = "_pilot" if pilot else ""
@@ -156,9 +154,9 @@ def lodo_table(target: str, models: list[str] | None = None) -> pd.DataFrame:
 def paired_depts(target: str, a: str, b: str) -> dict:
     """Paired per-**department** difference ``a - b`` in held-out macro-F1.
 
-    The out-of-distribution counterpart to ``paired_folds``. Both models are scored on the
-    same held-out departments, so the pairing is exact; with 10-14 departments this is the
-    largest paired sample the campaign has, and it is still small.
+    The OOD counterpart to ``paired_folds``. Both models scored on the same held-out
+    departments, so the pairing is exact; at 10-14 departments the campaign's largest paired
+    sample, still small.
     """
     from scipy import stats
     ws = labels_dir() / f"ws_{target}_pilot"
@@ -183,15 +181,13 @@ def cv_vs_lodo(target: str) -> pd.DataFrame:
     return out.sort_values("lodo_macro_f1", ascending=False)
 
 
-# ---------------------------------------------------------------------------------
 def majority_baseline(target: str, pilot: bool = True) -> dict:
     """What "always guess the largest class" scores on this target.
 
-    ⚠️ **This is why macro-F1 must never be compared across targets with different class
-    counts.** Averaging F1 over 2 classes when one is never predicted still collects a full
-    score on the other and divides by 2, so the floor rises as classes are removed: 0.124
-    (5-class) → 0.171 (4-class) → 0.228/0.253 (3-class) → **0.41–0.47 (2-class)**. A model
-    that "improves" from 0.67 to 0.72 by collapsing classes has usually lost skill.
+    ⚠️ **Why macro-F1 must never be compared across targets with different class counts.**
+    The floor rises as classes are removed: 0.124 (5-class) → 0.171 (4) → 0.228/0.253 (3) →
+    **0.41–0.47 (2)**. A model that "improves" 0.67 → 0.72 by collapsing classes has usually
+    lost skill.
     """
     import geopandas as gpd
     from sklearn.metrics import f1_score
@@ -211,9 +207,9 @@ def majority_baseline(target: str, pilot: bool = True) -> dict:
 def perennial_f1(target: str, pilot: bool, model: str) -> dict:
     """F1 for the `PERENNIAL` class alone, pooled out-of-fold.
 
-    The one number that **is** comparable across targets: it is the same class in each,
-    scored the same way, and it is unaffected by how many other classes exist. Use it, not
-    macro-F1, to answer "did collapsing the label space help?".
+    The one number that **is** comparable across targets: same class, scored the same way,
+    unaffected by how many other classes exist. Use it, not macro-F1, to answer "did
+    collapsing the label space help?".
     """
     from sklearn.metrics import precision_recall_fscore_support
     suf = "_pilot" if pilot else ""
@@ -240,11 +236,10 @@ def skill_table(models: tuple[str, ...] = ("lightgbm", "ltae"),
                 pilot: bool = True) -> pd.DataFrame:
     """Every target's macro-F1 **against its own majority-class floor**.
 
-    A raw macro-F1 cannot be read across targets, because the floor moves with the number
-    of classes (0.124 at 5 classes, 0.467 at 2). ``skill`` normalises it —
-    ``(score - floor) / (1 - floor)`` — so 0 is "no better than always guessing the largest
-    class" and 1 is perfect, on every target alike. Reported for CV *and* LODO, because the
-    two disagree about which model wins.
+    Raw macro-F1 can't be read across targets — the floor moves with the class count (0.124
+    at 5, 0.467 at 2). ``skill`` normalises it, ``(score - floor) / (1 - floor)``, so 0 is
+    "no better than always guessing the largest class" and 1 is perfect. Reported for CV
+    *and* LODO, which disagree about which model wins.
     """
     h = headline()
     h = h[h.train_pool == ("trainval+pilot" if pilot else "trainval")]

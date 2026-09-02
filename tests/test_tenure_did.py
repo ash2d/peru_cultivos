@@ -1,19 +1,11 @@
 """Tests for the two-period tenure DiD (docs/RESULTS.md §7).
 
-Every test here pins a **decision**, not an implementation detail. The decisions are the ones
-that, if silently changed by a later refactor, would leave every downstream number looking
-plausible and wrong:
-
-* **R1** the at-risk restriction — what makes both arms the same kind of land;
-* **R4** the parcel-specific pre-period — what makes "before" actually mean before;
-* **N-D9** the control is ``NO INSCRITO`` at both observations, not "everyone else";
-* the placebo's **equivalence** logic and its three outcomes;
-* the **horizon-normalised** band, so placebo contrasts of different lengths are held to the
-  same stringency;
-* the pilot's published coefficients (N-D7 keeps them on the record);
-* **v3 (the reopening)** — the pre-trend correction: the formula, its error propagation, the
-  amplification factor derived from window midpoints rather than hard-coded, and the
-  registered decision rule on both sides of its threshold.
+Every test pins a *decision* whose silent change would leave downstream numbers looking
+plausible and wrong: R1 (at-risk restriction), R4 (parcel-specific pre-period), N-D9
+(control is ``NO INSCRITO`` at both observations), the placebo equivalence logic and its
+three outcomes, the horizon-normalised band, the pilot's published coefficients (N-D7), and
+the v3 pre-trend correction (formula, error propagation, midpoint-derived amplification, and
+the decision rule on both sides of its threshold).
 """
 
 from __future__ import annotations
@@ -30,9 +22,7 @@ PROC = Path("data/processed/all_peru")
 PANEL = PROC / "panel_predictions_nolat_aug_yleak10.parquet"
 
 
-# ------------------------------------------------------------------------------------
-# helpers
-# ------------------------------------------------------------------------------------
+# --- helpers ---
 def make_panel(parcels: dict[str, dict], years=range(1999, 2024)) -> pd.DataFrame:
     """``{parcel: {...attrs, 'p': prob or callable(year)}}`` -> a merged-input frame."""
     rows = []
@@ -54,9 +44,7 @@ def make_panel(parcels: dict[str, dict], years=range(1999, 2024)) -> pd.DataFram
     return pd.DataFrame(rows)
 
 
-# ------------------------------------------------------------------------------------
-# R1 — the at-risk restriction
-# ------------------------------------------------------------------------------------
+# --- R1 — the at-risk restriction ---
 def test_r1_keeps_only_annual_declared_parcels():
     """R1 is what makes both arms the same kind of land, so the drift cancels (§8.2)."""
     df = make_panel({
@@ -69,15 +57,10 @@ def test_r1_keeps_only_annual_declared_parcels():
     assert rep["n_R1_at_risk"] == 1
 
 
-# ------------------------------------------------------------------------------------
-# R4 — the pre-period must be before the parcel's OWN declaration
-# ------------------------------------------------------------------------------------
+# --- R4 — the pre-period must be before the parcel's OWN declaration ---
 def test_r4_drops_parcels_whose_pre_window_postdates_their_declaration():
-    """The pilot's error: W99 is only a valid pre-period if declaration came after it.
-
-    A parcel declared in 1999 could have been registered in 2001, inside W99 — so its "pre"
-    window contains treatment. R4 removes it.
-    """
+    """The pilot's error: W99 is a valid pre-period only if declaration came after it — a
+    parcel declared 1999 could have registered in 2001, inside W99. R4 removes it."""
     df = make_panel({
         "early": {"p": 0.1, "reg_year": 1999},
         "late": {"p": 0.1, "reg_year": 2006},
@@ -109,14 +92,10 @@ def test_r2_drops_undated_and_r3_drops_reversed_observations():
     assert rep["n_R3_ordered"] == 1              # R3 removes reversed + post-dating
 
 
-# ------------------------------------------------------------------------------------
-# N-D9 — the control definition
-# ------------------------------------------------------------------------------------
+# --- N-D9 — the control definition ---
 def test_control_is_no_inscrito_at_both_observations_by_default():
-    """Already-INSCRITO parcels are a different kind of parcel (T1's differential FPR, §8.5).
-
-    Including them as controls is how the previous design failed, one level down.
-    """
+    """Already-INSCRITO parcels are a different kind of parcel (T1's differential FPR, §8.5);
+    including them as controls is how the previous design failed, one level down."""
     df = make_panel({
         "treated": {"p": 0.1, "tenure": "NO INSCRITO", "became_registered": True},
         "never": {"p": 0.1, "tenure": "NO INSCRITO", "became_registered": False},
@@ -139,9 +118,7 @@ def test_treatment_is_became_registered():
     assert kept.loc[kept.COD_PREDIO == "c", "treat"].eq(0.0).all()
 
 
-# ------------------------------------------------------------------------------------
-# the placebo windows
-# ------------------------------------------------------------------------------------
+# --- the placebo windows ---
 def test_placebo_subwindows_are_both_inside_the_pre_period():
     """P1/P2 split W99, so for the reg_year>=2004 cohort both are pre-declaration."""
     (p1_lo, p1_hi), (p2_lo, p2_hi) = TD.PRE_SUBWINDOWS.values()
@@ -158,15 +135,10 @@ def test_window_means_drops_short_windows_rather_than_filling():
     assert tab.empty
 
 
-# ------------------------------------------------------------------------------------
-# G1 — equivalence logic and the horizon-normalised band
-# ------------------------------------------------------------------------------------
+# --- G1 — equivalence logic and the horizon-normalised band ---
 def test_band_is_horizon_normalised():
-    """+/-0.005 over a 5-year step and +/-0.0025 over a 2.5-year step are the same stringency.
-
-    Applying the literal 0.005 to a 2.5-year contrast would be *half* as strict as registered
-    — a goalpost move in the permissive direction.
-    """
+    """+/-0.005 over 5 years and +/-0.0025 over 2.5 years are the same stringency; applying
+    the literal 0.005 to a 2.5-year contrast would be half as strict as registered."""
     spec = {**TD.PRE_SUBWINDOWS, "W99": TD.WINDOWS["W99"], "W04": TD.WINDOWS["W04"]}
     assert TD.horizon_years("W99", ["W04"], spec) == pytest.approx(5.0)
     assert TD.horizon_years("P1", ["P2"], spec) == pytest.approx(2.5)
@@ -188,11 +160,8 @@ def test_placebo_has_three_outcomes(monkeypatch, coef, se, expected):
 
 
 def test_did_returns_finite_se_with_department_time_effects():
-    """Regression test: dept x window dummies are rank-deficient after parcel demeaning.
-
-    That returned nan standard errors instead of raising, which would have been read as a
-    missing number rather than a broken specification.
-    """
+    """Regression: dept x window dummies are rank-deficient after parcel demeaning, which
+    returned nan SEs instead of raising — read as a missing number, not a broken spec."""
     rng = np.random.default_rng(0)
     rows = []
     for i in range(60):
@@ -206,10 +175,8 @@ def test_did_returns_finite_se_with_department_time_effects():
 
 
 def test_extra_post_fe_is_off_by_default_and_is_the_r5_regression_form():
-    """R5's second half — cohort time effects — is a ROBUSTNESS arm, not the primary.
-
-    It must be opt-in: silently adding cohort dummies would change the registered estimator
-    after the fact. And it must survive the same rank problem as the department dummies.
+    """R5's second half (cohort time effects) is a robustness arm: opt-in, or silently
+    adding cohort dummies changes the registered estimator. Must survive the same rank problem.
     """
     rng = np.random.default_rng(1)
     rows = []
@@ -227,9 +194,7 @@ def test_extra_post_fe_is_off_by_default_and_is_the_r5_regression_form():
                   extra_post_fe=None)["coef"] == plain["coef"]
 
 
-# ------------------------------------------------------------------------------------
-# G3a — feasibility is decided against the population, not against the budget
-# ------------------------------------------------------------------------------------
+# --- G3a — feasibility is decided against the population, not the budget ---
 def test_feasibility_compares_requirement_against_the_archive_not_the_budget():
     """If the required sample exceeds what exists after R1-R4, no budget buys the study."""
     prec = {"band": 0.0025, "n_per_arm_required": 25_202.0}
@@ -243,15 +208,10 @@ def test_feasibility_compares_requirement_against_the_archive_not_the_budget():
     assert plenty["feasible"] is True
 
 
-# ------------------------------------------------------------------------------------
-# v3 — the pre-trend correction (the reopening)
-# ------------------------------------------------------------------------------------
+# --- v3 — the pre-trend correction (the reopening) ---
 def test_amplification_factor_is_derived_from_window_midpoints_not_hardcoded():
-    """M is a property of the window GRID. A stale constant is how a correction goes wrong.
-
-    On the registered grid the placebo spans P1(1999-2000) -> P2(2001-2003), i.e. 2.5 years,
-    and the headline spans W99(1999-2003) -> mean of W14/W19, i.e. 17.5 — so M = 7. Move a
-    window and M must move with it.
+    """M is a property of the window grid, not a constant. Registered grid: placebo
+    P1(1999-2000)->P2(2001-2003) = 2.5 yr, headline W99->mean(W14,W19) = 17.5 yr, so M = 7.
     """
     spec = {**TD.PRE_SUBWINDOWS, **TD.WINDOWS}
     m = TD.amplification_factor("W99", TD.POST_WINDOWS, "P1", "P2", spec)
@@ -274,11 +234,8 @@ def test_corrected_effect_subtracts_m_times_the_placebo():
 
 
 def test_error_propagation_amplifies_the_placebo_se_by_m():
-    """se = sqrt(se_h^2 + M^2 se_p^2). The placebo's noise enters SEVEN times over.
-
-    This is what makes the corrected estimate demanding: at the expected national precision
-    (se_h 0.0028, se_p 0.0022) the corrected SE is ~0.0154 — so only effects above ~3 pp can
-    survive the correction, and that is a registered property of the design, not a surprise.
+    """se = sqrt(se_h^2 + M^2 se_p^2). At expected national precision (se_h 0.0028, se_p
+    0.0022) corrected SE is ~0.0154 — only effects above ~3 pp survive; a registered property.
     """
     out = TD.corrected_effect({"coef": 0.05, "se": 0.0028},
                               {"coef": 0.0, "se": 0.0022}, m=7.0)
@@ -292,11 +249,8 @@ def test_error_propagation_amplifies_the_placebo_se_by_m():
 
 
 def test_covariance_term_is_optional_and_defaults_to_the_registered_zero():
-    """The registered formula assumes independence; a measured covariance never moves it.
-
-    Positive covariance would make the registered SE conservative. ``bootstrap_covariance``
-    reports it as a diagnostic, and the only way it can enter a number is an explicit ``cov``.
-    """
+    """The registered formula assumes independence (positive covariance only makes the SE
+    conservative); ``cov`` enters a number only when passed explicitly."""
     base = TD.corrected_effect({"coef": 0.05, "se": 0.003},
                                {"coef": 0.001, "se": 0.002}, m=7.0)
     assert base["cov_used"] == 0.0
@@ -319,23 +273,17 @@ def test_sensitivity_curve_spans_the_registered_grid_and_is_monotone_in_se():
     (0.030, "NOT-SEPARABLE"),     # 0.030 - 7*0.002 = 0.016 vs se 0.0154 -> CI spans 0
 ])
 def test_decision_rule_on_both_sides_of_the_threshold(headline, expected):
-    """The registered rule: REPORT only if the corrected 95 % CI excludes zero.
-
-    The threshold is ~3.0 pp at the expected national precision. An effect below it is
-    NOT-SEPARABLE — a complete outcome, not a failure, and explicitly not a licence to hunt
-    for a variant that clears it.
-    """
+    """Registered rule: REPORT only if the corrected 95 % CI excludes zero (~3.0 pp at
+    expected precision). Below it is NOT-SEPARABLE — a complete outcome, not a licence to
+    hunt for a variant that clears it."""
     corr = TD.corrected_effect({"coef": headline, "se": 0.0028},
                                {"coef": 0.002, "se": 0.0022}, m=7.0)
     assert TD.decision(corr)["decision"] == expected
 
 
 def test_a_large_placebo_can_flip_a_significant_headline_to_not_separable():
-    """The whole reason the correction exists: an uncorrected headline can be pre-trend.
-
-    §10.2's lesson in miniature — a headline significant at M=0 must not survive the
-    decision rule when the measured anticipation trend accounts for it.
-    """
+    """§10.2 in miniature: a headline significant at M=0 must not survive the decision rule
+    when the measured anticipation trend accounts for it."""
     head, plac = {"coef": 0.040, "se": 0.0028}, {"coef": 0.005, "se": 0.0022}
     assert TD.corrected_effect(head, plac, m=0.0)["excludes_zero"] is True
     assert TD.decision(TD.corrected_effect(head, plac, m=7.0))["decision"] == "NOT-SEPARABLE"
@@ -359,9 +307,7 @@ def test_registration_is_written_once_and_refuses_to_change(tmp_path):
         TD.write_registration(p)
 
 
-# ------------------------------------------------------------------------------------
-# v3 — the extraction sample
-# ------------------------------------------------------------------------------------
+# --- v3 — the extraction sample ---
 def _pop(n_treated=6, n_control=30, seed=0):
     """A tiny population laid out over 3 regions x 2 departments, both arms everywhere."""
     from shapely.geometry import Point
@@ -378,11 +324,8 @@ def _pop(n_treated=6, n_control=30, seed=0):
 
 
 def test_every_treated_parcel_is_taken_and_weighted_as_a_census():
-    """Treated is a CENSUS: 6,559 exist in all of Peru and there is no larger pool.
-
-    Their sampling weight must therefore be exactly 1 — which is the check that the weight
-    means what it says, not a cosmetic assertion.
-    """
+    """Treated is a census (6,559 in all Peru, no larger pool), so its sampling weight must
+    be exactly 1."""
     from crop_classifier.allperu import did_sample as DS
 
     pop = _pop()
@@ -394,11 +337,8 @@ def test_every_treated_parcel_is_taken_and_weighted_as_a_census():
 
 
 def test_controls_are_drawn_from_regions_that_already_hold_treated_parcels():
-    """G2's shared-region failure (0.366) is fixable by design, and this is the fix.
-
-    A region assigned entirely to one arm makes treatment collinear with the clustering
-    unit, so the region-clustered SEs are not doing what they appear to.
-    """
+    """G2's shared-region failure (0.366): a region assigned entirely to one arm makes
+    treatment collinear with the clustering unit, so the clustered SEs mislead."""
     from crop_classifier.allperu import did_sample as DS
 
     pop = _pop(n_treated=4, n_control=40)
@@ -410,11 +350,9 @@ def test_controls_are_drawn_from_regions_that_already_hold_treated_parcels():
 
 
 def test_draw_respects_the_stratum_and_never_borrows_across_departments():
-    """R5: treated and control are compared within department x declaration-year cohort.
-
-    Borrowing a control from another department to hit a ratio would put a campaign
-    contrast inside the treatment contrast — the confound §1.1 measured.
-    """
+    """R5: compare within department x declaration-year cohort. Borrowing a control from
+    another department to hit a ratio puts a campaign contrast inside the treatment contrast
+    (the §1.1 confound)."""
     from crop_classifier.allperu import did_sample as DS
 
     pop = _pop(n_treated=4, n_control=40)
@@ -435,15 +373,11 @@ def test_per_region_cap_stops_one_cell_dominating_a_stratum():
     assert int((out["arm"] == "control").sum()) == 5
 
 
-# ------------------------------------------------------------------------------------
-# N-D7 — the pilot's published numbers stay reproducible
-# ------------------------------------------------------------------------------------
+# --- N-D7 — the pilot's published numbers stay reproducible ---
 @pytest.mark.skipif(not PANEL.exists(), reason="national panel predictions not on disk")
 def test_pilot_coefficients_reproduce_exactly():
-    """RESULTS.md §9.6: placebo -0.0169 (se 0.0132), headline -0.0383 (se 0.0141).
-
-    Reproduced under the pilot's own (invalid) specification: no R2-R4, control = everyone
-    not treated, no department time effects. If this drifts, §9.6 is no longer on the record.
+    """RESULTS.md §9.6: placebo -0.0169 (se 0.0132), headline -0.0383 (se 0.0141), under
+    the pilot's own invalid spec (no R2-R4, control = everyone not treated, no dept time FE).
     """
     df = TD.load_inputs(PANEL, PROC / "panel_parcels.parquet",
                         PROC / "tenure_two_period.parquet")
@@ -461,12 +395,10 @@ def test_pilot_coefficients_reproduce_exactly():
 
 @pytest.mark.skipif(not PANEL.exists(), reason="national panel predictions not on disk")
 def test_pilot_table_is_the_thresholded_share_not_the_probability():
-    """The §9.6 "sign disagreement" was two different outcomes printed side by side.
-
-    The tabulated series is the *thresholded share* (secondary); the coefficients are on the
-    *probability* (primary, W-D9). On the probability the arm gap runs +0.065 (W99) ->
-    +0.008 (W19), which matches the regression's sign. Nothing was wrong with the estimator.
-    """
+    """The §9.6 "sign disagreement" was two outcomes side by side: the tabulated series is
+    the thresholded share (secondary), the coefficients are on the probability (primary,
+    W-D9). On probability the arm gap runs +0.065 (W99) -> +0.008 (W19), matching the
+    regression's sign."""
     df = TD.load_inputs(PANEL, PROC / "panel_parcels.parquet",
                         PROC / "tenure_two_period.parquet")
     d, _ = TD.restrict(df, cohort_min_year=0, control="any", apply_r2r3=False)
@@ -478,18 +410,13 @@ def test_pilot_table_is_the_thresholded_share_not_the_probability():
     assert gap["W19"] < gap["W99"]              # convergence -> negative DiD on probability
 
 
-# ------------------------------------------------------------------------------------
-# The DESCRIPTIVE cross-sectional companion — pinned so it can never be read as an estimate
-# ------------------------------------------------------------------------------------
+# --- The DESCRIPTIVE cross-sectional companion — pinned so it can't read as an estimate ---
 def test_cross_sectional_contrast_is_weighted_and_reports_per_department(tmp_path,
                                                                         monkeypatch):
-    """Two decisions, both of which a later refactor could silently break.
-
-    1. **Shares use `sample_weight`.** The draw is not proportional, so an unweighted share is
-       a statement about the sample, not about Peru.
-    2. **The per-department table is always returned.** The contrast's *sign* is
-       department-specific (measured: INSCRITO reads higher in 5 of 14 departments at W99 and
-       4 of 14 at W19), so a pooled number alone reports a quantity that does not exist.
+    """Two decisions a refactor could silently break: (1) shares use `sample_weight` (the
+    draw is not proportional); (2) the per-department table is always returned — the
+    contrast's sign is department-specific (INSCRITO higher in 5/14 depts at W99, 4/14 at
+    W19), so a pooled number reports a quantity that does not exist.
     """
     from crop_classifier.allperu import tenure_did as TD
 
@@ -541,12 +468,9 @@ def test_cross_sectional_contrast_keeps_only_the_at_risk_pool():
 
 
 def test_did_returns_nan_on_a_single_cluster_instead_of_raising():
-    """A one-region subset must not abort a per-department loop with a ZeroDivisionError.
-
-    The cluster-robust correction divides by (n_groups - 1), so a single cluster raises from
-    deep inside statsmodels' sandwich estimator. Same policy as the rank-deficiency case:
-    degenerate inputs report nan, they do not explode.
-    """
+    """The cluster-robust correction divides by (n_groups - 1), so a one-region subset
+    raises from inside statsmodels. Same policy as rank-deficiency: degenerate inputs report
+    nan, they do not explode."""
     rows = [{"COD_PREDIO": f"p{i}", "window": w, "dept": "PIURA", "region_id": "r0",
              "treat": float(i % 2), "p_mean": 0.2 + 0.01 * i}
             for i in range(8) for w in ("W99", "W14")]

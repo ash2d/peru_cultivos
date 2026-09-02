@@ -9,12 +9,12 @@ The national data makes it askable for the first time: label years spread over 1
 each label-year cohort ``y``: train on cohorts ≠ ``y``, test on cohort ``y`` at its own label
 year.
 
-**Region is the confound and it is handled the same way the El Niño test handles it**
+**Region is the confound, handled as in the El Niño test**
 (``perennial/diagnostics.py::elnino_confound_test``): titling swept region by region, so a
-cohort is also a *place*. Scoring a cohort on regions the training cohorts never covered
-measures space, not time. The default therefore restricts to regions containing **≥2
-cohorts**, so region is held approximately fixed while year varies, and reports the
-unrestricted arm alongside as the loose upper bound on the cohort effect.
+cohort is also a *place*, and scoring it on regions the training cohorts never covered
+measures space, not time. The default restricts to regions with **≥2 cohorts** so region is
+approximately fixed while year varies; the unrestricted arm is reported alongside as the
+loose upper bound.
 
 Expect **1998 to fail** — it is the El Niño cohort (``../perennial/RESULTS.md`` §8.1) and
 W-D3 means the deliverable no longer depends on it. The pass criterion is therefore evaluated
@@ -52,12 +52,11 @@ METRIC_CRS = 32718          # one grid for the whole country; see allperu/sample
 EXPECTED_FAIL_YEARS = (1998,)
 TOLERANCE = 0.10            # worst cohort must be within this of pooled CV (T2)
 
-# The registered criterion is a MINIMUM over cohorts, so it is decided by whichever cohort is
-# smallest — nationally that is 1996 with 464 parcels and ~60 PERENNIAL, where a macro-F1
-# moves +-0.03 on resampling alone. Comparing two model arms on that number compares noise.
-# `worst_cohort_macro_f1_min_support` reports the same statistic over cohorts big enough for
-# the difference to mean something. It is reported ALONGSIDE the registered number, never
-# instead of it (T-D6: do not move a goalpost, add a second one and say why).
+# The registered criterion is a MINIMUM over cohorts, so the smallest cohort decides it —
+# nationally 1996, 464 parcels / ~60 PERENNIAL, where macro-F1 moves ±0.03 on resampling
+# alone. `worst_cohort_macro_f1_min_support` reports the same statistic over cohorts big
+# enough for the difference to mean something, ALONGSIDE the registered number never instead
+# (T-D6: don't move a goalpost, add a second one and say why).
 MIN_SUPPORT_FOR_WORST = 1000
 
 
@@ -67,10 +66,9 @@ def run(model_name: str = "lightgbm", drop_features: str | None = "meta,location
         augment_feat: str | None = None) -> pd.DataFrame:
     """Fit one model per label-year cohort, each blind to that cohort.
 
-    ``shared_regions_only`` is the design point: it keeps only parcels in regions that hold
-    at least ``min_cohorts_per_region`` distinct cohorts, so the held-out year is compared
-    against training data from the *same places*. Turn it off to see how much of the cohort
-    gap is really a place gap.
+    ``shared_regions_only``, the design point: keep only parcels in regions holding at least
+    ``min_cohorts_per_region`` distinct cohorts, so the held-out year is compared against the
+    *same places*. Off = how much of the cohort gap is really a place gap.
     """
     drop = resolve_drop_features(drop_features)
     parcels = load_parcels(require_quality=True)
@@ -194,19 +192,15 @@ def lodo_by_cohort(tag: str = "nolat", min_parcels: int = 300,
                    save: bool = True) -> pd.DataFrame:
     """Score an existing **LODO** run's predictions per label-year cohort — "LODYO".
 
-    The evaluation that settles what LOYO alone cannot. LOYO holds region approximately
-    fixed (``shared_regions_only``) so that year varies and place does not — which means it
-    inherits spatial CV's blind spot exactly: a time-invariant lookup table such as
-    ``centroid_lat`` is as available in LOYO as in CV, and helps by the same amount.
+    Settles what LOYO alone cannot. LOYO holds region approximately fixed, so it inherits
+    spatial CV's blind spot: ``centroid_lat`` is as available in LOYO as in CV and helps by
+    the same amount. Re-scoring LODO predictions by cohort holds out the **department** *and*
+    varies the year, so a feature that only memorises place cannot help. Costs nothing (the
+    per-department fits exist) and is the number to read when CV, LODO and LOYO disagree
+    (docs/RESULTS.md §6.2).
 
-    Re-scoring the LODO predictions by cohort holds out the **department** *and* varies the
-    year, so a feature that only memorises place cannot help. It costs nothing — the
-    per-department fits already exist — and it is the number to read when CV, LODO and LOYO
-    disagree (docs/RESULTS.md §6.2).
-
-    ⚠️ It is not a substitute for LOYO: each cohort here is scored by 14 different models,
-    one per department, so it measures the *joint* out-of-distribution setting, not the
-    temporal one alone.
+    ⚠️ Not a substitute for LOYO: each cohort is scored by 14 department models, so it
+    measures the *joint* OOD setting, not the temporal one alone.
     """
     import geopandas as gpd
     from sklearn.metrics import f1_score

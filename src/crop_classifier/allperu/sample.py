@@ -6,27 +6,25 @@ data". Every downstream cost — GEE extraction hours, feature-store size, train
 scales with parcel count, so the sample is taken here, once, and everything after it runs at
 the Piura budget.
 
-**What the sample is optimising for.** The deliverable is a classifier that generalises
-*spatially* (to departments it never trained on) and *temporally* (across a multi-year
-panel). So the sample deliberately trades parcels-per-place for number-of-places:
+**What the sample optimises for.** A classifier that generalises *spatially* (to unseen
+departments) and *temporally* (across a multi-year panel), so it trades parcels-per-place
+for number-of-places:
 
-1. **Whole 5 km regions are sampled, never scattered parcels.** Crops in Peru grow in
-   single-crop blocks (~86 % of adjacent parcels share a crop), so a scattered sample would
-   leave each region too sparse for the spatially-blocked split's buffer dead-zone to mean
-   anything, and would inflate apparent difficulty by removing every parcel's neighbours.
-2. **Departments are allocated by sqrt-proportional share, not proportional.** Cajamarca and
-   Ancash hold over half the linked parcels between them; proportional allocation would make
-   an "all-Peru" model that is mostly two departments, which is exactly the spatial
-   generalisation this is meant to test. Square-root allocation is the standard compromise
-   between proportional (efficient for a national total) and equal (efficient for
-   between-department contrasts). Small departments also get a floor.
-3. **Parcels per region are capped.** A cap converts "more parcels" into "more places" at
-   fixed cost — the binding constraint for spatial generalisation.
+1. **Whole 5 km regions, never scattered parcels.** Crops grow in single-crop blocks (~86 %
+   of adjacent parcels share a crop), so a scattered sample leaves each region too sparse for
+   the spatially-blocked split's buffer dead-zone and inflates apparent difficulty by
+   stripping every parcel's neighbours.
+2. **Departments allocated by sqrt-proportional share.** Cajamarca and Ancash hold over half
+   the linked parcels; proportional allocation would make an "all-Peru" model that is mostly
+   two departments — the very thing this tests. Sqrt is the standard compromise between
+   proportional (national total) and equal (between-department contrasts). Small departments
+   get a floor.
+3. **Parcels per region are capped.** Converts "more parcels" into "more places" at fixed
+   cost — the binding constraint for spatial generalisation.
 
-Class balance is deliberately **not** forced: the perennial/annual/pasture prior is a real
-property of Peruvian agriculture and re-weighting it here would corrupt any area share.
-Sampling weights (stratum population / stratum sample) are written alongside so a population
-quantity can still be recovered.
+Class balance is deliberately **not** forced: the perennial/annual/pasture prior is real and
+re-weighting it here would corrupt any area share. Sampling weights (stratum population /
+stratum sample) are written alongside so a population quantity can still be recovered.
 
 Run with::
 
@@ -50,10 +48,9 @@ from crop_classifier.paths import proc
 # Piura's 3-class modelling table, which this is sized against.
 PIURA_N = 56_419
 
-# One metric CRS for the whole country so region ids come from a single continuous grid.
-# UTM 18S: Peru reaches ~6.4 deg either side of the 75W central meridian, a scale error
-# under ~0.7 % — under 40 m on a 5 km region edge, which cannot move a parcel more than one
-# cell and does not matter for a sampling stratum.
+# One metric CRS for the whole country so region ids come from one continuous grid. UTM 18S:
+# Peru reaches ~6.4 deg off the 75W meridian, scale error under ~0.7 % — under 40 m on a 5 km
+# region edge, which cannot move a parcel more than one cell.
 METRIC_CRS = 32718
 
 
@@ -68,9 +65,8 @@ def region_grid(gdf: gpd.GeoDataFrame, region_km: float = 5.0) -> pd.Series:
 def allocate(sizes: pd.Series, total: int, floor: int = 800) -> pd.Series:
     """Square-root-proportional allocation of ``total`` across departments, with a floor.
 
-    ``floor`` is a minimum quota per department, capped by what it actually has — without it
-    Callao (a few hundred parcels) and Moquegua would round to nothing and the model would
-    have no exposure to them at all.
+    ``floor`` is a per-department minimum, capped by what it has — without it Callao and
+    Moquegua round to nothing and the model never sees them.
     """
     order = sizes.index                       # return in the caller's order, not sorted
     sizes = sizes.sort_values(ascending=False)
@@ -134,13 +130,12 @@ def sample(source: Path, target_n: int = PIURA_N, region_km: float = 5.0,
 
     out = gpd.GeoDataFrame(pd.concat(picked, ignore_index=True), crs=src.crs)
 
-    # Weight = stratum population / stratum sample, stratum = (dept, label). An area share
-    # computed on this sample must be expanded; never report it raw.
+    # Weight = stratum population / stratum sample, stratum = (dept, label). An area share on
+    # this sample must be expanded; never report it raw.
     #
-    # Deliberately NOT called `sample_weight`: `perennial/panel.py` computes a column of that
-    # name for its own, different stratification (panel parcel -> modelling sample). The two
-    # are successive stages of one design and must **multiply**, not collide — panel parcel
-    # -> modelling sample -> national population. `build_panel` composes them.
+    # Deliberately NOT `sample_weight`: `perennial/panel.py` uses that name for its own
+    # stratification (panel parcel -> modelling sample). The two are successive stages and
+    # must **multiply**, not collide; `build_panel` composes them.
     pop = src.groupby(["dept", "label"], observed=True).size()
     smp = out.groupby(["dept", "label"], observed=True).size()
     w = (pop / smp).rename("population_weight")
@@ -166,9 +161,8 @@ def sample(source: Path, target_n: int = PIURA_N, region_km: float = 5.0,
         d = proc()
         out.to_parquet(d / "modeling_parcels.parquet", index=False)
         report.to_csv(d / "sample_report.csv", index=False)
-        # label_map.json belongs to the label build, which ran in the SOURCE workspace.
-        # train.py/infer.py read it from the current one, so carry it across or every
-        # downstream command fails with FileNotFoundError.
+        # label_map.json belongs to the label build (SOURCE workspace); train/infer read it
+        # from the current one, so carry it across or every downstream command fails.
         src_map = Path(source) / "label_map.json"
         if src_map.exists():
             shutil.copy(src_map, d / "label_map.json")

@@ -1,24 +1,23 @@
 """Department -> (SSET crop file, bridge .dta, polygon .shp) registry for all of Peru.
 
-The 2026-08-07 data drop added the rest of Peru alongside the original Piura files, in three
-new folders — ``data/raw/BD_SSET/`` (8 multi-department xlsx), ``data/raw/Grafica_Tabular/``
-(one .dta per department) and ``data/raw/QGIS/<DEPT>/`` (one shapefile per department). The
-Piura members of all three were verified **byte-identical** (sha256) to the files the Piura
-pipeline already used, so this module supersedes ``build_training_data``'s hard-coded paths
-without changing any Piura result.
+The 2026-08-07 drop added the rest of Peru alongside the Piura files, in three new folders —
+``data/raw/BD_SSET/`` (8 multi-department xlsx), ``data/raw/Grafica_Tabular/`` (one .dta per
+department), ``data/raw/QGIS/<DEPT>/`` (one shapefile per department). The Piura members were
+verified **byte-identical** (sha256) to the ones the Piura pipeline used, so this module
+supersedes ``build_training_data``'s hard-coded paths without changing any Piura result.
 
 Two things about the new folders that this module exists to paper over:
 
 1. **Most department shapefiles ship their attribute table under the wrong basename** —
-   ``QGIS/ANCASH/ANCASH.dbf`` next to ``CATASTRO_CENAGRO_ANCASH_..._FINAL.shp``. GDAL will
-   happily open the ``.shp`` without it and return *zero* columns, so the join key silently
-   vanishes rather than erroring. :func:`shapefile_view` builds a directory of symlinks with
-   consistent basenames. Record counts were checked to match for every department.
-2. **Only 15 of the 23 departments have a bridge**, and the bridge is mandatory: BD SSET
-   has no ``COD_PREDIO`` and the shapefiles have no ``CodigoSSET``. (Callao then yields no
-   linked records at all, so 14 departments carry the data.) Departments without one
-   (Amazonas, Apurimac, Cusco, Huanuco, Junin, Madre de Dios, Puno, Ucayali — plus Loreto and
-   San Martin, which have no polygons either) **cannot** be linked and are excluded.
+   ``QGIS/ANCASH/ANCASH.dbf`` beside ``CATASTRO_..._ANCASH_..._FINAL.shp``. GDAL opens the
+   ``.shp`` without it and returns *zero* columns, so the join key silently vanishes.
+   :func:`shapefile_view` symlinks consistent basenames; record counts checked to match per
+   department.
+2. **Only 15 of 23 departments have a bridge**, and it is mandatory: BD SSET has no
+   ``COD_PREDIO``, the shapefiles no ``CodigoSSET``. (Callao then links nothing, so 14 carry
+   the data.) Departments without a bridge (Amazonas, Apurimac, Cusco, Huanuco, Junin, Madre
+   de Dios, Puno, Ucayali — plus Loreto and San Martin, no polygons either) **cannot** be
+   linked and are excluded.
 """
 
 from __future__ import annotations
@@ -38,15 +37,13 @@ D_QGIS = RAW / "QGIS"
 # Sidecars to link alongside the .shp. .dbf is handled separately (see the docstring).
 _SIDECARS = (".shp", ".shx", ".prj", ".sbn", ".sbx", ".qix", ".cpg")
 
-# Arequipa ships the same 135,780 parcels twice, projected to UTM 18S and 19S. Take 18S:
-# it is the one that carries its own correctly-named .dbf, and everything is reprojected to
-# EPSG:4326 downstream anyway.
+# Arequipa ships the same 135,780 parcels twice, UTM 18S and 19S. Take 18S: it carries its
+# own correctly-named .dbf, and everything is reprojected to 4326 downstream anyway.
 _PREFER_ZONE = {"AREQUIPA": "Z18S"}
 
 
-# BD SSET's `DEPARTAMENTO` column does not always hold the department name. Callao is
-# recorded under its constitutional-province title, so a plain name match finds zero Callao
-# rows and the department silently drops out of the build.
+# BD SSET's `DEPARTAMENTO` doesn't always hold the department name — Callao is under its
+# constitutional-province title, so a plain match finds zero Callao rows and it drops silently.
 _DEPT_ALIASES = {
     "PROV.CONST.DEL CALLAO": "CALLAO",
     "PROV CONST DEL CALLAO": "CALLAO",
@@ -55,10 +52,8 @@ _DEPT_ALIASES = {
 
 
 def _norm(s: str) -> str:
-    """Uppercase, unaccented, underscores->spaces, aliases resolved.
-
-    The three sources disagree on all of those (``LA_LIBERTAD`` / ``LA LIBERTAD``, and
-    Callao's alias above), so every department name is put through here before matching.
+    """Uppercase, unaccented, underscores->spaces, aliases resolved — the three sources
+    disagree on all of those, so every department name goes through here before matching.
     """
     s = unicodedata.normalize("NFKD", str(s)).encode("ascii", "ignore").decode()
     s = " ".join(s.upper().replace("_", " ").split())

@@ -21,9 +21,8 @@ from crop_classifier.allperu import esri_dates as E
 from crop_classifier.allperu import label_sample as LS
 from crop_classifier.paths import feat
 
-# Departments whose 2.5x candidate pool could not fill their quota — Pasco's imagery is
-# 40 % eligible and the sierra departments run out of *regions*, not parcels, under the
-# 2-per-region cap. Recorded here rather than passed by hand so the campaign reproduces.
+# Departments whose 2.5x candidate pool could not fill their quota (Pasco 40 % eligible;
+# sierra departments run out of regions under the 2-per-region cap). Recorded so it reproduces.
 SHORT_DEPTS = ["HUANCAVELICA", "MOQUEGUA", "PASCO", "PIURA", "TACNA", "TUMBES",
                "LAMBAYEQUE"]
 
@@ -47,9 +46,8 @@ def chip_dir() -> Path:
 def html_dir(lang: str = "en") -> Path:
     """``html/`` for English, ``html_<lang>/`` otherwise.
 
-    Separate directories rather than a suffix on each filename: the shard name is what the
-    labeller is asked for by name and what comes back in the CSV, and it must stay
-    ``shard01_A`` in every language so a returned file is unambiguous.
+    Separate directories, not a filename suffix — the shard name is what the labeller is
+    asked for and what returns in the CSV, and it must stay ``shard01_A`` in every language.
     """
     p = d() / ("html" if lang == "en" else f"html_{lang}")
     p.mkdir(parents=True, exist_ok=True)
@@ -65,14 +63,12 @@ def _record_gate(name: str, value, criterion: str, passed: bool, **extra) -> Non
     print(f"\n{'PASS' if passed else 'FAIL'}  {name}: {value} (criterion {criterion})")
 
 
-# ------------------------------------------------------------------------------------
 def step_universe(source: Path) -> None:
     """Build the draw frame. Falls back to the committed national parcel table.
 
-    The campaign of record drew from the full population (``all_peru_full``, 726,808
-    parcels, not committed). A clone has the 56,419-parcel national sample instead, which is
-    a perfectly good frame for drawing *more* parcels to label — it is simply a smaller one,
-    and it is already restricted to the linkable 14 departments.
+    The campaign of record drew from the full uncommitted population (``all_peru_full``,
+    726,808 parcels); a clone has the 56,419-parcel national sample instead — a smaller but
+    valid frame, already restricted to the linkable 14 departments.
     """
     src = Path(source)
     if not (src / "modeling_parcels.parquet").exists():
@@ -149,10 +145,9 @@ def _consolidate_probe() -> gpd.GeoDataFrame:
 def step_draw(total: int = 0, pilot_n: int | None = None) -> None:
     """Draw the sample. ``total`` defaults to the campaign of record's 1,000.
 
-    A smaller round is a legitimate thing to want — a second batch is usually 100-300
-    parcels — so the size is an argument rather than a constant to edit. The per-department
-    floor scales with it: at ``total`` 100 over 14 departments a 55-parcel floor is
-    impossible, and ``allocate_departments`` would trim it away silently.
+    An argument, not a constant — a second batch is usually 100-300 parcels. The
+    per-department floor scales with it: at ``total`` 100 over 14 departments a 55-parcel
+    floor is impossible.
     """
     cand = gpd.read_parquet(d() / F_CANDIDATES)
     popE = pd.read_csv(d() / F_POPELIG)
@@ -161,9 +156,8 @@ def step_draw(total: int = 0, pilot_n: int | None = None) -> None:
     total = int(total or LS.TOTAL)
     floor = min(LS.DEPT_FLOOR, max(1, total // len(sizes)))
     pilot = LS.PILOT_N if pilot_n is None else int(pilot_n)
-    # the double-labelled overlap is what makes kappa measurable, so it scales with the
-    # round rather than staying at 100 — which on a 100-parcel round would double-label
-    # every parcel in it
+    # the double-labelled overlap makes kappa measurable; scale with the round or a
+    # 100-parcel round would double-label every parcel
     overlap = min(LS.OVERLAP_N, max(0, total // 4))
     s = LS.draw(cand, total=total, floor=floor, pilot_n=pilot, overlap_n=overlap,
                 alloc_sizes=sizes, pop_eligible=popE)
@@ -180,10 +174,9 @@ def step_split() -> None:
 def cadastre_path() -> Path:
     """The polygon table the chips draw neighbouring parcel boundaries from.
 
-    The full national table (726,808 parcels) is 437 MB and is not committed, so a clone
-    falls back to the 56,419-parcel national sample. That changes only how many *context*
-    outlines a chip shows — never which parcel is being labelled, which comes from
-    ``label_sample.parquet``.
+    The full 437 MB table is not committed, so a clone falls back to the 56,419-parcel
+    national sample — that changes only how many *context* outlines a chip shows, never
+    which parcel is labelled.
     """
     for c in (Path("data/processed/all_peru_full/modeling_parcels.parquet"),
               Path("data/processed/all_peru/modeling_parcels.parquet")):
@@ -226,9 +219,9 @@ def step_harmonisation() -> None:
 def step_assemble() -> None:
     """Per-date medians -> the LightGBM summary block, plus the coverage report.
 
-    Runs before `ingest` because the ingest needs `s2_feature_meta.parquet` to apply the
-    sub-pixel-parcel exclusion. A parcel with too few usable S2 pixels is mixed-pixel label
-    noise, and that caps a model outright however good the human label is.
+    Before `ingest`, which needs `s2_feature_meta.parquet` for the sub-pixel-parcel
+    exclusion — a parcel with too few usable S2 pixels is mixed-pixel label noise however
+    good the human label is.
     """
     from crop_classifier.features import s2_assemble as A
     from crop_classifier.features.s2_gee import f_pixels
@@ -247,10 +240,8 @@ def step_assemble() -> None:
 
 
 def item_key_path() -> Path:
-    """The item_id -> COD_PREDIO key, from whichever language set was built.
-
-    The key is language-independent (same shards, same item ids, same order), so ingest must
-    not require the English build to exist just because it is the default.
+    """The item_id -> COD_PREDIO key, from whichever language set was built. Language-
+    independent, so ingest must not require the English build just because it is the default.
     """
     for cand in [html_dir("en") / "item_key.csv",
                  *sorted(d().glob("html_*/item_key.csv"))]:
@@ -280,21 +271,17 @@ def step_ingest(csv_dir: Path) -> None:
 
 
 def step_combine() -> None:
-    """Merge THIS round with the campaign of record, into a third round you can train on.
+    """Merge THIS round with the campaign of record into a third round to train on.
 
-    A round is deliberately kept apart from the campaign of record while it is being built
-    (`--round <name>` moves both its labels and its feature store), because a draw replaces
-    a sample and an assemble replaces a feature table. But the reason to label more parcels
-    is to train on *all* of them, so this writes the union — labels, sample and the LightGBM
-    feature block — into ``labels_s2_<name>_all`` / ``features_s2_<name>_all``, leaving both
-    inputs untouched.
+    A round is kept apart while being built (a draw replaces a sample, an assemble replaces
+    a feature table), but the point of labelling more is to train on all of it, so this
+    writes the union (labels, sample, LightGBM feature block) into
+    ``labels_s2_<name>_all`` / ``features_s2_<name>_all``, leaving both inputs untouched.
+    Train with ``--round <name>_all``.
 
-    Train on it with ``--round <name>_all``.
-
-    ⚠️ Two things it does not do. It does not rebuild ``tensor_perdate.npz``, so the merged
-    round trains LightGBM (the model carried forward) and not LTAE. And the merged test
-    split contains the round-of-record's **already-spent** locked test — a score on it
-    confirms nothing that has not been confirmed once already, so select on CV and LODO.
+    ⚠️ Does not rebuild ``tensor_perdate.npz`` (merged round trains LightGBM, not LTAE), and
+    the merged test split contains the round-of-record's already-spent locked test — select
+    on CV and LODO.
     """
     from crop_classifier.features.s2_assemble import FN_LGBM, FN_META
     from crop_classifier.paths import feat, proc

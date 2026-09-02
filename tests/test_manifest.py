@@ -1,9 +1,9 @@
 """`cc data verify` — and the guarantee that what it calls `repo` is actually committed.
 
 The manifest's whole value is the distinction between "your clone is broken", "run this
-command" and "go and ask someone for data". If a `repo` entry is not in fact tracked by git,
-the first of those turns into a lie, and a new collaborator is told their clone is broken when
-the file was never shipped.
+command" and "go and ask someone for data". If a `repo` entry is not tracked by git, the
+first turns into a lie and a new collaborator is told their clone is broken when the file was
+never shipped.
 
 That is not hypothetical: a missing input in this project usually does not crash. Four of the
 raw datasets return a plausible empty or column-less result instead of an error

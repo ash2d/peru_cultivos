@@ -3,15 +3,14 @@
 Turns ``panel_predictions.parquet`` (one row per parcel-year) into:
 
 * a per-parcel year-indexed **series** with an explicit ``observed`` mask — gaps are never
-  interpolated silently, because an abstained year and a genuinely unchanged year look
-  identical once you fill them in;
+  interpolated silently, since an abstained year and a genuinely unchanged year look
+  identical once filled;
 * a **smoothed** series (gap-aware 3-year mode filter);
 * **transitions** under a minimum-duration rule — orchard establishment or removal is a
   multi-year event, so a 1-year excursion is noise *by construction*, not by tuning;
-* a **flicker rate** per class: the diagnostic that says whether any of this is signal.
-  Criterion S5 is flicker under 15 % for parcels whose PETT label is PERENNIAL. A high
-  flicker rate means the per-year features are too weak and the trend analysis must not
-  proceed on raw predictions.
+* a **flicker rate** per class: whether any of this is signal. Criterion S5 is flicker under
+  15 % for PETT-PERENNIAL parcels; a high rate means the per-year features are too weak to
+  run the trend analysis on raw predictions.
 """
 
 from __future__ import annotations
@@ -93,9 +92,9 @@ def detect_transitions(series: np.ndarray, years: list[int], classes: list[str],
                        parcels: list[str], min_duration: int = 3) -> pd.DataFrame:
     """Class changes that **persist** for ``min_duration`` consecutive observed years.
 
-    The persistence requirement is the primary change definition (§9.2): a new orchard
-    takes 2-3 years to close canopy and a cleared one does not come back next season, so
-    a shorter excursion is not a land-use change.
+    The primary change definition (§9.2): a new orchard takes 2-3 years to close canopy and a
+    cleared one does not come back next season, so a shorter excursion is not a land-use
+    change.
     """
     rows = []
     for i in range(series.shape[0]):

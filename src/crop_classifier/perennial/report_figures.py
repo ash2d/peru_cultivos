@@ -1,17 +1,11 @@
 """Figures for the summary report (reports/REPORT.md).
 
-Two questions these exist to answer, both of which are prior to any model:
+Two questions, both prior to any model: are the classes separable at all in the imagery
+(per-class seasonal profiles of the *actual model inputs*), and what did the 1997-98 El
+Nino do to it (monthly panel-wide index trajectories vs the envelope of normal years).
 
-1. **Are the classes separable at all in the imagery?** Per-class seasonal profiles of the
-   *actual model inputs* (the per-date tensors), so "can a human tell perennial from annual?"
-   is answered with the same data the classifier sees, not a re-derivation.
-2. **What did the 1997-98 El Nino do to the imagery?** Monthly panel-wide index trajectories
-   for the El Nino years against the envelope of normal years.
-
-Both are read straight from the feature store — no model is loaded, so this module imports
-neither torch nor lightgbm and is safe to run in any process.
-
-Bands/indices are the 11 assembly channels in ``features.indices.CHANNELS`` order:
+Read straight from the feature store — no model loaded, so this imports neither torch nor
+lightgbm. Channels are ``features.indices.CHANNELS`` order:
 ``B G R NIR SWIR1 SWIR2 NDVI EVI NDWI NDMI BSI``.
 """
 
@@ -30,10 +24,8 @@ from crop_classifier.perennial.figures import C_FLAG, C_GRID, C_INK, C_SERIES
 MONTHS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"]
 
 # Perennial/annual grouping of the 12 crop classes, for colouring the small multiples.
-# Verified against data/processed/perennial/class_lexicon_resolved.csv, not assumed. Note
-# CAÑA DE AZUCAR is ANNUAL by an explicit `cana_policy` (plan D1) even though it looks
-# spectrally perennial-like — that is a deliberate decision and a registered §9.5
-# sensitivity arm, not a lexicon slip.
+# Verified against class_lexicon_resolved.csv. CAÑA DE AZUCAR is ANNUAL by an explicit
+# `cana_policy` (plan D1, a registered §9.5 sensitivity arm), not a lexicon slip.
 GROUP_12 = {
     "CAFE": "PERENNIAL", "MANGO_LIMON": "PERENNIAL", "PLATANO": "PERENNIAL",
     "ARROZ": "ANNUAL", "MAIZ": "ANNUAL", "ALGODON": "ANNUAL", "FRIJOL": "ANNUAL",
@@ -44,15 +36,13 @@ GROUP_COLOR = {"PERENNIAL": "#1baf7a", "ANNUAL": "#eb6834",
                "PASTURE_FALLOW": "#4a3aa7"}
 
 
-# ------------------------------------------------------------------------------------
-# monthly profiles from the per-date tensors
-# ------------------------------------------------------------------------------------
+# --- monthly profiles from the per-date tensors ---
 def monthly_profiles(tensor_path: Path, channel: str = "NDVI"
                      ) -> tuple[pd.DataFrame, np.ndarray]:
     """Per-parcel monthly mean of one channel. Returns ``(long df, cod_predio)``.
 
-    Averaged **per parcel first**, so a parcel with 20 clear dates does not outweigh one
-    with 4. Unobserved parcel-months stay NaN and are never interpolated.
+    Per parcel first, so a parcel with 20 clear dates does not outweigh one with 4.
+    Unobserved parcel-months stay NaN, never interpolated.
     """
     z = np.load(tensor_path, allow_pickle=True)
     ci = list(z["channels"]).index(channel)
@@ -72,11 +62,10 @@ def monthly_profiles(tensor_path: Path, channel: str = "NDVI"
 
 def _class_bands(prof: pd.DataFrame, cods: np.ndarray, labels: pd.Series
                  ) -> dict[str, dict]:
-    """Per-class monthly median and inter-quartile range **across parcels**.
+    """Per-class monthly median and inter-quartile range across parcels.
 
-    The IQR, not a CI of the mean, is what answers "can these be told apart?" — with tens of
-    thousands of parcels a CI is invisibly narrow and would imply a separation that the
-    parcel-level distributions do not have.
+    IQR not a CI of the mean: with tens of thousands of parcels a CI is invisibly narrow
+    and implies a separation the parcel-level distributions do not have.
     """
     lab = pd.Series(cods).map(labels).to_numpy()
     out = {}
@@ -100,9 +89,7 @@ def class_profile_data(workspace_proc: Path, channel: str = "NDVI") -> dict[str,
     return _class_bands(prof, cods, labels)
 
 
-# ------------------------------------------------------------------------------------
-# figure 1 — 3-class separability
-# ------------------------------------------------------------------------------------
+# --- figure 1 — 3-class separability ---
 def fig_3class_profiles(path: Path, channels=("NDVI", "NDMI", "BSI")) -> dict:
     import matplotlib
     matplotlib.use("Agg")
@@ -141,12 +128,10 @@ def fig_3class_profiles(path: Path, channels=("NDVI", "NDMI", "BSI")) -> dict:
     return stats
 
 
-# ------------------------------------------------------------------------------------
-# figure 2 — 12-class separability, small multiples
-# ------------------------------------------------------------------------------------
+# --- figure 2 — 12-class separability, small multiples ---
 def fig_12class_profiles(path: Path, channel: str = "NDVI") -> dict:
-    """One panel per crop. Small multiples rather than 12 lines on one axis: twelve
-    categorical hues cannot be told apart reliably, and the question is per-class anyway."""
+    """One panel per crop. Small multiples not 12 lines on one axis: twelve categorical
+    hues cannot be told apart, and the question is per-class anyway."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -196,9 +181,7 @@ def fig_12class_profiles(path: Path, channel: str = "NDVI") -> dict:
                 for kk, vv in v.items()} for k, v in d.items()}
 
 
-# ------------------------------------------------------------------------------------
-# figure 3 — the 1997-98 El Nino in the imagery
-# ------------------------------------------------------------------------------------
+# --- figure 3 — the 1997-98 El Nino in the imagery ---
 def elnino_year_profiles(years: list[int], channel: str = "NDVI",
                          parcels: set[str] | None = None) -> pd.DataFrame:
     """Panel-wide monthly median of one channel, per year, on a fixed parcel set."""
@@ -248,18 +231,11 @@ def fig_elnino(path: Path, normal=(1999, 2010), elnino=(1997, 1998),
                min_parcels: int = 300) -> dict:
     """The 1997-98 El Nino signature in the model's own inputs.
 
-    Piura's catastrophic rains ran **December 1997 to April 1998**, so the anomaly sits in
-    *1998*'s early months, not 1997's. What it looks like spectrally is the opposite of
-    intuition: the flooded desert **greens**, so NDVI goes *up* while SWIR1 goes sharply
-    *down* (SWIR is absorbed by water, so low SWIR1 = wet soil and canopy).
-
-    Two guards make this readable rather than misleading:
-
-    * **Coverage filtering.** Monthly panel coverage is wildly uneven — 1998 April has 13
-      parcels with a clear observation against ~3,000 in a good month — so months below
-      ``min_parcels`` are dropped and left as visible gaps rather than plotted as noise.
-    * **An envelope, not a comparison year.** Normal years are drawn as p10-p90 of their
-      yearly monthly medians, so the anomaly is judged against real interannual variation.
+    Piura's rains ran Dec 1997 - Apr 1998, so the anomaly sits in *1998*'s early months.
+    Spectrally the flooded desert *greens*: NDVI up, SWIR1 sharply down (SWIR is absorbed
+    by water). Two guards: months below ``min_parcels`` are dropped as visible gaps (1998
+    April has 13 clear parcels vs ~3,000 in a good month), and normal years are an
+    envelope (p10-p90 of their monthly medians), not one comparison year.
     """
     import matplotlib
     matplotlib.use("Agg")
@@ -305,7 +281,7 @@ def fig_elnino(path: Path, normal=(1999, 2010), elnino=(1997, 1998),
             ax.spines[s].set_visible(False)
     axes[0].legend(fontsize=7, frameon=False, loc="upper right")
 
-    # third panel: is 1998 an outlier across the WHOLE record, not just vs a few years?
+    # third panel: is 1998 an outlier across the whole record, not just vs a few years?
     ax = axes[2]
     sm = season_medians(P.DEFAULT_YEARS, "SWIR1", (0, 1, 2), bal, min_parcels)
     sm = sm[sm["enough"]]
@@ -342,15 +318,12 @@ def fig_elnino(path: Path, normal=(1999, 2010), elnino=(1997, 1998),
     return stats
 
 
-# ------------------------------------------------------------------------------------
-# figure 4 — flicker vs how much time-invariant information a model holds
-# ------------------------------------------------------------------------------------
+# --- figure 4 — flicker vs time-invariant information a model holds ---
 def fig_flicker_vs_statics(path: Path, rows: list[dict]) -> None:
     """Flicker against static-feature content, with per-year accuracy alongside.
 
-    The point of pairing them: flicker falls a long way across these models while accuracy
-    barely moves, which is what identifies the stability as an artefact of time-invariant
-    inputs rather than better temporal discrimination.
+    Paired because flicker falls a long way across these models while accuracy barely moves
+    — the stability is an artefact of time-invariant inputs, not better discrimination.
     """
     import matplotlib
     matplotlib.use("Agg")
@@ -386,17 +359,13 @@ def elnino_signature_collapse(features=("NDVI_p25", "NDVI_amp", "BSI_max")
                               ) -> pd.DataFrame:
     """Class separation on the discriminating features, 1998 imagery vs normal imagery.
 
-    This is the *mechanism* behind the §6.3 confound test. The model has no absolute
-    definition of "perennial": it learns thresholds (a higher NDVI floor, a flatter season)
-    that work only while the two classes sit far apart on those features. So the quantity is
-    the PERENNIAL-minus-ANNUAL gap within each cohort, in pooled-SD units, on the same
-    regions, and the question is what the El Nino did to it.
+    The *mechanism* behind the §6.3 confound test: the model learns thresholds (higher NDVI
+    floor, flatter season) that work only while the classes sit far apart. Quantity is the
+    PERENNIAL-minus-ANNUAL gap within each cohort, in pooled-SD units, on regions present in
+    both cohorts (place held roughly fixed).
 
-    ⚠️ This is a **between-class separation measured across parcels after the fact**, not
-    anything the model computes per parcel — no model in this project uses a neighbour
-    feature. Earlier wording here said "contrast with its annual neighbours", which read as
-    though adjacent parcels were an input; they are not. Regions are restricted to those
-    present in both cohorts so that place is held roughly fixed.
+    ⚠️ A between-class separation measured across parcels after the fact, not anything the
+    model computes per parcel — no model here uses a neighbour feature.
     """
     from crop_classifier.data import FN_LGBM
 

@@ -1,20 +1,15 @@
 """``cc reproduce`` — re-derive the published headline numbers from the committed data.
 
-One command, no raw archive, no Earth Engine account, no multi-hour job. Every check here
-runs from files that are in the repository, and every published value it compares against is
-quoted from ``docs/RESULTS.md`` with its section, so a mismatch points at one paragraph
-rather than at the project.
+One command, no raw archive, no Earth Engine account, no multi-hour job. Every check runs
+from files in the repository, and every published value it compares against is quoted from
+``docs/RESULTS.md`` with its section, so a mismatch points at one paragraph.
 
-Why this exists as code rather than as a page of commands: a reproduction that a reader has
-to assemble by hand is one they will assemble differently. This fixes the workspace, the
-flags and the tolerance for each number, and prints the published value beside the measured
-one — the comparison is the output, not something the reader does afterwards.
+It is code rather than a page of commands so the comparison is fixed — workspace, flags and
+tolerance per number — and printed as the output, not reassembled by hand by each reader.
 
-⚠️ **Tolerances are not all the same, and the differences are the point.** Reading a
-committed metric back off disk should be exact. Refitting LightGBM reproduces to a few
-thousandths, not exactly: the library is not bit-deterministic across platforms and thread
-counts, and a check that demanded equality there would fail on every machine but this one.
-Each check states which kind it is.
+⚠️ **Tolerances differ, and the differences are the point.** Reading a committed metric back
+off disk should be exact; refitting LightGBM reproduces to a few thousandths, not exactly
+(not bit-deterministic across platforms and thread counts). Each check states which kind it is.
 """
 
 from __future__ import annotations
@@ -58,13 +53,13 @@ class Check:
         return [n for n in self.needs if not (ROOT / n).exists()]
 
 
-# ── the checks ────────────────────────────────────────────────────────────────────────
+# --- the checks ---
 def _demo() -> list[Measure]:
     """Train the quickstart model and compare with the CV score of record.
 
-    Refit, so the tolerance is a few thousandths rather than zero. `--drop-features
-    meta,location` is not optional and not cosmetic: without it the model may use
-    acquisition metadata and latitude, and the recorded score is the one *with* it.
+    Refit, so tolerance is a few thousandths not zero. `--drop-features meta,location` is not
+    optional: without it the model may use acquisition metadata and latitude, and the
+    recorded score is the one *with* it dropped.
     """
     from crop_classifier import workspace as W
     from crop_classifier.train import train
@@ -80,10 +75,10 @@ def _demo() -> list[Measure]:
 
 
 def _national_lodo() -> list[Measure]:
-    """Read the national Landsat evaluation record. No refit — this is a file read.
+    """Read the national Landsat evaluation record. No refit — a file read.
 
-    The LODO record is committed because recomputing it is a model per department, hours.
-    What matters is that the number a clone reads is the number that was published.
+    The LODO record is committed because recomputing it is a model per department, hours;
+    what matters is that the number a clone reads is the one that was published.
     """
     from crop_classifier import workspace as W
     from crop_classifier.protocol import collect
@@ -106,8 +101,7 @@ def _national_lodo() -> list[Measure]:
 def _s2_model() -> list[Measure]:
     """Refit the selected Sentinel-2 model: LightGBM, 3 classes + woody, mean temperature.
 
-    This is the model of record (``RESULTS.md`` §8.8b). It trains on 865 photo-interpreted
-    parcels and takes about a minute.
+    Model of record (``RESULTS.md`` §8.8b); trains on 865 photo-interpreted parcels, ~1 min.
     """
     from crop_classifier import workspace as W
     from crop_classifier.labelling.arms import run_step
@@ -123,10 +117,9 @@ def _s2_model() -> list[Measure]:
 
 
 def _perennial_shift() -> list[Measure]:
-    """The headline. Two official declarations of the same land, no classifier in it.
-
-    Runs the whole PETT → CENAGRO 2012 comparison and reads the three numbers the README
-    leads with off the post-stratified tables.
+    """The headline: two official declarations of the same land, no classifier in it. Runs
+    the whole PETT → CENAGRO 2012 comparison and reads the README's three numbers off the
+    post-stratified tables.
     """
     from crop_classifier import workspace as W
     from crop_classifier.allperu import cenagro_shift as S
@@ -152,9 +145,8 @@ def _perennial_shift() -> list[Measure]:
 
 
 def _tenure_did() -> list[Measure]:
-    """The project's only causal estimate: a bounded null.
-
-    Deterministic — it is a regression on committed predictions, so the tolerance is tight.
+    """The project's only causal estimate: a bounded null. Deterministic (a regression on
+    committed predictions), so the tolerance is tight.
     """
     from crop_classifier import workspace as W
     from crop_classifier.allperu.tenure_did import run_corrected
@@ -202,7 +194,7 @@ CHECKS: tuple[Check, ...] = (
 )
 
 
-# ── the runner ────────────────────────────────────────────────────────────────────────
+# --- the runner ---
 def _fmt(v: float | None) -> str:
     if v is None:
         return "—"
@@ -210,11 +202,10 @@ def _fmt(v: float | None) -> str:
 
 
 def run(names: list[str] | None = None, verbose: bool = False) -> int:
-    """Run the named checks (all of them by default). Returns the number that failed.
+    """Run the named checks (all by default). Returns the number that failed.
 
-    Each check prints its own analysis — a few hundred lines for the census comparison — and
-    that is the wrong thing to read here, so it is captured and only shown when the check
-    raises, or when ``verbose`` asks for it. The table at the end is the output.
+    Each check's own analysis (hundreds of lines for the census comparison) is captured and
+    shown only on a raise or with ``verbose``. The table at the end is the output.
     """
     todo = [c for c in CHECKS if not names or c.name in names]
     if not todo:

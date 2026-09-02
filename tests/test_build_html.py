@@ -1,10 +1,8 @@
 """Unit tests for the labelling HTML (docs/s2_labelling/plan.md).
 
-**The blindness assertion is the important one and it asserts on the raw string.** It is
-not enough that the declared class is un-rendered: if it is anywhere in the embedded JSON
-a curious labeller can read it, and a labeller anchored on the 1998 declaration
-manufactures agreement between declaration and endpoint — the human form of the
-``centroid_lat`` failure this project has already measured three times.
+Blindness asserts on the raw string: a declared class anywhere in the embedded JSON lets a
+labeller manufacture agreement between declaration and endpoint — the human form of the
+``centroid_lat`` failure.
 """
 
 from __future__ import annotations
@@ -139,18 +137,15 @@ class TestTraceRibbon:
         assert band_height(narrow) < band_height(wide)
 
     def test_marks_outside_the_window_are_clipped_to_the_plot_area(self):
-        """Y was always clamped; X never was.
-
-        A stray circle outside the axes is a dot. A *filled* ribbon that escapes them is a
-        smear across the whole card, so the data marks are clipped.
-        """
+        """Y was always clamped, X never was; a filled ribbon escaping the axes smears the
+        whole card, so data marks are clipped."""
         dates = ["2021-01-01", "2022-06-01", "2024-01-01"]   # first and last well outside
         svg = trace_svg(dates, [0.5] * 3, "2022-06-15",
                         lo=[0.4] * 3, hi=[0.6] * 3)
         assert '<clipPath id="tclip">' in svg
         body = svg.split('<g clip-path="url(#tclip)">')[1].split("</g>")[0]
         assert "<path" in body and "<polyline" in body and "<circle" in body
-        # the dashed imagery-date rule is *outside* the clip: it is an axis annotation
+        # the dashed imagery-date rule is outside the clip: an axis annotation
         assert "stroke-dasharray" not in body
 
     def test_a_date_missing_its_quantiles_is_skipped_not_drawn_at_zero(self):
@@ -195,17 +190,12 @@ class TestBuild:
             assert "123.45" not in html
 
     def test_blindness_holds_on_the_OVERLAP_shard_too(self, campaign):
-        """The blindness test above never built one — the fixture is `overlap=False`.
+        """Blindness holds on the overlap shard, with one intended exception: the shard is
+        *named* `overlap`, so the string appears once as `const SHARD_ID="overlap"` and in the
+        header — not the sample's `overlap` column.
 
-        So the guarantee had only ever been checked on solo shards. It holds here too, with
-        one **known and intended** exception: the overlap shard is *named* `overlap`, so the
-        string appears once as `const SHARD_ID="overlap"` and in the visible header. That is
-        the file's own name, not the sample's `overlap` column, and it is on the page by
-        design — both labellers are meant to receive this file.
-
-        ⚠️ It does mean a labeller can tell which shard is double-labelled, and κ is
-        measured on exactly that shard. Recorded rather than fixed: renaming would change
-        the campaign structure (§D2) and the routing the filenames carry.
+        ⚠️ A labeller can therefore tell which shard is double-labelled (κ is measured on it).
+        Recorded not fixed: renaming would change the campaign structure (§D2).
         """
         sample, chips, px, out = campaign
         sample = sample.copy()
@@ -220,7 +210,7 @@ class TestBuild:
             payload = html.split(ITEMS_OPEN)[1].split(ITEMS_CLOSE)[0]
             assert '"PERENNIAL"' not in payload
             assert "trainval" not in html and "123.45" not in html
-            # and the shard-id exception really is the only occurrence
+            # the shard-id exception is the only occurrence
             assert html.count('"overlap"') == 1
 
     def test_class_names_still_appear_as_the_labellers_buttons(self, campaign):
@@ -232,11 +222,8 @@ class TestBuild:
             assert lab in html
 
     def test_unsure_is_offered_as_a_key_and_stays_on_5(self, campaign):
-        """A control that must be actively set does not get used; a key does.
-
-        `NON_AGRICULTURE` was added after the codebook was frozen. Renumbering the abstain
-        to make the list read tidily would silently change what a briefed labeller's
-        fingers do, so 5 is pinned here.
+        """Renumbering the abstain to tidy the list after `NON_AGRICULTURE` was added would
+        change a briefed labeller's muscle memory, so 5 is pinned.
         """
         sample, chips, px, out = campaign
         build(sample, chips, px, out)
@@ -252,17 +239,14 @@ class TestBuild:
         assert "NON_AGRICULTURE" in LABELS
 
     def test_the_codebook_states_the_other_vs_non_agriculture_boundary(self, campaign):
-        """Two overlapping classes with no separating test is how kappa gets lost.
-
-        `NON_AGRICULTURE` was carved out of `OTHER`, whose old definition explicitly listed
-        water, built-up, road and riverbed. If the emitted page does not carry the rule
-        that separates them, the two labellers are guessing at the same parcel.
+        """`NON_AGRICULTURE` was carved out of `OTHER`; without the separating rule on the
+        page the two labellers guess at the same parcel.
         """
         sample, chips, px, out = campaign
         build(sample, chips, px, out)
         html = next(out.glob("*.html")).read_text()
         assert "sown next season" in html
-        # ...and OTHER no longer claims the ground NON_AGRICULTURE now owns
+        # OTHER no longer claims the ground NON_AGRICULTURE owns
         other = html.split("3 OTHER")[1].split("</li>")[0]
         for gone in ("riverbed", "built-up", "water"):
             assert gone not in other, f"OTHER still claims {gone!r}"
@@ -280,10 +264,8 @@ class TestSpanish:
             assert lang in CODEBOOK_HTML
 
     def test_stored_label_values_stay_english_in_every_language(self, campaign):
-        """Translating the *value* would make ingest match nothing and report no error.
-
-        Only the display name is localised; the CSV and `ingest.LABELS` keep the canonical
-        constants.
+        """Translating the *value* would make ingest match nothing with no error; only the
+        display name is localised, the CSV and `ingest.LABELS` stay canonical.
         """
         sample, chips, px, out = campaign
         build(sample, chips, px, out, lang="es")

@@ -1,7 +1,6 @@
 """PETT declaration → CENAGRO 2012 → photo-interpreted 2019+, nationally, split by tenure.
 
-Three observations of the same parcels, from three instruments, none of which shares a method
-with the others:
+Three observations of the same parcels from three unrelated instruments:
 
 | # | observation | when | how |
 |---|---|---|---|
@@ -9,35 +8,23 @@ with the others:
 | 2 | CENAGRO question 024 | 2012 | the farmer told a census enumerator |
 | 3 | photo-interpretation | 2019+ | a human read Sentinel-2 / Esri imagery |
 
-1→2 involves **no satellite and no classifier at all** — it is two declared observations of
-the same land, and it is the cleanest change measurement this project has. 2→3 and 1→3 add
-the imagery but shorten or lengthen the window.
+1→2 uses no satellite and no classifier — two declared observations of the same land, the
+cleanest change measurement this project has. Each contrast is reported as perennial share
+of parcels and of cadastral area, split by tenure at the PETT declaration (`ESTADO en RRPP`).
 
-Each is reported as the **perennial share of parcels** and the **perennial share of cadastral
-area**, and each is split by **tenure at the PETT declaration** (`ESTADO en RRPP`:
-INSCRITO / NO INSCRITO) so the question "does secure title go with a bigger shift?" gets an
-answer on all three.
+⚠️ Descriptive, not causal — title is not randomly assigned, so a tenure gap in the change
+is a fact about the two groups. The causal estimate is the v3 DiD (`RESULTS.md` §7).
 
-⚠️ **This is descriptive, not causal.** Title is not randomly assigned: registered parcels
-differ in valley position, size, and market access. A tenure gap in the *change* is a fact
-about the two groups, not an effect of titling. The project's actual causal estimate is the
-v3 DiD (`RESULTS.md` §7), which is a bounded null.
+⚠️ Three silent biases, each handled explicitly:
+1. The census cannot record fallow (Q024 asks which crop is grown), so the like-for-like
+   comparison is conditional on a crop recorded on both sides; both versions are printed.
+2. The S2 sample over-samples PERENNIAL ~3×, so every S2 share uses the design weight
+   `weight` (= N_h/n_h), unweighted printed beside it.
+3. Area is weighted by cadastral polygon area, never the census `P037_SS` (Pearson ~0.01
+   with it, `DATA.md` Chain B).
 
-⚠️ **Three things will silently bias a number here** and each is handled explicitly:
-
-1. **The census cannot record fallow.** Question 024 asks which crop is grown, so a parcel
-   lying fallow contributes no crop row and leaves the frame — PASTURE_FALLOW appears to
-   collapse. The like-for-like comparison is therefore **conditional on a crop being recorded
-   on both sides**, and both versions are printed.
-2. **The S2 labelled sample deliberately over-samples PERENNIAL** (~3× by design, so the rare
-   class is learnable). Every S2 share here is computed with the design weight `weight`
-   (= N_h/n_h); the unweighted number is printed beside it to show how far off it is.
-3. **Area must be weighted by the cadastral polygon area**, never by the census self-reported
-   `P037_SS`, which is uncorrelated with it (Pearson ~0.01, `DATA.md` Chain B).
-
-⚠️ **The census link is farmer-level, not parcel-level** (`cenagro_link.py`). Everything 1→2
-is broken out by `link_confidence`, because if the answer moves with link quality then part of
-the answer is the link.
+⚠️ The census link is farmer-level, not parcel-level (`cenagro_link.py`); 1→2 is broken out
+by `link_confidence` — if the answer moves with link quality, part of it is the link.
 """
 
 from __future__ import annotations
@@ -52,10 +39,8 @@ from crop_classifier.paths import ROOT
 CENAGRO_DIR = ROOT / "data" / "raw" / "Cenagro_IV"
 LINK = ROOT / "data" / "processed" / "cenagro" / "cenagro_pett_link.parquet"
 PETT = ROOT / "data" / "processed" / "all_peru_full" / "modeling_parcels.parquet"
-# `PETT` is 437 MB and is not committed. Two small derived files stand in for it, so this
-# comparison reproduces from a clone alone: the built panel itself, and the department x
-# declared-class population counts that post-stratification needs. Both are written by a run
-# that *did* have the full table.
+# `PETT` (437 MB) is not committed; two small derived files stand in so this reproduces from
+# a clone: the built panel, and the dept x declared-class counts post-stratification needs.
 PANEL = ROOT / "data" / "processed" / "cenagro" / "national_panel.parquet"
 PETT_POP = ROOT / "data" / "processed" / "cenagro" / "pett_population_by_dept_class.csv"
 TENURE = ROOT / "data" / "processed" / "all_peru" / "tenure_by_predio.parquet"
@@ -66,15 +51,13 @@ OUT_DIR = ROOT / "data" / "processed" / "cenagro"
 CROP_SEP = " | "
 CLASSES = ("PERENNIAL", "ANNUAL", "PASTURE_FALLOW")
 
-# The photo-interpreted classes folded onto the declared label space. `WOODY_NON_CROP` has
-# **no** mapping on purpose: it is the codebook's hardest call, and folding it either way is
-# the decision, not a preprocessing step. Both readings are reported.
+# Photo-interpreted classes folded onto the declared label space. `WOODY_NON_CROP` is left
+# unmapped on purpose — the codebook's hardest call; both readings are reported.
 S2_TO_DECLARED = {"PERENNIAL": "PERENNIAL", "ANNUAL": "ANNUAL",
                   "OTHER": "PASTURE_FALLOW", "NON_AGRICULTURE": None,
                   "WOODY_NON_CROP": None}
 
 
-# --------------------------------------------------------------------------------------
 def _lexicon():
     from crop_classifier.perennial.labels3 import (
         _stage_regex,
@@ -88,8 +71,7 @@ def _lexicon():
 def classify_crop_list(series: pd.Series) -> pd.Series:
     """`"LIMON ACIDO | MELON"` -> `PERENNIAL`, via the project's own 3-class lexicon.
 
-    The census side is resolved by exactly the rules the PETT side is, so a measured change is
-    a change in the land and not a change of definition.
+    Census and PETT sides use the same rules, so a measured change is land, not definition.
     """
     from crop_classifier.crop_normalization import normalize_label
     from crop_classifier.perennial.labels3 import assign_group
@@ -143,12 +125,10 @@ def census_producer_crops(depts: list[str]) -> pd.DataFrame:
 def token_audit(depts: list[str]) -> pd.DataFrame:
     """Every distinct census crop token nationally, what it resolved to, and how.
 
-    ⚠️ **Run this before trusting any number below.** The row that matters is
-    ``source == "crop_fallback"``: a token the lexicon has no entry for, assigned `ANNUAL`
-    because annuals dominate the unlisted tail. A large fallback share does not raise — it
-    just quietly moves the answer. The Piura audit found 4.09 % falling through, **80 % of it
-    the single token `VERGEL FRUTICOLA` ("fruit orchard")**, which moved the headline from
-    +2.4 pp to +12.5 pp once fixed. The national vocabulary is larger, so re-ask.
+    ⚠️ Run before trusting any number below. ``source == "crop_fallback"`` is a token with
+    no lexicon entry, assigned `ANNUAL`; a large fallback share does not raise, it just
+    moves the answer. Piura: 4.09 % fell through, 80 % of it `VERGEL FRUTICOLA` ("fruit
+    orchard") — fixing it moved the headline +2.4 pp -> +12.5 pp. National vocab is larger.
     """
     from collections import Counter
 
@@ -182,14 +162,12 @@ def token_audit(depts: list[str]) -> pd.DataFrame:
     return d_
 
 
-# --------------------------------------------------------------------------------------
 def _share_row(before: pd.Series, after: pd.Series, cls: str,
                w: pd.Series | None = None) -> dict:
     """One class's before/after share and the paired change, weighted or not.
 
-    The CI is McNemar's: the information in a *paired* difference is carried by the
-    discordant pairs, not by the two marginal counts, so a binomial SE on each margin would
-    overstate it.
+    CI is McNemar's — a paired difference's information is in the discordant pairs, so a
+    per-margin binomial SE would overstate it.
     """
     if w is None:
         w = pd.Series(1.0, index=before.index)
@@ -233,8 +211,8 @@ def by_tenure(df: pd.DataFrame, before: str, after: str, weight: str | None = No
               label: str = "") -> pd.DataFrame:
     """PERENNIAL change for INSCRITO vs NO INSCRITO, and the difference between them.
 
-    The **difference** row is the number the question asks for. Its CI treats the two groups
-    as independent (they are disjoint sets of parcels), so the variances add.
+    The difference row is the number the question asks for; its CI adds the variances (the
+    two groups are disjoint sets of parcels).
     """
     rows = []
     for t in ["INSCRITO", "NO INSCRITO"]:
@@ -261,7 +239,7 @@ def by_tenure(df: pd.DataFrame, before: str, after: str, weight: str | None = No
 
 def area_shares(df: pd.DataFrame, before: str, after: str, area: str = "area_ha",
                 weight: str | None = None) -> pd.DataFrame:
-    """The same comparison weighted by **cadastral** polygon area, in hectares."""
+    """The same comparison weighted by cadastral polygon area, in hectares."""
     w = df[area] * (df[weight] if weight else 1.0)
     tot = float(w.sum())
     rows = []
@@ -276,14 +254,12 @@ def area_shares(df: pd.DataFrame, before: str, after: str, area: str = "area_ha"
     return out
 
 
-# --------------------------------------------------------------------------------------
 def build_panel(depts: list[str] | None = None) -> pd.DataFrame:
     """One row per parcel: PETT declared class, CENAGRO 2012 class, tenure, area, S2 label.
 
-    The census side is collapsed **onto the parcel** by class priority (PERENNIAL first),
-    because the link is farmer-level: one producer can be matched to a parcel that another
-    producer is also matched to, and a parcel with any perennial recorded on it is perennial
-    under the project's own `group_priority`.
+    The census side is collapsed onto the parcel by class priority (PERENNIAL first): the
+    link is farmer-level, several producers can hit one parcel, and any perennial recorded
+    makes it perennial under `group_priority`.
     """
     if not PETT.exists():
         if not PANEL.exists():
@@ -328,8 +304,7 @@ def build_panel(depts: list[str] | None = None) -> pd.DataFrame:
     ten["COD_PREDIO"] = ten["COD_PREDIO"].astype(str)
     df = df.merge(ten, on="COD_PREDIO", how="left")
 
-    # ⚠️ a "before" observation must precede the "after" one. A handful of PETT declarations
-    # post-date the 2012 census; for those the comparison would run backwards.
+    # ⚠️ "before" must precede "after" — a few PETT declarations post-date the 2012 census.
     late = int((df["pett_year"] >= 2012).sum())
     if late:
         print(f"  dropped {late} parcels whose PETT declaration is 2012 or later — the "
@@ -341,9 +316,8 @@ def build_panel(depts: list[str] | None = None) -> pd.DataFrame:
 def s2_panel() -> pd.DataFrame:
     """The photo-interpreted parcels, with their design weight and tenure.
 
-    ⚠️ `weight` is **not optional**. The campaign drew a stratified sample that deliberately
-    over-samples PERENNIAL so the rare class is learnable; the unweighted perennial share of
-    this table is roughly three times the population's.
+    ⚠️ `weight` is not optional — the stratified sample over-samples PERENNIAL, so this
+    table's unweighted perennial share is ~3× the population's.
     """
     s2 = pd.read_parquet(LABELS_S2, columns=["COD_PREDIO", "label", "dept", "declared_class",
                                              "stratum", "weight", "usable", "area_ha"])
@@ -358,26 +332,18 @@ def s2_panel() -> pd.DataFrame:
     return s2.merge(ten, on="COD_PREDIO", how="left")
 
 
-# --------------------------------------------------------------------------------------
 def poststratify(df: pd.DataFrame) -> pd.DataFrame:
     """Add `ps_weight`, reweighting the name-linked panel to the national PETT population.
 
-    ⚠️ **The name link is not a random sample of parcels.** Matching needs a name on both
-    sides and a district agreement, and the parcels that satisfy that are systematically the
-    larger, valley-floor, better-documented ones — the linked panel is **16.6 % PERENNIAL
-    against the population's 9.9 %**. Left alone that inflates every *level* reported here and
-    can tilt the change, because the perennial→perennial cell is over-represented.
-
-    The fix is the same one the S2 campaign uses: post-stratify on **department × declared
-    class**, the two variables the selection runs on, so each cell is restored to its national
-    count. What it cannot fix is selection *within* a cell — a linked ANNUAL parcel in Piura
-    may still differ from an unlinked one. The reweighted headline is therefore a check on the
-    unweighted one, not a replacement for it: if the two agree, the composition was not
-    driving the answer.
+    ⚠️ The name link is not a random sample — matching needs a name on both sides and a
+    district agreement, which selects larger, valley-floor, better-documented parcels
+    (linked panel 16.6 % PERENNIAL vs the population's 9.9 %), inflating every level here.
+    Post-stratifying on department × declared class (the selection variables) restores each
+    cell's national count; it cannot fix selection *within* a cell, so the reweighted
+    headline is a check on the unweighted one — if they agree, composition was not it.
     """
-    # read-only in both branches: writing the committed counts as a side effect of an
-    # estimate is how a test fixture ends up in the repository. `export_pett_population()`
-    # is the one place that writes it, and it is called on purpose.
+    # read-only in both branches: `export_pett_population()` is the one place that writes
+    # the committed counts, and it is called on purpose.
     if PETT.exists():
         pop = pd.read_parquet(PETT, columns=["COD_PREDIO", "dept", "label"])
         pop = (pop.groupby(["dept", "label"]).size().rename("N_pop").reset_index())
@@ -394,8 +360,8 @@ def poststratify(df: pd.DataFrame) -> pd.DataFrame:
 def export_pett_population() -> Path:
     """Write the department x declared-class counts that ``poststratify`` reweights to.
 
-    Needs the full national parcel table, which is not committed — so this is run once by
-    someone who has it, and everyone else reads the CSV it wrote.
+    Needs the uncommitted full national parcel table — run once by someone who has it,
+    everyone else reads the CSV.
     """
     pop = pd.read_parquet(PETT, columns=["COD_PREDIO", "dept", "label"])
     pop = pop.groupby(["dept", "label"]).size().rename("N_pop").reset_index()
@@ -546,13 +512,11 @@ def build(depts: list[str] | None = None, save: bool = True) -> dict[str, pd.Dat
     return out
 
 
-# --------------------------------------------------------------------------------------
 def _s2_section(cen_panel: pd.DataFrame) -> dict[str, pd.DataFrame]:
     """PETT → photo-interpreted 2019+, and CENAGRO 2012 → photo-interpreted 2019+.
 
-    ⚠️ Every share is **design-weighted**. The campaign over-sampled PERENNIAL on purpose;
-    the unweighted number is printed beside the weighted one so the size of that scaling is
-    visible rather than assumed.
+    ⚠️ Every share is design-weighted; the unweighted number is printed beside it so the
+    scaling is visible.
     """
     out: dict[str, pd.DataFrame] = {}
     s2 = s2_panel()
@@ -606,10 +570,8 @@ def _s2_section(cen_panel: pd.DataFrame) -> dict[str, pd.DataFrame]:
     return out
 
 
-# --------------------------------------------------------------------------------------
 # The figure. Palette is slots 1–2 of the project's validated categorical theme
-# (blue #2a78d6 / orange #eb6834): all-pairs CVD ΔE 24.7 (target 8), normal-vision ΔE 33.6
-# (floor 15), both ≥ 3:1 on the light surface. Checked, not eyeballed.
+# (blue #2a78d6 / orange #eb6834): CVD ΔE 24.7, normal-vision ΔE 33.6, both ≥ 3:1 on light.
 FIG_DIR = ROOT / "docs" / "figures"
 INK, INK2, INK3 = "#0b0b0b", "#52514e", "#8a8880"
 SURFACE = "#fcfcfb"
@@ -619,14 +581,11 @@ T_PETT, T_CEN, T_S2 = 2001, 2012, 2025
 
 
 def _level(df: pd.DataFrame, col: str, weight: str | None = None) -> dict:
-    """Weighted PERENNIAL share with a **Wilson** 95 % interval, in percent.
+    """Weighted PERENNIAL share with a Wilson 95 % interval, in percent.
 
-    Two choices worth stating. (1) The n is **Kish's effective sample size**
-    (Σw)²/Σw², not the row count: a post-stratified or design-weighted share carries less
-    information than its n suggests, and a raw-n interval would overstate the precision —
-    on the imagery arm the design weights are so uneven that n_eff is a fraction of n.
-    (2) The interval is **Wilson, not Wald**. A share cannot be negative, and at the imagery
-    arm's precision a symmetric Wald interval runs below zero and draws an impossible value.
+    (1) n is Kish's effective size (Σw)²/Σw², not the row count — a weighted share carries
+    less information than its n, and on the imagery arm n_eff is a fraction of n. (2) Wilson
+    not Wald: a share cannot be negative, and Wald runs below zero at this precision.
     """
     w = df[weight] if weight else pd.Series(1.0, index=df.index)
     tot = float(w.sum())
@@ -674,11 +633,9 @@ def figure_values() -> dict[str, dict]:
 def figure(path: Path | None = None) -> Path:
     """Draw `docs/figures/perennial_over_time_by_tenure.png`.
 
-    The **drawing code lives in one place**: `docs/figures/perennial_over_time_by_tenure.py`,
-    a self-contained matplotlib script that runs with no project imports. This function
-    recomputes the numbers from the data, **checks them against the ones baked into that
-    script**, and calls its `draw()` with the fresh values — so the standalone reproduction
-    and the pipeline figure cannot drift apart silently.
+    Drawing code lives only in `docs/figures/perennial_over_time_by_tenure.py` (a
+    self-contained matplotlib script). This recomputes the numbers, checks them against the
+    ones baked into that script, and calls its `draw()` — so the two cannot drift apart.
     """
     import importlib.util
 

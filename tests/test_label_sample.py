@@ -171,10 +171,9 @@ class TestEligiblePopulation:
 class TestEsriProbeSelection:
     """Which of several overlapping Esri footprints supplies `imagery_date`.
 
-    The layer loop already fixes resolution (it stops at the finest layer that answers), so
-    the only remaining choice is between dated footprints overlapping the same point. For a
-    2019+ endpoint campaign that must be the **most recent** — and the code once did the
-    opposite of the comment sitting next to it.
+    The layer loop already fixes resolution (stops at the finest layer that answers), so the
+    only remaining choice is between dated footprints overlapping the same point. For a 2019+
+    endpoint campaign that must be the **most recent**.
     """
 
     def _fake(self, monkeypatch, dates_by_layer):

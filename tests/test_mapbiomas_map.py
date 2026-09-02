@@ -9,7 +9,7 @@ import pytest
 from crop_classifier.perennial import mapbiomas as M
 
 
-# ---- the mapping -----------------------------------------------------------------------
+# --- the mapping ---
 def test_known_codes_map_as_documented():
     assert M.code_to_class(40) == "ANNUAL"            # rice — verified empirically
     assert M.code_to_class(62) == "ANNUAL"            # cotton
@@ -36,7 +36,7 @@ def test_mosaic_is_not_silently_assigned_to_a_class():
     assert "MOSAIC" not in {"PERENNIAL", "ANNUAL", "PASTURE_FALLOW"}
 
 
-# ---- per-parcel histogram reduction -------------------------------------------------------
+# --- per-parcel histogram reduction ---
 def test_histogram_to_row_takes_the_mode_and_reports_purity():
     row = M.histogram_to_row({"40": 6, "21": 2}, "P1", 1999)
     assert row["mb_code"] == 40
@@ -67,7 +67,7 @@ def test_unknown_code_in_a_histogram_raises():
         M.histogram_to_row({"999": 5}, "P1", 1999)
 
 
-# ---- the comparison ------------------------------------------------------------------------
+# --- the comparison ---
 @pytest.fixture
 def panel_and_parcels():
     panel = pd.DataFrame([

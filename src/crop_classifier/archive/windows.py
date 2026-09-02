@@ -1,32 +1,26 @@
-"""Multi-year **windows** — the estimand forced by the Phase-7 gate failure.
+"""Multi-year **windows** — the estimand forced by the Phase-7 gate failure (RESULTS.md §5).
 
-Implements ``docs/RESULTS.md §5``.
-
-Both panels failed S5 flicker (0.43-0.98 against a 0.15 criterion) on every architecture,
-which killed the *per-parcel annual trajectory*. It did not kill the research question, which
-only ever needed a state at two well-supported points and a between-group contrast.
-
-This module is that pivot, made reproducible. Four ideas, in the order they are applied:
+Both panels failed S5 flicker (0.43-0.98 vs a 0.15 criterion) on every architecture, which
+killed the per-parcel annual trajectory but not the research question — that only ever
+needed a state at two well-supported points and a between-group contrast. Four ideas, in
+order of application:
 
 * **M1 aggregate probabilities, not classes.** Per parcel per 5-year window take
-  ``mean(prob_PERENNIAL)`` over the window's non-abstained years (≥ ``min_years``), then
-  threshold **once**. Taking the modal ``pred_label`` instead throws away the confidence that
-  makes this work and turns a parcel sitting stably at p ≈ 0.45 into a coin flip.
-* **M2 the baseline is observed, not predicted.** The PETT declaration *is* the ~1997-2006
+  ``mean(prob_PERENNIAL)`` over the non-abstained years (≥ ``min_years``), then threshold
+  once. The modal ``pred_label`` turns a parcel sitting stably at p ≈ 0.45 into a coin flip.
+* **M2 the baseline is observed, not predicted.** The PETT declaration is the ~1997-2006
   state, so the at-risk pool is conditioned on it (``pett_label == "ANNUAL"``) rather than
-  predicted from 1996-98 imagery — which is exactly where the El Niño confound, S4 backward
-  transfer and the year↔label confound all live.
-* **M3 identify within window.** The estimator is a difference between tenure groups measured
-  in the *same* window, so year effects, sensor era and coverage are common to both and
-  difference out. That is a far lower bar than a defensible *level* or *trend*.
-* **M4 the PETT-``PERENNIAL`` pool is the internal control.** Model drift or an L5→L7
-  radiometric ramp would move it and the at-risk pool together. If the at-risk pool rises
-  while the control stays flat, the rise is not generic drift.
+  predicted from 1996-98 imagery — where the El Niño confound and the year↔label confound
+  live.
+* **M3 identify within window.** A difference between tenure groups in the same window, so
+  year effects, sensor era and coverage difference out.
+* **M4 the PETT-``PERENNIAL`` pool is the internal control.** Drift or an L5→L7 ramp moves
+  it and the at-risk pool together.
 
-Everything here is diagnostic: it reports whether the window estimand is stable enough to
-carry the deliverable (:func:`run_diagnostic`, task T3) and whether classifier error is
-non-differential with respect to tenure (:func:`tenure_error_test`, task T1). Neither
-produces a trend, an annual series, or a per-parcel conversion date — see RESULTS.md §5.
+Everything here is diagnostic — whether the window estimand is stable enough to carry the
+deliverable (:func:`run_diagnostic`, T3), and whether classifier error is non-differential
+with respect to tenure (:func:`tenure_error_test`, T1). Neither produces a trend or a
+per-parcel conversion date.
 
 Run with::
 
@@ -45,10 +39,9 @@ import pandas as pd
 
 from crop_classifier.paths import proc
 
-# Non-overlapping 5-year windows (W-D2). 1999 is the start because the panel's own
-# baseline years 1996-98 are the ones every documented failure lives in, and W-D3 takes the
-# baseline from the observed PETT label instead. 2023 is the end because L7 acquisitions
-# stop there and the panel is TM/ETM+ only (W-D7).
+# Non-overlapping 5-year windows (W-D2). Start 1999: 1996-98 is where every documented
+# failure lives, and W-D3 takes the baseline from the PETT label instead. End 2023: L7
+# acquisitions stop and the panel is TM/ETM+ only (W-D7).
 WINDOWS: tuple[tuple[str, int, int], ...] = (
     ("W99", 1999, 2003),
     ("W04", 2004, 2008),
@@ -71,9 +64,7 @@ W3_MAX_ASYMMETRY = 0.01         # |up - down| adjacent-window disagreement
 W4_MAX_NEG_STEP = 0.005         # largest allowed decrease in the at-risk pool's series
 
 
-# ------------------------------------------------------------------------------------
-# window assignment + aggregation (M1)
-# ------------------------------------------------------------------------------------
+# --- window assignment + aggregation (M1) ---
 def window_of(year: int | float) -> str | None:
     for name, lo, hi in WINDOWS:
         if lo <= year <= hi:
@@ -86,10 +77,9 @@ def window_table(preds: pd.DataFrame, min_years: int = MIN_YEARS,
                  drop_abstained: bool = True) -> pd.DataFrame:
     """Parcel-year predictions -> one row per ``(COD_PREDIO, window)``.
 
-    ``p_mean`` is the mean probability over the window's observed years and is the primary
-    outcome (W-D9); ``perennial`` is it thresholded once, and is the secondary. Windows with
-    fewer than ``min_years`` observed years are dropped rather than filled — an abstained
-    year and an unchanged year are not the same thing, and filling makes them look alike.
+    ``p_mean`` is the mean probability over the window's observed years (primary outcome,
+    W-D9); ``perennial`` is it thresholded once. Windows with fewer than ``min_years``
+    observed years are dropped, not filled — an abstained year and an unchanged year differ.
     """
     df = preds.copy()
     if drop_abstained and "abstained" in df.columns:
@@ -112,9 +102,7 @@ def window_table(preds: pd.DataFrame, min_years: int = MIN_YEARS,
     return out.sort_values(["COD_PREDIO", "window_idx"]).reset_index(drop=True)
 
 
-# ------------------------------------------------------------------------------------
-# stability: annual flicker vs window-state changes
-# ------------------------------------------------------------------------------------
+# --- stability: annual flicker vs window-state changes ---
 def _changes(states: np.ndarray) -> int:
     return int((states[1:] != states[:-1]).sum()) if len(states) > 1 else 0
 
@@ -132,8 +120,8 @@ def window_changes(wt: pd.DataFrame) -> pd.DataFrame:
 def change_summary(wt: pd.DataFrame, min_windows: int = 2) -> dict:
     """Fraction of parcels with 0 / ≥1 / ≥2 window-state changes — the M1 stability claim.
 
-    Restricted to parcels observed in at least ``min_windows`` windows, because a parcel seen
-    once cannot change and would otherwise dilute the rate toward zero.
+    Restricted to parcels observed in ≥ ``min_windows`` windows; a parcel seen once cannot
+    change and would dilute the rate toward zero.
     """
     ch = window_changes(wt)
     ch = ch[ch["n_windows"] >= min_windows]
@@ -151,9 +139,8 @@ def change_summary(wt: pd.DataFrame, min_windows: int = 2) -> dict:
 def annual_flicker(preds: pd.DataFrame, drop_abstained: bool = True) -> dict:
     """The S5-style annual flicker, for comparison with the window rate.
 
-    Two variants: the 3-class series (the gate's own definition) and the
-    perennial-vs-rest binarisation (the estimand this plan actually uses). Reported for
-    PERENNIAL-labelled parcels — the gate's population — and for all parcels.
+    Two variants: the 3-class series (the gate's definition) and the perennial-vs-rest
+    binarisation (this plan's estimand). Reported for PERENNIAL-labelled parcels and for all.
     """
     from crop_classifier.perennial import trajectories as TR
 
@@ -177,16 +164,14 @@ def annual_flicker(preds: pd.DataFrame, drop_abstained: bool = True) -> dict:
     return out
 
 
-# ------------------------------------------------------------------------------------
-# shares (M2/M3) and the noise floor (W3)
-# ------------------------------------------------------------------------------------
+# --- shares (M2/M3) and the noise floor (W3) ---
 def share_by(wt: pd.DataFrame, by: list[str] | None = None,
              weighted: bool = True) -> pd.DataFrame:
     """Weighted share perennial per window, optionally split by ``by`` columns.
 
-    **Weighted by default and it must stay that way**: the national sample allocates
-    departments sqrt-proportionally, which doubles the raw PERENNIAL share, so any unweighted
-    share is a statement about the sample and not about Peru (CLAUDE.md §8).
+    Weighted by default and must stay so: the national sample allocates departments
+    sqrt-proportionally, doubling the raw PERENNIAL share, so an unweighted share is about
+    the sample not Peru (CLAUDE.md §8).
     """
     by = list(by or [])
     keys = by + ["window"]
@@ -208,11 +193,11 @@ def share_by(wt: pd.DataFrame, by: list[str] | None = None,
 
 
 def adjacent_disagreement(wt: pd.DataFrame, restrict: pd.Series | None = None) -> dict:
-    """Up/down state changes between **adjacent** windows — the noise floor.
+    """Up/down state changes between adjacent windows — the noise floor.
 
-    Any change estimate has to clear this. Symmetry is the tell: a classifier that is merely
-    noisy moves parcels up and down at the same rate, while a real conversion (or a drifting
-    model) is directional.
+    Any change estimate has to clear this. Symmetry is the tell: a noisy classifier moves
+    parcels up and down at the same rate; a real conversion (or a drifting model) is
+    directional.
     """
     d = wt if restrict is None else wt[restrict]
     piv = d.pivot_table(index="COD_PREDIO", columns="window", values="perennial")
@@ -238,19 +223,16 @@ def adjacent_disagreement(wt: pd.DataFrame, restrict: pd.Series | None = None) -
 
 
 def density_confound_test(preds: pd.DataFrame, min_years: int = MIN_YEARS) -> dict:
-    """Does the window probability track **observation density** rather than the land?
+    """Does the window probability track observation density rather than the land?
 
-    Landsat observation counts are not stationary: with L5 retired and L7 SLC-off, the
-    national panel averages ~24 clear observations per parcel-year in 2004-08 and ~13 in
-    2019-23. Fewer observations mean a weaker phenological signal, and a classifier with a
-    weaker signal reverts toward its prior — which shows up as *both* a falling probability
-    on true perennials and a rising one on true annuals. That is indistinguishable, at the
-    level of a share, from a real conversion.
+    With L5 retired and L7 SLC-off, the national panel averages ~24 clear observations per
+    parcel-year in 2004-08 and ~13 in 2019-23. A weaker signal reverts toward the prior —
+    falling probability on true perennials, rising on true annuals — which at share level is
+    indistinguishable from a real conversion.
 
-    The test is **within parcel**: regress the window-mean probability on
-    ``log(n_valid_obs)`` after removing a parcel fixed effect, separately by PETT label, with
-    SEs clustered by parcel. A positive coefficient on the PETT-``PERENNIAL`` pool together
-    with a negative one on the PETT-``ANNUAL`` pool is the compression signature.
+    Within parcel: regress the window-mean probability on ``log(n_valid_obs)`` after a
+    parcel FE, by PETT label, SEs clustered by parcel. Positive on PETT-``PERENNIAL`` and
+    negative on PETT-``ANNUAL`` is the compression signature.
     """
     import statsmodels.api as sm
 
@@ -301,20 +283,16 @@ def slope_per_decade(shares: pd.DataFrame) -> float:
     return float(np.polyfit(x, y, 1)[0] * 10.0)
 
 
-# ------------------------------------------------------------------------------------
-# T3 — the window diagnostic
-# ------------------------------------------------------------------------------------
+# --- T3 — the window diagnostic ---
 def run_diagnostic(preds_path: Path | str, tag: str = "", tenure: pd.DataFrame | None = None,
                    min_years: int = MIN_YEARS, threshold: float = THRESHOLD,
                    balanced: bool = False, save: bool = True) -> dict:
     """Task T3: replicate the §1 M1/M2 window result on a panel and gate it on W1-W4.
 
-    Returns the verdict dict. **A failure here means the pivot does not survive and no GEE
-    budget should be spent** — that is the point of running it before T4.
+    A failure here means the pivot does not survive and no GEE budget should be spent.
 
-    ``balanced`` restricts to parcels that qualify in *every* window, which separates a
-    genuine level change from a changing parcel set. It is a diagnostic, not the default:
-    the estimand is defined on all parcels that qualify in the window being reported.
+    ``balanced`` restricts to parcels that qualify in every window, separating a genuine
+    level change from a changing parcel set — a diagnostic, not the default.
     """
     preds = pd.read_parquet(preds_path)
     if tenure is not None:
@@ -423,35 +401,30 @@ def print_diagnostic(v: dict) -> None:
     print(f"  => {'PASS' if v['pass'] else 'FAIL'}")
 
 
-# ------------------------------------------------------------------------------------
-# T1 — is classifier error non-differential with respect to tenure?
-# ------------------------------------------------------------------------------------
+# --- T1 — is classifier error non-differential with respect to tenure? ---
 def tenure_error_test(preds_cv: pd.DataFrame, parcels: pd.DataFrame,
                       tenure: pd.DataFrame, target: str = "PERENNIAL",
                       save: bool = True, tag: str = "") -> dict:
-    """Task T1. The estimator is a difference in *predicted* share between tenure groups.
+    """Task T1. The estimator is a difference in predicted share between tenure groups.
 
-    That equals the difference in *true* share only if the classifier errs the same way on
-    both groups::
+    That equals the difference in true share only if the classifier errs the same way on
+    both::
 
         observed_share = true_share · sensitivity + (1 − true_share) · (1 − specificity)
 
-    Equal sensitivity/specificity (**non-differential**) attenuates the contrast toward zero
-    but preserves its sign, and one error matrix corrects it. Unequal (**differential**)
-    leaves a bias of unknown sign that no single correction removes.
+    Non-differential error attenuates the contrast toward zero but preserves its sign, and
+    one error matrix corrects it; differential error leaves a bias of unknown sign.
 
-    Two tests, because INSCRITO parcels are genuinely different parcels (larger, more often
-    perennial) and a raw gap is expected:
+    Two tests, since INSCRITO parcels are genuinely different (larger, more often perennial):
 
     1. marginal sensitivity / false-positive rate / predicted-vs-true share per group;
-    2. ``correct ~ tenure + true_class + log(area)`` with region fixed effects — a linear
-       probability model with region absorbed and SEs clustered by region, plus a logit with
-       department FE as a check. The **tenure coefficient is the test**.
+    2. ``correct ~ tenure + true_class + log(area)`` — an LPM with region FE absorbed, SEs
+       clustered by region, plus a logit with department FE as a check. The tenure
+       coefficient is the test.
 
-    ⚠️ This tests error at the *label year* (~1999, TM/ETM+) while the estimand sits in
-    2019-2023. There is no endpoint ground truth anywhere in the project, so non-differential
-    error at the endpoint is **assumed, not verified** — state it wherever the contrast is
-    reported (RESULTS.md §5, gate T1).
+    ⚠️ This tests error at the label year (~1999, TM/ETM+) while the estimand sits in
+    2019-2023. With no endpoint ground truth, non-differential error at the endpoint is
+    assumed, not verified.
     """
     import statsmodels.api as sm
     import statsmodels.formula.api as smf
@@ -487,7 +460,7 @@ def tenure_error_test(preds_cv: pd.DataFrame, parcels: pd.DataFrame,
         })
     marg = pd.DataFrame(rows)
 
-    # stratified by area quartile — the most likely confounder (clean-pixel count)
+    # stratified by area quartile — the likeliest confounder (clean-pixel count)
     df["area_q"] = pd.qcut(df["area_ha"], 4, labels=["q1", "q2", "q3", "q4"],
                            duplicates="drop")
     strat_rows = []
@@ -503,11 +476,10 @@ def tenure_error_test(preds_cv: pd.DataFrame, parcels: pd.DataFrame,
                  if piv.shape[1] == 2 else float("nan"))
 
     # --- the operative bias: differential FALSE POSITIVES inside the at-risk pool ---
-    # The estimand is the perennial share of parcels whose PETT label is ANNUAL. Their true
-    # perennial share at the label year is ~0 by construction, so their *measured* share is
-    # essentially the classifier's false-positive rate. A tenure gap in that rate transfers
-    # one-for-one into the tenure contrast, whatever the true conversion rate is — this is
-    # the number that decides whether the contrast is interpretable, not the accuracy test.
+    # The estimand is the perennial share of PETT-ANNUAL parcels; their true perennial share
+    # at the label year is ~0, so their measured share is essentially the classifier's
+    # false-positive rate. A tenure gap in that rate transfers one-for-one into the contrast
+    # — this is the number that decides interpretability, not the accuracy test.
     pool = df[df[true_col] == "ANNUAL"]
     fp_rows = []
     for grp, sub in pool.groupby("tenure"):
@@ -525,7 +497,7 @@ def tenure_error_test(preds_cv: pd.DataFrame, parcels: pd.DataFrame,
     X["insc"] = d["insc"].values
     X["log_area"] = d["log_area"].values
     y = d["correct"].astype(float)
-    # within-transform on region (absorbing ~n_regions FE without materialising dummies)
+    # within-transform on region (absorbs the FE without materialising dummies)
     grp = d["region_id"].values
     Xd = X.groupby(grp).transform(lambda s: s - s.mean())
     yd = y.groupby(grp).transform(lambda s: s - s.mean())
@@ -540,7 +512,7 @@ def tenure_error_test(preds_cv: pd.DataFrame, parcels: pd.DataFrame,
     except Exception as e:                                   # pragma: no cover
         print(f"  logit did not converge ({e}); LPM only")
 
-    # conditional version of the same thing: FP ~ tenure within region and size
+    # conditional FP ~ tenure within region and size
     pool_d = pool.dropna(subset=["region_id", "log_area"]).copy()
     Xf = pd.DataFrame({"insc": (pool_d["tenure"] == "INSCRITO").astype(float).values,
                        "log_area": pool_d["log_area"].values}, index=pool_d.index)
@@ -572,10 +544,9 @@ def tenure_error_test(preds_cv: pd.DataFrame, parcels: pd.DataFrame,
                    logit_tenure_p=float(logit.pvalues["insc"]))
     out["pass_accuracy"] = bool(out["lpm_tenure_p"] > 0.05)
     out["pass_sensitivity"] = bool(np.isnan(max_dsens) or max_dsens < 0.05)
-    # The false-positive leg is not in the window plan's original criterion
-    # (RESULTS.md §5); it is added here
-    # because it is the leg the estimand actually rests on (see above). Criterion: the
-    # conditional gap must be small against the ~2 pp differential the design is powered for.
+    # The false-positive leg is not in the plan's original criterion; added because it is
+    # the leg the estimand rests on. Criterion: the conditional gap must be small against
+    # the ~2 pp differential the design is powered for.
     out["pass_false_positive"] = bool(out["at_risk_fp_gap_conditional_p"] > 0.05
                                       or abs(out["at_risk_fp_gap_conditional"]) < 0.01)
     out["pass"] = bool(out["pass_accuracy"] and out["pass_sensitivity"]

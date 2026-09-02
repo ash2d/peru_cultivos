@@ -1,50 +1,29 @@
 """CENAGRO 2012 as the "before" observation, instead of the PETT declaration.
 
-Every before/after in this project so far has used the **PETT** declared crop as its
-baseline: one observation per parcel, made ~1996–2006 when the parcel was titled. The 2012
-agricultural census is a **second, independently collected** observation of what is growing
-on (some of) the same parcels, 6–16 years later, and it lets two questions be asked that the
-PETT baseline cannot:
+The 2012 census is a second, independently collected observation of what grows on (some of)
+the same parcels, 6–16 years after the PETT declaration. It lets two questions be asked:
+PETT → CENAGRO (a paired change between two *declared* observations, no satellite anywhere)
+and CENAGRO → photo-interpreted 2019+ (a 7-year rather than 21-year window).
 
-1. **PETT → CENAGRO**, a paired change between two *declared* observations on the same
-   parcel, with no satellite and no classifier anywhere in it;
-2. **CENAGRO → photo-interpreted 2019+**, which replaces a ~1998 baseline with a 2012 one
-   and so measures a 7-year rather than a 21-year window.
+⚠️ Read `DATA.md` §2 Chain B first. The census carries no parcel key — the only link is the
+farmer's name, so it is farmer-level, not parcel-level. Even on the recovered
+`Base_Cenagro_PETT_Piura` crosswalk, an independent name match reproduces `COD_PREDIO` only
+~43 % of the time. Every figure here is broken out by `link_confidence` (high/medium/low).
 
-⚠️ **Read `docs/DATA.md` §2 Chain B before using any of this.** The census carries **no
-parcel key** — no `COD_PREDIO`, no `CodigoSSET`. The only link is the **farmer's name**, and
-the link is therefore *farmer-level, not parcel-level*: a producer with three parcels is
-matched to a person, and which of their polygons a census row refers to is uncertain. Even
-on the recovered `Base_Cenagro_PETT_Piura` crosswalk, an independent name match reproduces
-the same `COD_PREDIO` only ~43 % of the time. `merged_parcels.parquet` carries
-`link_confidence` (high/medium/low) and every figure here is reported broken out by it,
-because that is the only honest way to show how much of the answer is the link rather than
-the land.
+⚠️ Piura only (reads `merged_parcels.parquet`), so not a neutral sample of Peru.
 
-⚠️ **This module is Piura only** — it reads `merged_parcels.parquet`, the Piura crosswalk
-notebook 02 built, and Piura is the department every earlier strand was built on, so it is
-*not* a neutral sample of Peru.
+⭐ `allperu/cenagro_shift.py` repeats this over all 14 linkable departments on a nationally
+built name link — 63,766 like-for-like parcels vs 8,669 here (`RESULTS.md` §8.6). This
+module is the first, independently built version; its Piura answer (+12.5 pp) vs the
+national build's Piura arm (+11.6 pp) is the only external check either has. **For anything
+national, use `cenagro_shift.py`.**
 
-⭐ **The census itself is no longer Piura-only.** All 25 department files were extracted on
-2026-08-29 (`DATA.md` §1.5, `allperu/cenagro_extract.py`), and **`allperu/cenagro_shift.py`
-repeats this comparison over all 14 linkable departments** on a nationally built name link
-(`allperu/cenagro_link.py`) — 63,766 like-for-like parcels against the 8,669 here
-(`RESULTS.md` §8.6). This module is kept as the first, independently built version: its Piura
-answer (+12.5 pp) against the national build's Piura arm (+11.6 pp) is the only external check
-either number has. **For anything national, use `cenagro_shift.py`, not this.**
-
-**Both sides are classified with the same lexicon machinery** (`perennial/labels3.py`),
-because otherwise part of any measured "change" would be a change of definition. The census
-config (`config/perennial_cenagro.yaml`) is `perennial_allperu.yaml` **plus tokens only** —
-no existing assignment is altered.
-
-⚠️ **That extension was necessary, and finding out why is the point.** The census uses
-fuller crop names than the titling registry ("LIMON ACIDO" not "LIMON"). Audited over 59,855
-census token-instances, 2,448 (**4.09 %**) fell through to `crop_fallback: ANNUAL` — and
-**1,969 of them were the single token `VERGEL FRUTICOLA`, literally "fruit orchard"**. Left
-alone, the largest unmapped token in the census would have been silently counted as an
-annual crop, biasing the 2012 perennial share *down* and the measured shift *up*.
-`token_audit()` below reproduces the check; run it before trusting any number here.
+Both sides use the same lexicon machinery (`perennial/labels3.py`), or part of any "change"
+would be a change of definition. The census config is `perennial_allperu.yaml` plus tokens
+only. ⚠️ The census uses fuller crop names ("LIMON ACIDO" not "LIMON"): of 59,855 token
+instances, 2,448 (4.09 %) fell through to `crop_fallback: ANNUAL`, 1,969 of them the single
+token `VERGEL FRUTICOLA` ("fruit orchard") — left alone it biases the shift *up*.
+`token_audit()` reproduces the check.
 """
 
 from __future__ import annotations
@@ -62,24 +41,19 @@ PETT_NATIONAL = ROOT / "data" / "processed" / "all_peru_full" / "modeling_parcel
 LABELS_S2 = ROOT / "data" / "processed" / "all_peru" / "labels_s2" / "labelled_parcels.parquet"
 OUT_DIR = ROOT / "data" / "processed" / "cenagro"
 
-# The census lists a parcel's crops separated by " | ".
 CROP_SEP = "|"
-# The photo-interpreted classes, collapsed onto the declared label space so the two can be
-# crossed. `WOODY_NON_CROP` deliberately has **no** mapping: it is the codebook's hardest
-# call and folding it either way is the decision, not a preprocessing step — both readings
-# are reported side by side instead.
+# Photo-interpreted classes collapsed onto the declared label space. `WOODY_NON_CROP` is
+# left unmapped on purpose — the codebook's hardest call; both readings are reported.
 S2_TO_DECLARED = {"PERENNIAL": "PERENNIAL", "ANNUAL": "ANNUAL",
                   "OTHER": "PASTURE_FALLOW", "NON_AGRICULTURE": None,
                   "WOODY_NON_CROP": None}
 
 
-# ---------------------------------------------------------------------------------
 def classify_crop_list(series: pd.Series, config_path: Path | None = None) -> pd.Series:
     """`"LIMON ACIDO | MELON"` -> `PERENNIAL`, via the project's own 3-class lexicon.
 
-    Uses `crop_normalization.normalize_label` for the token split and
-    `labels3.assign_group` for the group, so a census crop name is resolved by exactly the
-    rules a PETT crop name is. `None` where nothing in the cell resolves.
+    Same `normalize_label` + `assign_group` path a PETT crop name takes. `None` where
+    nothing in the cell resolves.
     """
     from crop_classifier.crop_normalization import normalize_label
     from crop_classifier.perennial.labels3 import (
@@ -115,10 +89,9 @@ def classify_crop_list(series: pd.Series, config_path: Path | None = None) -> pd
 def token_audit(config_path: Path | None = None) -> pd.DataFrame:
     """Every distinct census crop token, what it resolved to, and how.
 
-    The row that matters is ``source == "crop_fallback"``: a token the lexicon has no entry
-    for, assigned `ANNUAL` because annuals dominate the unlisted tail. A large fallback share
-    does not raise — it just quietly moves the answer — so this is printed as a share and
-    compared against the config's own ``max_unassigned_frac`` budget.
+    ``source == "crop_fallback"`` is a token with no lexicon entry, assigned `ANNUAL`; a
+    large fallback share does not raise, it just moves the answer, so it is printed as a
+    share against the config's ``max_unassigned_frac`` budget.
     """
     from collections import Counter
 
@@ -153,19 +126,14 @@ def token_audit(config_path: Path | None = None) -> pd.DataFrame:
 def _share_table(df: pd.DataFrame, before: str, after: str,
                  classes: tuple[str, ...] = ("PERENNIAL", "ANNUAL", "PASTURE_FALLOW")
                  ) -> pd.DataFrame:
-    """Composition before, composition after, and the change — in percentage points.
-
-    Percentage *points* rather than a ratio because a share that moves 4 % → 8 % is a
-    +4 pp change and a doubling, and only one of those two numbers is additive across
-    classes. Both are given.
-    """
+    """Composition before, after, and the change in percentage points (plus the ratio —
+    4 % → 8 % is +4 pp *and* a doubling, and only the pp is additive across classes)."""
     n = len(df)
     rows = []
     for c in classes:
         b = float((df[before] == c).mean())
         a = float((df[after] == c).mean())
-        # binomial SE of a paired difference is not the difference of the marginal SEs;
-        # McNemar's discordant pairs are what carry the information
+        # paired difference: McNemar's discordant pairs carry the information, not the marginals
         b_only = int(((df[before] == c) & (df[after] != c)).sum())
         a_only = int(((df[before] != c) & (df[after] == c)).sum())
         disc = b_only + a_only
@@ -184,7 +152,6 @@ def _share_table(df: pd.DataFrame, before: str, after: str,
     return out
 
 
-# ---------------------------------------------------------------------------------
 def build(config_path: Path | None = None, save: bool = True) -> dict:
     """The whole comparison. Returns the tables; prints them with their units."""
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -204,8 +171,7 @@ def build(config_path: Path | None = None, save: bool = True) -> dict:
     print(f"census crop lists resolved to a 3-class label: {res:.1%} "
           f"({int(merged['cen_class'].isna().sum()):,} unresolved or blank)")
 
-    # one row per polygon: a producer's parcels can repeat a COD_PREDIO, and the
-    # crosswalk is farmer-level, so collapse on the highest-priority class present
+    # one row per polygon: the crosswalk is farmer-level, so collapse on the highest-priority class
     prio = {"PERENNIAL": 0, "ANNUAL": 1, "PASTURE_FALLOW": 2}
     merged["_p"] = merged["cen_class"].map(prio)
     cen = (merged.sort_values("_p")
@@ -241,13 +207,11 @@ def build(config_path: Path | None = None, save: bool = True) -> dict:
     print("shares of parcels, %; change in percentage points with a paired (McNemar) CI")
     print(t1.to_string(index=False))
 
-    # ---- 1b. ⚠️ the comparison that is actually like-for-like ----
-    # The two instruments do not share a class space. PETT recorded a land *state* and has
-    # an explicit "EN DESCANSO" token; CENAGRO question 024 asks which crop is grown, so a
-    # parcel lying fallow contributes no crop row at all and simply leaves the frame. That
-    # is why PASTURE_FALLOW appears to collapse 17.9 % -> 1.1 %: it is not land change, it
-    # is the census having no way to say it. The only defensible comparison is therefore
-    # **conditional on a crop being recorded on both sides**.
+    # ---- 1b. ⚠️ the like-for-like comparison ----
+    # The instruments don't share a class space: CENAGRO Q024 asks which crop is grown, so a
+    # fallow parcel contributes no row and leaves the frame — PASTURE_FALLOW "collapses"
+    # 17.9 -> 1.1 % as an instrument artefact. Only defensible comparison: conditional on a
+    # crop recorded on both sides.
     crop_only = paired[paired.pett_class.isin(["PERENNIAL", "ANNUAL"])
                        & paired.cen_class.isin(["PERENNIAL", "ANNUAL"])].copy()
     t1b = _share_table(crop_only, "pett_class", "cen_class",
@@ -260,9 +224,8 @@ def build(config_path: Path | None = None, save: bool = True) -> dict:
           "instrument\ndifference, not land change.")
     print(t1b.to_string(index=False))
 
-    # area-weighted, on the CADASTRAL area. The census self-reported parcel area is
-    # uncorrelated with the cadastral polygon area (Pearson ~0.01, DATA.md Chain B) and
-    # must not be used as a weight.
+    # weighted by CADASTRAL area — the census self-reported area is uncorrelated with it
+    # (Pearson ~0.01, DATA.md Chain B) and must not be a weight.
     w = crop_only["area_ha"]
     ar = []
     for c in ("PERENNIAL", "ANNUAL"):

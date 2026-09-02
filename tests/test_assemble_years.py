@@ -37,7 +37,7 @@ def write_store(tmp_path, frames):
     return tmp_path
 
 
-# ---- the guard -----------------------------------------------------------------------
+# --- the guard ---
 def test_multi_year_parcel_is_rejected_not_silently_merged(tmp_path):
     store = write_store(tmp_path, [synthetic_pixels(1998, 0.10),
                                    synthetic_pixels(2015, 0.60)])
@@ -52,7 +52,7 @@ def test_single_year_store_passes_the_guard(tmp_path):
     A.assert_one_year_per_parcel(A.load_pixels(store))   # must not raise
 
 
-# ---- the fix -------------------------------------------------------------------------
+# --- the fix ---
 def test_years_filter_isolates_a_year(tmp_path):
     store = write_store(tmp_path, [synthetic_pixels(1998, 0.10),
                                    synthetic_pixels(2015, 0.60)])

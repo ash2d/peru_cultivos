@@ -3,10 +3,10 @@
 ⛔ CLOSED ROUTE. T1, T2 and T3 all failed and no extraction was funded (docs/RESULTS.md §5).
 Kept so the code does not rot; LOYO/tenure helpers here are still used by live work.
 
-Every test here pins a *decision*, not an implementation detail — the aggregation rule (mean
-probability, then one threshold), the ≥3-observed-years qualification, weighted shares, the
-tenure reconciliation policy, and the year×label balancing of the test draw. Those are the
-things a later refactor could silently change and no downstream number would look wrong.
+Every test pins a *decision*, not an implementation: the aggregation rule (mean probability
+then one threshold), the ≥3-observed-years qualification, weighted shares, the tenure
+reconciliation policy, and the year×label balancing of the test draw — things a refactor
+could silently change with no downstream number looking wrong.
 """
 
 from __future__ import annotations
@@ -25,9 +25,7 @@ from crop_classifier.splits import _draw_test_units, _joint_tv_distance, pick_te
 pytestmark = pytest.mark.closed_route
 
 
-# ------------------------------------------------------------------------------------
-# helpers
-# ------------------------------------------------------------------------------------
+# --- helpers ---
 def make_preds(spec: dict[str, dict[int, float]], pett: dict[str, str] | None = None,
                weight: dict[str, float] | None = None,
                abstain: set[tuple[str, int]] | None = None) -> pd.DataFrame:
@@ -48,9 +46,7 @@ def make_preds(spec: dict[str, dict[int, float]], pett: dict[str, str] | None = 
     return pd.DataFrame(rows)
 
 
-# ------------------------------------------------------------------------------------
-# M1 — window aggregation
-# ------------------------------------------------------------------------------------
+# --- M1: window aggregation ---
 def test_window_of_covers_1999_2023_and_excludes_the_baseline_years():
     assert W.window_of(1999) == "W99"
     assert W.window_of(2003) == "W99"
@@ -104,9 +100,7 @@ def test_parcels_seen_in_one_window_are_excluded_from_the_change_rate():
     assert W.change_summary(wt)["n_parcels"] == 0
 
 
-# ------------------------------------------------------------------------------------
-# shares, weights and the noise floor
-# ------------------------------------------------------------------------------------
+# --- shares, weights and the noise floor ---
 def test_share_by_uses_sampling_weights():
     yrs = {y: 0.9 for y in range(1999, 2004)}
     lo = {y: 0.1 for y in range(1999, 2004)}
@@ -148,9 +142,7 @@ def test_density_confound_detects_probability_compression():
     assert out["PERENNIAL"]["coef"] > 0 and out["ANNUAL"]["coef"] < 0
 
 
-# ------------------------------------------------------------------------------------
-# tenure
-# ------------------------------------------------------------------------------------
+# --- tenure ---
 def test_clean_tenure_parses_accents_and_flags_the_unexpected():
     s = pd.Series(["INSCRITO", "no inscrito", " Inscrito ", "EN TRAMITE", None])
     out = TEN._clean_tenure(s)
@@ -183,9 +175,7 @@ def test_classify_estado_separates_registered_from_in_process():
                    "POSSESSION", "NONE"]
 
 
-# ------------------------------------------------------------------------------------
-# §4.4 — balanced test draw
-# ------------------------------------------------------------------------------------
+# --- §4.4: balanced test draw ---
 def _split_frame(n_regions: int = 60, seed: int = 0) -> pd.DataFrame:
     """Regions whose label-year mix varies, like a titling campaign sweeping region by region."""
     rng = np.random.default_rng(seed)
@@ -226,9 +216,7 @@ def test_single_candidate_reproduces_the_original_draw():
     assert pick_test_units(df, "region_id", 0.2, seed=7) == expected
 
 
-# ------------------------------------------------------------------------------------
-# §4.5/§4.6 — the window sample
-# ------------------------------------------------------------------------------------
+# --- §4.5/§4.6: the window sample ---
 def test_power_n_grows_as_the_differential_shrinks():
     n2 = WS.power_n(0.03, 0.05)
     n1 = WS.power_n(0.03, 0.04)
@@ -247,9 +235,7 @@ def test_quotas_never_exceed_what_a_stratum_has():
     assert want[("ANNUAL", TEN.INSCRITO, "B")] == 5
 
 
-# ------------------------------------------------------------------------------------
-# interpretation guards
-# ------------------------------------------------------------------------------------
+# --- interpretation guards ---
 def test_export_status_is_any_export_crop_then_mixed_then_domestic():
     assert EX.parcel_export_status("UVA") == "EXPORT"
     assert EX.parcel_export_status("MANZANA+UVA") == "EXPORT"

@@ -29,13 +29,11 @@ from crop_classifier.allperu import cenagro_shift as S
 from crop_classifier.paths import ROOT
 
 
-# ── the extract ───────────────────────────────────────────────────────────────────────
+# --- the extract ---
 def test_the_parquet_schema_is_declared_not_inferred():
-    """Every kept column has a fixed type before any row is read.
-
-    A chunked write needs one schema for the whole file. Inferring it per chunk is how a
-    department ends up with `P024_03` as object in chunk 1 and float in chunk 2, which fails
-    the write half way through a 2.5 M-row department.
+    """Every kept column has a fixed type before any row is read: a chunked write needs one
+    schema for the whole file, and inferring it per chunk is how `P024_03` lands as object in
+    chunk 1 and float in chunk 2, failing the write half way through a 2.5 M-row department.
     """
     names = [f.name for f in E.SCHEMA]
     assert len(names) == len(set(names)), "duplicate column in the declared schema"
@@ -73,7 +71,7 @@ def test_tidy_forces_one_type_per_column_whatever_the_chunk_looked_like():
         assert ta[col].dtype == tb[col].dtype, f"{col} type depends on the chunk"
 
 
-# ── the name link ─────────────────────────────────────────────────────────────────────
+# --- the name link ---
 @pytest.mark.parametrize("raw,expected", [
     ("VALDIVIA CASTILLO MARIA LUCILA", ("VALDIVIA", "CASTILLO", ["MARIA", "LUCILA"])),
     ("RIVAS GA, MARIA ROMELIA", ("RIVAS", "GA", ["MARIA", "ROMELIA"])),
@@ -110,10 +108,9 @@ def test_the_token_set_route_survives_swapped_surnames():
 
 
 def test_an_over_common_name_is_dropped_rather_than_resolved():
-    """⚠️ At high multiplicity a name carries no information.
-
-    Keeping it would silently load the sample with whichever departments have the most
-    repeated surnames, so the cap drops the key instead of picking a winner.
+    """⚠️ At high multiplicity a name carries no information; keeping it would load the sample
+    toward whichever departments have the most repeated surnames, so the cap drops the key
+    instead of picking a winner.
     """
     assert L.MAX_CANDIDATES >= 1
     key = pd.Series(["A"] * (L.MAX_CANDIDATES + 5))
@@ -123,7 +120,7 @@ def test_an_over_common_name_is_dropped_rather_than_resolved():
     assert right[n_right <= L.MAX_CANDIDATES].empty, "over-common keys must not survive"
 
 
-# ── the shift: weighting and intervals ────────────────────────────────────────────────
+# --- the shift: weighting and intervals ---
 def _frame(perennial: int, other: int, weight: float = 1.0) -> pd.DataFrame:
     lab = ["PERENNIAL"] * perennial + ["ANNUAL"] * other
     return pd.DataFrame({"c": lab, "w": [weight] * len(lab)})
@@ -192,12 +189,10 @@ def test_post_stratification_restores_the_population_cell_counts(tmp_path, monke
 
 
 def test_the_committed_population_counts_are_the_national_ones(tmp_path, monkeypatch):
-    """⚠️ The counts post-stratification reweights to are COMMITTED, and a test once
-    overwrote them with a 100-parcel fixture — which silently moved the headline from
-    +9.9 pp to +16.2 pp and reproduced perfectly on the machine that had the real table.
-
-    So: pin the file's content, and pin that estimating never writes it. Regenerate it
-    deliberately with `cenagro_shift.export_pett_population()`.
+    """⚠️ The counts post-stratification reweights to are COMMITTED. A test once overwrote
+    them with a 100-parcel fixture, silently moving the headline +9.9 pp → +16.2 pp and
+    reproducing perfectly on the machine that had the real table. So: pin the file's content,
+    and pin that estimating never writes it (regenerate with `export_pett_population()`).
     """
     pop = pd.read_csv(S.PETT_POP)
     assert set(pop.columns) == {"dept", "label", "N_pop"}
@@ -234,7 +229,7 @@ def test_the_tenure_difference_row_subtracts_and_widens():
     assert diff.ci95_pp >= max(ins.ci95_pp, noi.ci95_pp)
 
 
-# ── the figure ────────────────────────────────────────────────────────────────────────
+# --- the figure ---
 def _fig_module():
     path = ROOT / "docs" / "figures" / "perennial_over_time_by_tenure.py"
     spec = importlib.util.spec_from_file_location("_fig", path)
@@ -280,10 +275,9 @@ def test_the_figure_renders(tmp_path):
 
 
 def test_the_imagery_arm_carries_its_own_baseline():
-    """⚠️ Each arm restricts to a different parcel set, so it cannot inherit the census's.
-
-    If these were ever made equal, the figure would be asserting that the three instruments
-    measure the same quantity on the same frame — which is exactly what §8.6 says they do not.
+    """⚠️ Each arm restricts to a different parcel set, so it cannot inherit the census's
+    baseline. Making them equal would assert the three instruments measure the same quantity
+    on the same frame — exactly what §8.6 says they do not.
     """
     mod = _fig_module()
     for s in mod.VALUES.values():

@@ -22,27 +22,17 @@ perennial_app = typer.Typer(no_args_is_help=True,
                             help="3-class perennial/annual/pasture work (docs/RESULTS.md §2)")
 allperu_app = typer.Typer(no_args_is_help=True,
                           help="all-Peru extension: 14 linkable departments (docs/RESULTS.md §4)")
-# ⛔ Commands whose ESTIMAND was abandoned after a pre-registered gate failed. The code is
-# built, unit-tested and correct; it stays unrun (docs/RESULTS.md §9), and it stays in the
-# tree because "we tried this and measured why it does not work" is a result.
-#
-# It sits at the top level as `cc archive`, beside the modules in
-# src/crop_classifier/archive/ (see the README there for what each one tried and which gate
-# killed it). Nothing about how they run has changed, only the prefix:
-#   cc allperu windows ...  ->  cc archive windows ...
+# ⛔ Commands whose estimand was abandoned after a pre-registered gate failed. Built,
+# tested, correct; kept unrun because "we tried this and measured why it fails" is a result
+# (docs/RESULTS.md §9; src/crop_classifier/archive/README.md). Exposed as `cc archive`.
 closed_app = typer.Typer(
     no_args_is_help=True,
     help="⛔ closed routes — the estimand failed its gate; kept for reproduction only "
          "(src/crop_classifier/archive/README.md, docs/RESULTS.md §5, §6.4, §7, §9)")
-# The historical grouping: `features`, `perennial`, `allperu`. It groups commands by which
-# *strand of the research* built them, which is the right axis for someone who worked on the
-# project and the wrong one for someone arriving at it — `allperu` alone held 27 commands, of
-# which about four are the pipeline.
-#
-# The task-shaped groups below (`data`, `satellite`, `analysis`, ...) re-register these same
-# functions under names that say what you would be trying to do. Both work; only the new ones
-# are listed in `--help`, so a shell history, a running script or a line in docs/PIPELINE.md
-# keeps working while the docs migrate.
+# Historical grouping by research strand (`features`, `perennial`, `allperu`). The
+# task-shaped groups below (`data`, `satellite`, `analysis`, ...) re-register the same
+# functions under names that say what you are trying to do. Both work; only the new ones
+# show in `--help`, so old scripts keep working while the docs migrate.
 app.add_typer(labels_app, name="labels")
 app.add_typer(splits_app, name="splits")
 app.add_typer(features_app, name="features", hidden=True)
@@ -52,12 +42,9 @@ app.add_typer(closed_app, name="archive")
 
 
 # ── the active workspace ─────────────────────────────────────────────────────────────────
-# `-w NAME` replaces the three exports (CC_PROC / CC_FEAT / CC_RUNS) that every recipe used
-# to start with. It resolves the name against `workspaces.yaml` and sets those same three
-# variables, so nothing downstream changes: paths.py still resolves at call time, which is
-# still the rule that keeps one workspace from overwriting another's tables.
-#
-# Omitting -w leaves the environment exactly as it was, so an explicit CC_PROC still wins.
+# `-w NAME` resolves against `workspaces.yaml` and sets CC_PROC / CC_FEAT / CC_RUNS; paths.py
+# still resolves at call time. Omitting -w leaves the environment as-is, so an explicit
+# CC_PROC still wins.
 
 
 @app.callback()
@@ -76,8 +63,8 @@ def main(
     from crop_classifier import workspace as W
     ws = W.activate(workspace)
     if not quiet:
-        # print it on stderr so piping a command's output stays clean, and print it at all
-        # because silently targeting the wrong store is this project's oldest footgun
+        # on stderr so piping stays clean; printed at all because silently targeting the
+        # wrong store is this project's oldest footgun
         typer.echo(f"workspace={ws.name}  proc={ws.proc}  feat={ws.feat}  runs={ws.runs}",
                    err=True)
 
@@ -85,10 +72,9 @@ def main(
 def _use_round(name: str) -> None:
     """`--round NAME` -> ``CC_LABELS=<CC_PROC>/labels_s2_NAME``.
 
-    A labelling round is a draw plus the labels that came back from it, and the two are
-    joined by an ``item_id`` that only that draw's ``label_sample.parquet`` explains. So a
-    second round gets its own directory rather than adding to the first — nothing of record
-    is edited, and both rounds stay readable on their own.
+    A round is a draw plus its returned labels, joined by an ``item_id`` only that draw's
+    ``label_sample.parquet`` explains. A second round gets its own directory so nothing of
+    record is edited.
     """
     if not name:
         return
@@ -100,9 +86,8 @@ def _use_round(name: str) -> None:
     d.mkdir(parents=True, exist_ok=True)
     f.mkdir(parents=True, exist_ok=True)
     os.environ["CC_LABELS"] = str(d)
-    # the feature store moves with the round too: `campaign assemble` REPLACES the feature
-    # table for the sample it is given, so a round assembling into the store of record would
-    # drop the 865 parcels that are already in it.
+    # the feature store moves with the round: `campaign assemble` REPLACES the feature table
+    # for its sample, so assembling into the store of record would drop the 865 parcels in it.
     os.environ["CC_FEAT"] = str(f)
     typer.echo(f"labelling round '{name}' -> labels {d}\n"
                f"{' ' * 22}features {f}", err=True)
@@ -908,6 +893,33 @@ def allperu_cenagro_shift(
     S.figure()
 
 
+@allperu_app.command("parcel-table")
+def allperu_parcel_table(
+        out: Path = typer.Option(Path("data/processed/cenagro/parcel_table.parquet"),
+                                 help="`.csv` writes CSV, anything else Parquet"),
+        run: Path = typer.Option(
+            Path("runs/s2_labels/ws_t3w_pilot__clim_temp/lightgbm"),
+            help="model run whose HELD-OUT predictions fill the 2025 column"),
+        preds: Path | None = typer.Option(
+            None, help="a `cc predict` output to use instead of the run's held-out "
+                       "predictions — the way to cover parcels the model never saw "
+                       "(docs/howto/04_predict_new_parcels.md §C)")):
+    """⭐ One row per parcel: tenure, the declared crop class, 2012, and 2019+ imagery.
+
+    The 95,941 parcels with both a PETT declaration and a CENAGRO 2012 observation — what a
+    clone can build — with every later observation left-joined on, so a column is null where
+    that instrument never looked. No analysis: `analysis perennial-shift` is what turns these
+    columns into an estimate.
+
+    ⚠️ The 2025 columns cover 157 of these parcels and are **design-weighted** (`weight`);
+    an unweighted share of them is about 3x the population's. ⚠️ `s2_pred_source` says
+    whether a prediction was held out — do not read an `applied` prediction on a parcel the
+    model trained on as skill.
+    """
+    from crop_classifier.allperu import parcel_table as T
+    T.build(run=run, preds=preds, out=out)
+
+
 @allperu_app.command("climate")
 def allperu_climate(
         step: str = typer.Argument(..., help="normals|rainfall|both"),
@@ -1113,16 +1125,10 @@ def infer(run: Path, polygons: Path | None = None, out: Path | None = None,
     _infer(run, polygons, out, tau)
 
 
-# ══════════════════════════════════════════════════════════════════════════════════════
-#  The task-shaped command surface
-# ══════════════════════════════════════════════════════════════════════════════════════
-#  Same functions, same options, grouped by what someone is trying to *do* rather than by
-#  which strand of the research produced them. The old names above still work and are
-#  hidden rather than removed.
-#
-#  Deliberately NOT everything is promoted. A command that exists because one audit needed
-#  it once lives under `advanced`, where it is findable without competing for attention
-#  with the four commands that are the pipeline.
+# ── The task-shaped command surface ──────────────────────────────────────────────────────
+# Same functions, grouped by what someone is trying to do. The old names above still work,
+# hidden. Not everything is promoted — one-off audit tools live under `advanced` so they do
+# not compete with the four pipeline commands.
 
 data_app = typer.Typer(
     no_args_is_help=True,
@@ -1219,6 +1225,7 @@ satellite_app.command("assemble")(features_assemble)
 
 # ── analysis: what the project is actually for ────────────────────────────────────────
 analysis_app.command("perennial-shift")(allperu_cenagro_shift)
+analysis_app.command("parcel-table")(allperu_parcel_table)
 analysis_app.command("tenure-gap")(allperu_tenure_xsec)
 analysis_app.command("did")(allperu_tenure_did2)
 analysis_app.command("did-sample")(allperu_did_sample)

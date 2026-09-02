@@ -6,9 +6,9 @@
 **Perennial share of cropped parcels at three observations of the same land, by tenure at the
 PETT declaration.** Written up in `docs/RESULTS.md` §8.6–8.7.
 
-⚠️ **The three points are three instruments, not one series.** Each arm is therefore drawn
-from **its own baseline** rather than continued off the previous arm's endpoint — joining them
-into one line would invent a trend no instrument measured.
+⚠️ **The three points are three instruments, not one series.** Each arm is drawn from **its
+own baseline**, not continued off the previous endpoint — one joined line would invent a
+trend no instrument measured.
 
 | x | observation | how | n |
 |---|---|---|---|
@@ -16,21 +16,19 @@ into one line would invent a trend no instrument measured.
 | 2012 | CENAGRO question 024 | farmer → census enumerator | 63,766 |
 | 2025 | Sentinel-2 / Esri | human photo-interpretation | 214 / 364 |
 
-`WOODY_NON_CROP` is the 2019+ codebook's hardest call and is deliberately left unmapped, so
-the imagery endpoint is reported **both ways** — excluded (circles) and read as perennial
-(triangles). The two readings use different parcel sets (214 vs 364, because each restricts to
-parcels observed as PERENNIAL or ANNUAL under its own mapping) and so carry different
-baselines; both are drawn.
+`WOODY_NON_CROP` is the 2019+ codebook's hardest call and is left unmapped, so the imagery
+endpoint is reported **both ways** — excluded (circles) and read as perennial (triangles).
+The two readings use different parcel sets (214 vs 364) and so carry different baselines;
+both are drawn.
 
 ⚠️ **Every share is weighted.** The census arm is post-stratified to the national PETT
-population on department × declared class — the name link over-selects perennial parcels
-(16.6 % against the population's 9.9 %). The imagery arm uses the campaign's design weight
-N_h/n_h — it deliberately over-sampled PERENNIAL, and unweighted its perennial share is ~3×
-the population's. CIs use Kish's effective n, (Σw)²/Σw², not the row count.
+population on department × declared class (the name link over-selects perennial parcels,
+16.6 % vs 9.9 %). The imagery arm uses the campaign design weight N_h/n_h — unweighted its
+perennial share is ~3× the population's. CIs use Kish's effective n, (Σw)²/Σw².
 
 The numbers below are produced by
 `uv run python -m crop_classifier.cli allperu cenagro-shift`, which re-derives them from
-`data/processed/cenagro/national_panel.parquet` and warns if this file has drifted from them.
+`data/processed/cenagro/national_panel.parquet` and warns if this file has drifted.
 """
 
 from __future__ import annotations
@@ -38,7 +36,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# ── the values, as (share %, 95 % half-width in pp) ───────────────────────────────────
+# --- the values, as (share %, 95 % half-width in pp) ---
 # Regenerate with `allperu cenagro-shift`; it checks these against the data.
 VALUES: dict[str, dict] = {
     "INSCRITO": {
@@ -72,7 +70,7 @@ def _pct(level) -> float:
     return level["pct"] if isinstance(level, dict) else level[0]
 
 
-# ── design tokens ─────────────────────────────────────────────────────────────────────
+# --- design tokens ---
 # Slots 1–2 of the validated categorical theme. Checked, not eyeballed: all-pairs CVD
 # ΔE 24.7 (target 8), normal-vision ΔE 33.6 (floor 15), both ≥ 3:1 on the light surface.
 TENURE_COLOR = {"INSCRITO": "#2a78d6", "NO INSCRITO": "#eb6834"}
@@ -104,14 +102,14 @@ def draw(values: dict[str, dict] | None = None, path: Path | str | None = None) 
     for tenure, s in V.items():
         col = TENURE_COLOR[tenure]
 
-        # ── census panel: solid, the high-precision leg. CIs are ±0.4 pp, hence invisible.
+        # census panel: solid, the high-precision leg. CIs are ±0.4 pp, hence invisible.
         ax.plot([T_PETT, T_CEN], [_pct(s["cen"][0]), _pct(s["cen"][1])],
                 color=col, lw=2.4, zorder=5)
         for x, lv in ((T_PETT, s["cen"][0]), (T_CEN, s["cen"][1])):
             ax.errorbar([x], [_pct(lv)], yerr=_err(lv), color=col, marker="o", ms=8.5,
                         mfc=col, mec=SURFACE, mew=1.6, capsize=3, elinewidth=1.2, zorder=5)
 
-        # ── imagery arm, WOODY excluded: dotted, from its OWN lower baseline
+        # imagery arm, WOODY excluded: dotted, from its OWN lower baseline
         ax.plot([T_PETT, T_S2], [_pct(s["s2"][0]), _pct(s["s2"][1])],
                 color=col, lw=1.5, ls=(0, (1.4, 2.4)), alpha=.85, zorder=2)
         ax.errorbar([T_PETT], [_pct(s["s2"][0])], yerr=_err(s["s2"][0]), color=col,
@@ -121,7 +119,7 @@ def draw(values: dict[str, dict] | None = None, path: Path | str | None = None) 
                     marker="o", ms=8.5, mfc=SURFACE, mec=col, mew=2.0, capsize=3,
                     elinewidth=1.2, zorder=5)
 
-        # ── imagery arm, WOODY read as perennial: its own baseline too, dodged in x
+        # imagery arm, WOODY read as perennial: its own baseline too, dodged in x
         xa, xb = T_PETT + DODGE, T_S2 + DODGE
         ax.plot([xa, xb], [_pct(s["woody"][0]), _pct(s["woody"][1])],
                 color=col, lw=1.2, ls=(0, (1, 2.2)), alpha=.65, zorder=2)
@@ -132,8 +130,8 @@ def draw(values: dict[str, dict] | None = None, path: Path | str | None = None) 
                     marker="^", ms=9, mfc=SURFACE, mec=col, mew=1.9, capsize=3,
                     elinewidth=1.2, alpha=.9, zorder=5)
 
-    # direct labels at the census line ends — ink, never the series colour; the marker
-    # immediately to their left carries the identity
+    # direct labels at the census line ends — ink not series colour; the marker to their
+    # left carries identity
     for tenure, s in V.items():
         ax.annotate(tenure, xy=(T_CEN, _pct(s["cen"][1])), xytext=(9, -3),
                     textcoords="offset points", fontsize=10.5, color=INK,

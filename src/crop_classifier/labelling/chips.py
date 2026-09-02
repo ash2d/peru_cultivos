@@ -1,19 +1,9 @@
 """Esri World Imagery chips for the labelling HTML (docs/s2_labelling/plan.md).
 
-Two panels per parcel, no S2 true-colour composite — at 10 m it is worse than Esri and
-would only crowd the page:
-
-1. **context** — the whole parcel plus a margin of its surroundings, ~320 px;
-2. **zoom** — 200 m across on the same centre, so canopy texture is legible on a parcel
-   too large for the context panel to show it.
-
-On both, the target parcel is outlined in a bright colour and its **neighbours in a thin
-contrasting outline**. That is not decoration: perennial detection is a *contrast* with
-neighbouring annual fields (RESULTS.md §8.2), and drawing the neighbours is the cheapest
-way to put that contrast in front of the labeller.
-
-Tiles come through a persistent on-disk cache — ~2,000 chips is a lot of requests and a
-re-run should not repeat them.
+Two panels per parcel: **context** (parcel plus a margin of surroundings) and **zoom**
+(200 m window on the same centre, for canopy texture). Target parcel outlined bright,
+neighbours in a thin contrasting outline — perennial detection is a *contrast* with
+neighbouring annual fields (RESULTS.md §8.2). Tiles go through a persistent on-disk cache.
 """
 
 from __future__ import annotations
@@ -26,30 +16,17 @@ from pathlib import Path
 import geopandas as gpd
 import numpy as np
 
-# ---- the left panel: the parcel **in its setting** ----------------------------------
-# It was previously the parcel at 1.24x its own extent, which is a picture of the parcel
-# and almost nothing else. The same crop reads differently in different geographies — rice
-# beside a river, orchard on a town edge, pasture against forest — so the panel now pads by
-# a fraction of the parcel's own size rather than showing it edge to edge.
-#
-# Padding is proportional (so a big field is not swamped by margin and a small one is not
-# starved of it), capped in absolute metres (so the largest parcel in the draw, 2.1 km
-# across, does not demand a 4 km tile mosaic), and floored (so a 66 m parcel — the 5th
-# percentile — still gets a real landscape around it rather than 12 % of one).
-#
-# Realised over the draw: 400 m for everything up to the median parcel, ~530 m at q75,
-# ~1.2 km at q95, 2.7 km for the largest. The old panel gave 195 m at the median.
+# Left panel: the parcel in its setting. Padding is proportional to the parcel's own
+# extent (a big field is not swamped, a small one not starved), capped in absolute metres
+# (largest parcel is 2.1 km across; don't demand a 4 km mosaic), and floored at CONTEXT_MIN_M.
 CONTEXT_MIN_M = 400.0
 CONTEXT_PAD_FRAC = 0.5      # margin each side, as a fraction of the parcel's own extent
 CONTEXT_PAD_MAX_M = 300.0   # ... but never more than this, so tile counts stay bounded
 
-# The right-hand panel is a **zoom-in**, not a second context view. The call the labeller
-# has to make is "crowns or no crowns", and on a large parcel the whole-parcel panel is too
-# small a scale to see them.
-#
-# ⚠️ For the ~89 % of the campaign served at 1.2 m this is display magnification, not more
-# information: 200 m is ~187 native pixels upsampled to 320. It makes crowns easier to
-# *see*; it cannot make them resolvable where the source does not resolve them.
+# Right panel: a zoom-in for the "crowns or no crowns" call, too small a scale on the
+# context panel for a large parcel.
+# ⚠️ At the ~89 % of the campaign served at 1.2 m this is display magnification only —
+# 200 m is ~187 native pixels upsampled to 320; it cannot resolve what the source does not.
 ZOOM_M = 200.0
 CHIP_PX = 320
 JPEG_QUALITY = 72
@@ -57,12 +34,9 @@ JPEG_QUALITY = 72
 C_TARGET = "#ffdd33"      # bright yellow — the parcel being labelled
 C_NEIGHBOUR = "#38e0ff"   # thin cyan — everything else with a cadastral boundary
 
-# Esri stops serving tiles at the zoom matching the source resolution and returns a flat
-# grey "Map data not yet available" placeholder above it. That placeholder is *not* an
-# error — `bounds2img` succeeds and hands back a perfectly valid uniform image — so asking
-# for `zoom="auto"` on a 120 m extent silently produced blank chips on the first run.
-# Measured over four departments: the placeholder is exactly RGB (205, 205, 205) with
-# chroma ~0.03, against >15 for any real scene.
+# Above the zoom matching source resolution Esri serves a flat grey placeholder, not an
+# error — `bounds2img` returns a valid uniform image — so `zoom="auto"` silently produced
+# blank chips. Measured over four departments: RGB (205,205,205), chroma ~0.03 vs >15 real.
 _PLACEHOLDER_CHROMA = 3.0
 # probed source resolution -> highest zoom Esri actually serves there
 ZOOM_FOR_RES = {"30cm": 19, "60cm": 18, "1.2m": 17}
@@ -89,9 +63,7 @@ def set_cache(path: Path | str) -> None:
 def _merc_scale(lat: float) -> float:
     """Web-Mercator metres per true metre at ``lat`` — 1/cos(lat).
 
-    Mercator y-units are only true metres at the equator. At Peru's latitudes the error is
-    ~1.2 %, which is invisible in an outline but would silently mis-size the scale bar, so
-    it is applied rather than ignored.
+    ~1.2 % at Peru's latitudes: invisible in an outline but would mis-size the scale bar.
     """
     return 1.0 / math.cos(math.radians(lat))
 
@@ -99,12 +71,9 @@ def _merc_scale(lat: float) -> float:
 def context_extent_m(span_m: float, min_m: float = CONTEXT_MIN_M,
                      pad_frac: float = CONTEXT_PAD_FRAC,
                      pad_max_m: float = CONTEXT_PAD_MAX_M) -> float:
-    """Width of the context panel, in **true metres**, for a parcel ``span_m`` across.
-
-    ``span + 2 * min(pad_frac * span, pad_max_m)``, floored at ``min_m``. Shared by the
-    renderer and the neighbour lookup so the panel can never be wider than the box
-    neighbours were fetched from — which would draw a view with unoutlined fields in it and
-    read as "this parcel has no neighbours".
+    """Width of the context panel in true metres: ``span + 2*min(pad_frac*span, pad_max_m)``
+    floored at ``min_m``. Shared by the renderer and the neighbour lookup so the panel is
+    never wider than the box neighbours were fetched from (which would read as "no neighbours").
     """
     return max(span_m + 2 * min(pad_frac * span_m, pad_max_m), min_m)
 
@@ -130,11 +99,8 @@ def _fetch(w, s, e, n, start_zoom: int):
 
 
 def _draw(ax, img, img_ext, view, target_m, neigh_m, scale_bar_m: float | None) -> None:
-    """``img_ext`` and ``view`` are both matplotlib extents: ``(left, right, bottom, top)``.
-
-    contextily returns the tile mosaic in that order too; keeping one convention here is
-    the whole reason this is a named argument rather than a positional bounds tuple — the
-    first version mixed ``(w, s, e, n)`` into it and asked matplotlib for a 10^7-pixel image.
+    """``img_ext`` and ``view`` are both matplotlib extents ``(left, right, bottom, top)`` —
+    keep one convention; mixing in ``(w, s, e, n)`` once asked matplotlib for a 10^7-px image.
     """
     ax.imshow(img, extent=img_ext, interpolation="bilinear")
     if neigh_m is not None and len(neigh_m):
@@ -158,11 +124,8 @@ def _draw(ax, img, img_ext, view, target_m, neigh_m, scale_bar_m: float | None) 
 
 
 def _nice_bar(extent_m: float) -> tuple[float, str]:
-    """A round scale-bar length about a quarter of the panel width, and its label.
-
-    A fixed 100 m bar spans the entire 100 m zoom panel, which reads as a border rather
-    than a scale, so the length is picked from the extent instead of hard-coded.
-    """
+    """A round scale-bar length ~a quarter of the panel width, and its label. Picked from
+    the extent, not hard-coded — a fixed 100 m bar spans the whole zoom panel."""
     target = extent_m / 4.0
     for m in (10, 20, 25, 50, 100, 200, 250, 500):
         if m >= target:
@@ -171,13 +134,8 @@ def _nice_bar(extent_m: float) -> tuple[float, str]:
 
 
 def _new_figure(px: int):
-    """A standalone Agg figure + full-bleed axes — deliberately **not** via ``pyplot``.
-
-    ``plt.subplots`` registers the figure in pyplot's global figure manager, which is
-    process-wide mutable state and not thread-safe; the renderer here runs several parcels
-    at once, so two threads sharing that registry is a race waiting to be hit. Constructing
-    ``Figure`` directly and attaching an Agg canvas gives a figure no other thread can see,
-    and removes the ``plt.close`` bookkeeping entirely.
+    """A standalone Agg figure + full-bleed axes, deliberately not via ``pyplot``: its
+    global figure manager is not thread-safe and the renderer runs several parcels at once.
     """
     import matplotlib
     matplotlib.use("Agg")
@@ -207,13 +165,8 @@ def chip_pair(target: gpd.GeoDataFrame, neighbours: gpd.GeoDataFrame | None,
               imagery_res: str | None = None) -> tuple[bytes, bytes, dict]:
     """``(context_jpeg, zoom_jpeg, meta)`` for a single-row ``target`` GeoDataFrame.
 
-    * **context** — the whole parcel *and its surroundings*: its extent padded by
-      :func:`context_extent_m`, so what the parcel sits in is visible;
-    * **zoom** — a fixed ``zoom_m`` window on the same centre, for canopy texture.
-
     ``imagery_res`` is the probed Esri source resolution ("30cm"/"60cm"/"1.2m"); it sets
-    the starting zoom, and the placeholder check steps down from there if the service
-    disagrees.
+    the starting zoom, and the placeholder check steps down from there.
     """
     tm = target.to_crs(3857)
     nm = neighbours.to_crs(3857) if neighbours is not None and len(neighbours) else None
@@ -243,27 +196,20 @@ def chip_pair(target: gpd.GeoDataFrame, neighbours: gpd.GeoDataFrame | None,
     return out[0], out[1], meta
 
 
-# ------------------------------------------------------------------------------------
-# Batch renderer
-# ------------------------------------------------------------------------------------
+# --- Batch renderer ---
 def render_all(sample: gpd.GeoDataFrame, cadastre: gpd.GeoDataFrame,
                out_dir: Path, cache_dir: Path | None = None,
                workers: int = 3, px: int = CHIP_PX,
                overwrite: bool = False) -> dict:
     """Render both panels for every row of ``sample`` into ``out_dir`` as JPEGs.
 
-    ``cadastre`` is the parcel layer neighbours are taken from — the full national table,
-    spatially indexed once. Files are ``<item_id>_context.jpg`` / ``<item_id>_zoom.jpg``
-    so a re-run skips what exists.
+    ``cadastre`` is the parcel layer neighbours are taken from, spatially indexed once.
+    Files are ``<item_id>_context.jpg`` / ``<item_id>_zoom.jpg`` so a re-run skips what exists.
 
-    ⚠️ **A panel's file name is not versioned, so changing what a panel shows means
-    deleting the old files, not overwriting them.** An earlier revision of this campaign
-    wrote ``_context.jpg`` for a 600 m fixed-width view; a leftover from it would load
-    silently into the page and be *wrong*, not missing. Deleting is the only safe order.
+    ⚠️ File names are not versioned: changing what a panel shows means *deleting* the old
+    files, not overwriting — a leftover loads silently and is wrong, not missing.
 
-    ``workers`` is deliberately small (2-4): the tiles come from Esri's public World
-    Imagery service and this is a research use, so the run is throttled rather than
-    parallel-maximal.
+    ``workers`` is deliberately small (2-4): tiles come from Esri's public service, research use.
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -283,11 +229,8 @@ def render_all(sample: gpd.GeoDataFrame, cadastre: gpd.GeoDataFrame,
     def _one(row):
         try:
             tgt = gpd.GeoDataFrame([row], geometry="geometry", crs=sample.crs).to_crs(4326)
-            # Neighbours: every cadastral parcel the context panel can reach, target
-            # excluded. The box is derived from `context_extent_m` rather than fixed, so
-            # widening the panel can never outrun it — a fixed 600 m box under a 2.7 km
-            # panel would leave the outer fields unoutlined, which reads to a labeller as
-            # "this parcel has no neighbours" rather than as a missing lookup.
+            # Neighbours: every cadastral parcel the context panel can reach, target excluded.
+            # Box derived from `context_extent_m` so widening the panel can't outrun it.
             b = tgt.to_crs(3857).total_bounds
             lat = float(tgt.geometry.representative_point().y.iloc[0])
             span_m = max(b[2] - b[0], b[3] - b[1]) / _merc_scale(lat)

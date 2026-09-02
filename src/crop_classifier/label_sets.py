@@ -1,12 +1,11 @@
 """Label spaces, loaded from ``config/labels/*.yaml``.
 
 **Why a directory and not a dict.** These six label spaces lived as a literal in
-``labelling/train_prep.py``, which meant adding a seventh — the thing most likely to be
-needed when new labels arrive — was a Python edit inside a module that must never be
-imported alongside torch. A label space is a *modelling decision*, and this project's own
-record is that such decisions must be readable and diffable: mapping the 2012 census
-vocabulary onto the crop classes left a 4.09 % catch-all that was 80 % one token, and the
-headline moved from +2.4 pp to +12.5 pp when someone finally printed it.
+``labelling/train_prep.py``, so adding a seventh — the likeliest need when new labels arrive
+— meant a Python edit in a module that must never be imported alongside torch. A label space
+is a *modelling decision*, and this project's record is that such decisions must be readable
+and diffable: the 2012 census mapping left a 4.09 % catch-all that was 80 % one token, and
+the headline moved +2.4 pp → +12.5 pp when someone finally printed it.
 
 A label set names how the five classes an annotator can record
 
@@ -29,9 +28,8 @@ import yaml
 
 CONFIG_DIR = Path(__file__).resolve().parent / "config" / "labels"
 
-#: The vocabulary a label set may collapse *from*. Kept here so a typo in a config file is
-#: an error naming the valid classes, not a silently ignored key that quietly changes the
-#: label space of every arm that inherits it.
+#: The vocabulary a label set may collapse *from*. Kept here so a config typo is an error
+#: naming the valid classes, not a silently ignored key that changes every inheriting arm.
 SOURCE_CLASSES = ("PERENNIAL", "ANNUAL", "OTHER", "WOODY_NON_CROP", "NON_AGRICULTURE")
 
 

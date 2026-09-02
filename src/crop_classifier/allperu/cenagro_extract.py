@@ -1,24 +1,16 @@
 """Slim the 25 CENAGRO 2012 department files from OneDrive into per-department Parquet.
 
-The source is `Departamentos_IV_CENAGRO (sin posesionario)/<Dept>.dta` — 25 Stata files,
-~18 GB, **409 columns each**, one row per *producer x parcel x crop-order*. Almost none of
-those columns are used by this project, and reading a 2.5 GB `.dta` to get eight of them is
-what makes every census script slow.
+Source: `Departamentos_IV_CENAGRO (sin posesionario)/<Dept>.dta` — 25 Stata files, ~18 GB,
+409 columns each, one row per producer x parcel x crop-order. This reads each file once with
+an explicit `usecols` and writes `data/raw/Cenagro_IV/<Dept>.parquet`, still long because
+downstream consumers aggregate differently.
 
-This module reads each file **once**, with an explicit `usecols`, and writes
-`data/raw/Cenagro_IV/<Dept>.parquet`. The output is still **long** — one row per
-parcel x crop-order — because every downstream consumer aggregates differently
-(`allperu/cenagro.py` collapses to a class per polygon; notebook 02 sums area per producer).
+⚠️ The farmer's name is in UNLABELLED columns `P009_01/02/03` (apellido paterno / materno /
+nombres) — identified by value, not label. It is the *only* link from the census to the
+project (no `COD_PREDIO`, no `CodigoSSET`). `P009_04` = razón social, `P009_05` = RUC.
 
-⚠️ **The farmer's name lives in UNLABELLED columns.** `P009_01/02/03` carry apellido paterno /
-materno / nombres and have an **empty** variable label in the `.dta` — they must be identified
-by value, not by label. They are the *only* link from the census to the rest of the project
-(the census carries no `COD_PREDIO` and no `CodigoSSET`), so they are non-negotiable in the
-keep-list. `P009_04` is the razón social for juridical producers and `P009_05` the RUC.
-
-⚠️ **"sin posesionario" is a folder name, not a filter.** The posesionario tenure records
-(`P037_04_01`) are present in every department — see `docs/DATA.md` §1.5 for the measured
-rates. Nothing has been stripped, so the 25 files remain comparable with each other.
+⚠️ "sin posesionario" is a folder name, not a filter — posesionario records (`P037_04_01`)
+are present in every department (`DATA.md` §1.5), so the 25 files stay comparable.
 
 Run:  uv run python -m crop_classifier.cli cenagro-extract --all
 """
@@ -39,39 +31,31 @@ from crop_classifier.paths import ROOT
 def src_dir() -> Path:
     """The 25 CENAGRO 2012 department ``.dta`` files (~17.5 GB).
 
-    Configured as ``cenagro_source_dir`` in ``workspaces.yaml`` — it was an absolute path to
-    one machine's OneDrive mount, which nobody else could have. A function, not a constant,
-    so importing this module does not require the share to be configured or mounted: only
-    the two callers below need it, and only when actually extracting.
+    From ``cenagro_source_dir`` in ``workspaces.yaml`` (a machine-specific OneDrive mount).
+    A function, not a constant, so importing this module does not require the share mounted.
     """
     from crop_classifier.workspace import cenagro_source_dir
     return cenagro_source_dir()
 OUT_DIR = ROOT / "data" / "raw" / "Cenagro_IV"
 CROP_TABLE = ROOT / "data" / "raw" / "IV CENAGRO - Tabla_Cultivos_Totales.xlsx"
-# The same 3,351 codes as a plain CSV, committed so a clone that does not have the INEI
-# workbook can still resolve `P024_03`. Written by `crop_code_table(export=True)`.
+# the same 3,351 codes as a committed CSV so a clone without the INEI workbook can resolve
+# `P024_03`. Written by `crop_code_table(export=True)`.
 CROP_TABLE_CSV = OUT_DIR / "crop_code_table.csv"
 
-# rows read per pass; Cajamarca and Puno are >2 GB and must not be held whole
+# rows per pass; Cajamarca and Puno are >2 GB and must not be held whole
 CHUNK = 1_200_000
 
-# --------------------------------------------------------------------------------------
-# The keep-list. Grouped by the level of the census hierarchy each column belongs to; a
-# producer-level value is repeated on every one of that producer's rows.
+# The keep-list, grouped by census-hierarchy level (a producer-level value repeats on every
+# one of that producer's rows).
 KEEP: dict[str, list[str]] = {
-    # --- producer / holding identity ---------------------------------------------------
     "keys": ["TIPO_REC", "P001", "P002", "P003", "P007X", "P008", "NPRIN", "RESULTADO"],
-    # --- the name: the ONLY link to PETT. Unlabelled in the .dta; verified by value. -----
+    # the name: the ONLY link to PETT. Unlabelled in the .dta; verified by value.
     "name": ["P009_01", "P009_02", "P009_03", "P009_04", "P009_05"],
-    # --- location -----------------------------------------------------------------------
     "geo": ["LONG_DECI", "LAT_DECI", "WALTITUD", "WREGION", "WPISO"],
-    # --- producer attributes already consumed downstream --------------------------------
     "producer": ["P016", "WP111", "WP112", "P019", "P019_01", "P020_01", "P021",
                  "P022", "P022_01"],
-    # --- INEI's own land-use totals for the holding (ha) --------------------------------
     "wsup": ["WSUP03", "WSUP04", "WSUP07", "WSUP10", "WSUP11", "WSUP12", "WSUP13",
-             "WSUP18"],
-    # --- parcel identity and tenure regime ----------------------------------------------
+             "WSUP18"],  # INEI's own land-use totals for the holding (ha)
     "parcel": ["NPARC", "P023_01", "P023_04", "P023_07"],
     "tenure": ["P037_01_01", "P037_01_02", "P037_01_03",
                "P037_02_01", "P037_02_02",
@@ -80,20 +64,17 @@ KEEP: dict[str, list[str]] = {
                "P037_05_01", "P037_05_02",
                "P037_SS",
                "P038_01", "P038_02", "P038_03", "P038_04", "P039_01", "P040"],
-    # ⚠️ undocumented derived registration variables shipped with the source. They are
-    # *nearly* but not exactly reproducible from P037_01_03 (96-98 %); DATA.md §1.5.
-    # Kept for cross-checking only — derive tenure security from P037_01_03.
+    # ⚠️ undocumented derived registration variables. Nearly (96-98 %) but not exactly
+    # reproducible from P037_01_03 (DATA.md §1.5); kept for cross-checking only.
     "registered": ["registrado", "registrado_1", "registrado_2", "p_registrado",
                    "GP", "GP_1", "X_t"],
-    # --- crop -----------------------------------------------------------------------------
     "crop": ["P024_01", "P024_03", "P025", "P026", "P027", "P028",
              "P029_01", "P029_02", "P029_03", "P036"],
 }
 USECOLS: list[str] = [c for v in KEEP.values() for c in v]
 
-# columns the source stores as text; everything else is read as float64. Declared rather
-# than inferred because a chunked write needs one schema for the whole file and pandas
-# will happily give chunk 1 an object column and chunk 2 a float one.
+# columns the source stores as text (rest read as float64). Declared, not inferred — a
+# chunked write needs one schema, and pandas would type chunk 1 object and chunk 2 float.
 STR_COLS = {"TIPO_REC", "P001", "P002", "P003", "P007X", "P008", "NPRIN",
             "P009_01", "P009_02", "P009_03", "P009_04", "P023_07", "P024_03",
             "P037_01_03"}
@@ -105,16 +86,14 @@ SCHEMA = pa.schema(
     + [(c, pa.string()) for c in DERIVED_STR]
 )
 
-# 14 departments reach a parcel polygon through the cadastral bridge (DATA.md §3). The
-# bridge ships 15 files; Callao then yields nothing (395 polygons, no surviving overlap).
-# The other 10 census files are extracted anyway — they are still valid census data for a
-# national descriptive, they just cannot be joined to a polygon or to a PETT crop.
+# 14 departments reach a parcel polygon through the cadastral bridge (DATA.md §3); the
+# other census files are extracted anyway (valid for a national descriptive, just not
+# joinable to a polygon or PETT crop).
 LINKABLE = {"Ancash", "Arequipa", "Ayacucho", "Cajamarca", "Huancavelica", "Ica",
             "La_Libertad", "Lambayeque", "Lima", "Moquegua", "Pasco", "Piura", "Tacna",
             "Tumbes"}
 
 
-# --------------------------------------------------------------------------------------
 def _tidy(df: pd.DataFrame, dept: str) -> pd.DataFrame:
     """One chunk -> the declared schema, plus `dept` and `UBIGEO`."""
     for c in USECOLS:
@@ -123,7 +102,7 @@ def _tidy(df: pd.DataFrame, dept: str) -> pd.DataFrame:
     for c in STR_COLS:
         s = df[c]
         if not pd.api.types.is_string_dtype(s):
-            # a code column that arrived numeric: render it as an integer string
+            # code column arrived numeric: render as an integer string
             s = s.map(lambda v: "" if pd.isna(v) else str(int(v)) if float(v).is_integer()
                       else str(v))
         df[c] = s.astype("string").str.strip().replace({"": pd.NA, ".": pd.NA})
@@ -201,17 +180,13 @@ def extract(depts: list[str] | None = None, overwrite: bool = False) -> pd.DataF
     return df
 
 
-# --------------------------------------------------------------------------------------
 def crop_code_table(export: bool = False) -> pd.DataFrame:
     """The official question-024 crop code list, sheet "Permanente".
 
-    Despite the sheet name it is the **whole** crop vocabulary (3,351 codes, transitory
-    included) with an `Exportable` flag. Codes are 1-4 characters and are **not**
-    zero-padded consistently on either side, so both sides are canonicalised to an int.
-
-    ``CROP_TABLE`` is the INEI workbook and is not redistributed; the identical code list
-    is committed as ``CROP_TABLE_CSV``, and is used whenever the workbook is absent, so the
-    census comparison reproduces from a clone alone.
+    Despite the name it is the whole crop vocabulary (3,351 codes) with an `Exportable`
+    flag. Codes are inconsistently zero-padded on both sides, so both are canonicalised to
+    int. Uses ``CROP_TABLE`` (the INEI workbook, not redistributed) or the committed
+    ``CROP_TABLE_CSV``, so the census comparison reproduces from a clone.
     """
     if CROP_TABLE.exists():
         d = pd.read_excel(CROP_TABLE, sheet_name="Permanente", skiprows=3,
@@ -232,20 +207,14 @@ def crop_code_table(export: bool = False) -> pd.DataFrame:
 
 
 def verify(out_dir: Path = OUT_DIR) -> dict[str, pd.DataFrame]:
-    """Everything that has to be checked before this extraction is used. Prints and returns.
+    """Everything to check before using this extraction; prints and returns.
 
-    Five checks, each of which has a way of failing silently if it is not made:
-
-    1. **rows in vs rows out** — a chunked write that loses a chunk still produces a valid
-       Parquet file.
-    2. **`P009_01` non-blank rate** — the farmer's surname is the only link to PETT. It is
-       *unlabelled* in the `.dta`, so a wrong column would still read as a string column.
-    3. **identical column set across the 25 files** — anything else breaks a national concat.
-    4. **`P024_03` resolves against the crop table** — an unresolved code silently becomes a
-       missing crop rather than an error (`CLAUDE.md`, the unmapped-token trap).
-    5. **the posesionario rate** — the source folder is named "sin posesionario". If that
-       were a row filter it would remove a *tenure category* from some departments and not
-       others, and every cross-department tenure comparison would be invalid.
+    Five checks that would otherwise fail silently: rows in vs rows out (a chunked write
+    that loses a chunk still produces valid Parquet); `P009_01` non-blank rate (a wrong
+    unlabelled column still reads as a string column); identical column set across the 25
+    files (else a national concat breaks); `P024_03` resolves against the crop table (an
+    unresolved code becomes a missing crop, not an error); the posesionario rate (a
+    "sin posesionario" row filter would invalidate every cross-department tenure comparison).
     """
     files = sorted(out_dir.glob("*.parquet"))
     audit = pd.read_csv(out_dir / "_extract_audit.csv") if (

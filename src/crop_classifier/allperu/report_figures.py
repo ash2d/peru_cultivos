@@ -21,8 +21,7 @@ import pandas as pd
 
 from crop_classifier.perennial.figures import C_FLAG, C_GRID, C_INK, C_SERIES
 
-# Third slot for the second data series in a two-series plot; C_FLAG stays reserved for
-# status (criteria, failures) and is never used to carry data.
+# Third slot for the second data series; C_FLAG stays reserved for status and never carries data.
 C_SERIES2 = "#e8961f"
 
 WINDOW_LABEL = {"W99": "1999–03", "W04": "2004–08", "W09": "2009–13",
@@ -36,16 +35,14 @@ def _despine(ax) -> None:
     ax.tick_params(labelsize=8.5, colors=C_INK)
 
 
-# ------------------------------------------------------------------------------------
-# figure 1 — the window pivot's W2 failure
-# ------------------------------------------------------------------------------------
+# --- figure 1: the window pivot's W2 failure ---
 def fig_control_drift(path: Path, diag: Path | str | None = None) -> dict:
     """The control pool drifts more than the at-risk pool, in the opposite direction.
 
-    The window design reads a trend off the at-risk pool (parcels PETT declares ANNUAL) and
-    uses the PETT-PERENNIAL pool as the yardstick: land already perennial at declaration
-    should stay perennial, so any movement there is measurement, not land-use change. It
-    moves 5.6x further than the signal and downward, which is what closes the design.
+    The design reads a trend off the at-risk pool (PETT says ANNUAL) against the
+    PETT-PERENNIAL pool as yardstick: land already perennial should stay perennial, so
+    movement there is measurement not land-use change. It moves 5.6x further than the signal
+    and downward — which closes the design.
     """
     import matplotlib
     matplotlib.use("Agg")
@@ -62,8 +59,8 @@ def fig_control_drift(path: Path, diag: Path | str | None = None) -> dict:
 
     fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.0))
 
-    # The W2 gate acts on the thresholded share, so both panels plot that and not the
-    # mean probability — otherwise the figure and the documented ratio disagree.
+    # The W2 gate acts on the thresholded share, so both panels plot that not the mean
+    # probability — else the figure and the documented ratio disagree.
     ax = axes[0]
     for df, c, name in ((ct, C_SERIES2, "control pool — PETT says PERENNIAL"),
                         (at, C_SERIES, "at-risk pool — PETT says ANNUAL")):
@@ -105,16 +102,14 @@ def fig_control_drift(path: Path, diag: Path | str | None = None) -> dict:
             "control_net_change": float(ct["share"].iloc[-1] - ct["share"].iloc[0])}
 
 
-# ------------------------------------------------------------------------------------
-# figure 2 — the tenure DiD result
-# ------------------------------------------------------------------------------------
+# --- figure 2: the tenure DiD result ---
 def fig_did_result(path: Path, tag: str = "did2_nolat_aug_yleak10_cohort2004",
                    proc_dir: Path | str | None = None) -> dict:
     """The two arms and the registered sensitivity curve.
 
-    Left is deliberately the *raw* group means, so the reader can see the arms moving
-    together; the estimate in the right panel conditions on parcel and department x period,
-    which is why the widening raw gap does not appear in it.
+    Left is the *raw* group means so the reader sees the arms moving together; the right-panel
+    estimate conditions on parcel and department x period, which is why the widening raw gap
+    is not in it.
     """
     import matplotlib
     matplotlib.use("Agg")

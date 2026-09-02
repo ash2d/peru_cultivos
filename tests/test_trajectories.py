@@ -20,7 +20,7 @@ ANN, PAS, PER = 0, 1, 2
 CLASSES = ["ANNUAL", "PASTURE_FALLOW", "PERENNIAL"]
 
 
-# ---- series construction --------------------------------------------------------------
+# --- series construction ---
 def test_abstained_years_become_gaps_not_guesses():
     preds = pd.DataFrame({
         "COD_PREDIO": ["A", "A", "A"],
@@ -39,7 +39,7 @@ def test_missing_parcel_years_become_gaps():
     assert series[0].tolist() == [ANN, GAP]
 
 
-# ---- mode filter ------------------------------------------------------------------------
+# --- mode filter ---
 def test_mode_filter_removes_a_single_year_spike():
     s = np.array([[PER, PER, ANN, PER, PER]])
     assert T.mode_filter(s)[0].tolist() == [PER] * 5
@@ -64,7 +64,7 @@ def test_mode_filter_does_not_invent_a_change_on_a_tie():
     assert out[0].tolist() == [ANN, PER]
 
 
-# ---- minimum-duration rule --------------------------------------------------------------
+# --- minimum-duration rule ---
 def test_two_year_excursion_does_not_fire():
     # PERENNIAL x4, ANNUAL x2, PERENNIAL x4 — the 2-year dip is not a transition
     s = np.array([[PER] * 4 + [ANN] * 2 + [PER] * 4])
@@ -104,7 +104,7 @@ def test_flickering_series_yields_no_sustained_transition():
     assert T.detect_transitions(s, years, CLASSES, ["A"], min_duration=3).empty
 
 
-# ---- flicker rate -----------------------------------------------------------------------
+# --- flicker rate ---
 def test_flicker_rate_flags_the_noisy_parcel_only():
     s = np.array([[ANN, PER] * 5,            # 9 changes in 10 years -> flickering
                   [PER] * 10,                # stable
@@ -117,7 +117,7 @@ def test_flicker_ignores_gaps():
     assert T.flicker_rate(s).tolist() == [False]
 
 
-# ---- aggregation ------------------------------------------------------------------------
+# --- aggregation ---
 def test_transition_matrix_counts_directions():
     tr = pd.DataFrame({"from_class": ["ANNUAL", "ANNUAL", "PERENNIAL"],
                        "to_class": ["PERENNIAL", "PERENNIAL", "ANNUAL"],

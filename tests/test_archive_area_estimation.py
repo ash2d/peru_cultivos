@@ -3,13 +3,10 @@
 ⛔ CLOSED ROUTE. No area or share estimate may be produced from the panel — the gate failed
 (docs/RESULTS.md §3, §4.4, §9). Built, unit-tested, and **unrun**.
 
-The plan asks for "the worked example from the 2014 paper". The paper is not available
-offline here and reconstructing its Table 8 from memory did not reproduce its published
-p-hat, so rather than assert numbers that cannot be checked, the reference case below is a
-**hand-computed** 2-class example worked straight from equations 9-11. Every expected
-value in ``test_olofsson_hand_worked_example`` is arithmetic done by hand and written out
-in the comments, so the test is an independent check of the implementation rather than a
-restatement of it.
+The plan asks for "the worked example from the 2014 paper". That paper is unavailable
+offline and reconstructing its Table 8 from memory did not reproduce its p-hat, so the
+reference case below is a **hand-computed** 2-class example worked straight from equations
+9-11 — an independent check of the implementation, not a restatement of it.
 """
 
 from __future__ import annotations
@@ -24,7 +21,7 @@ pytestmark = pytest.mark.closed_route
 CLASSES = ["PERENNIAL", "ANNUAL"]
 
 
-# ---- the reference case ---------------------------------------------------------------
+# --- the reference case ---
 def test_olofsson_hand_worked_example():
     """Two strata, total mapped area 100 ha.
 
@@ -73,7 +70,7 @@ def test_accuracies_hand_worked_example():
     assert acc["overall_accuracy"].iloc[0] == pytest.approx(0.89)
 
 
-# ---- analytic properties --------------------------------------------------------------
+# --- analytic properties ---
 def test_perfect_map_is_unbiased_and_certain():
     """A diagonal error matrix means the map is right, so the correction is a no-op."""
     map_area = np.array([30.0, 70.0])
@@ -109,7 +106,7 @@ def test_empty_stratum_contributes_no_variance():
     assert np.isfinite(est.area).all() and np.isfinite(est.ci95).all()
 
 
-# ---- the simpler estimators -----------------------------------------------------------
+# --- the simpler estimators ---
 def test_naive_area_counts_argmax():
     pred = np.array([0, 0, 1])
     est = A.naive_area(pred, np.array([1.0, 2.0, 4.0]), 2, CLASSES)
@@ -134,7 +131,7 @@ def test_probability_weighted_differs_from_naive_under_uncertainty():
     assert soft.area == pytest.approx([10.2, 9.8])
 
 
-# ---- sampling weights + the combined entry point ---------------------------------------
+# --- sampling weights + the combined entry point ---
 def test_sample_weights_expand_to_the_population():
     """A 1-in-4 stratified sample must report 4x its own area."""
     prob = np.array([[1.0, 0.0], [0.0, 1.0]])

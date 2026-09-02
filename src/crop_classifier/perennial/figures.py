@@ -19,10 +19,9 @@ MISSION_EVENTS = {
     2021: "L9 launch",
 }
 
-# Palette slots from the validated categorical set (docs: dataviz reference palette).
-# Only two are used and no hue is invented: slot 1 (blue) carries the single data series,
-# slot 8 (red) is the reserved *status* colour and appears only on data-quality years —
-# always with a label, never as colour alone.
+# Palette slots from the validated categorical set. Only two used: slot 1 (blue) carries the
+# single data series, slot 8 (red) is the reserved *status* colour, only on data-quality
+# years and always with a label, never colour alone.
 C_SERIES = "#2a78d6"
 C_FLAG = "#e34948"
 C_INK = "#52514e"        # secondary text
@@ -59,14 +58,14 @@ def drift_panel_figure(drift: pd.DataFrame, path: Path, features: list[str],
                        title: str, ncols: int = 2) -> None:
     """Small multiples of per-year feature drift — one panel per feature (§7.4.1).
 
-    Small multiples rather than one multi-series axis: the features live on different
-    scales, and the question ("is there a step at a mission boundary?") is asked of each
-    feature separately, so a shared axis would only compress the thing being read.
+    Small multiples not one multi-series axis: the features are on different scales and the
+    question ("is there a step at a mission boundary?") is per-feature, so a shared axis would
+    only compress it.
 
-    Each panel shows the panel-wide median with the p10-p90 spread, the mission eras as
-    alternating bands, and the four coverage-degraded years dashed. A step at an era
-    boundary that is large relative to the year-to-year movement *inside* the eras is a
-    sensor artefact; the accompanying ``era_steps`` table quantifies it.
+    Each panel: panel-wide median + p10-p90 spread, mission eras as alternating bands, the
+    four coverage-degraded years dashed. A step at an era boundary that is large relative to
+    the year-to-year movement *inside* the eras is a sensor artefact; ``era_steps``
+    quantifies it.
     """
     import matplotlib
     matplotlib.use("Agg")
@@ -112,9 +111,8 @@ def drift_panel_figure(drift: pd.DataFrame, path: Path, features: list[str],
 def elnino_confound_figure(result: dict, path: Path) -> None:
     """Per-class recall, 1998 test arm vs the 1999+2000 control arm (RESULTS.md §8).
 
-    The control arm is the point of the figure: the bars are only interpretable as a
-    *pair*, because a low 1998 recall on its own cannot be told apart from "1998 parcels
-    are simply harder". Two series, so a legend is always present.
+    The control arm is the point: the bars are interpretable only as a *pair*, since a low
+    1998 recall alone can't be told from "1998 parcels are simply harder".
     """
     plt, (fig, ax) = _fig((6.4, 3.6))
     classes = [c for c in result["delta_recall_test_minus_control"]]

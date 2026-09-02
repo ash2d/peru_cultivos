@@ -25,9 +25,7 @@ from crop_classifier.allperu import yearleak as YL
 from crop_classifier.archive import oli_overlap as O
 
 
-# ------------------------------------------------------------------------------------
-# 2a — the year-leak audit
-# ------------------------------------------------------------------------------------
+# --- 2a: the year-leak audit ---
 def test_eta_squared_is_one_when_a_feature_is_the_group_and_zero_when_it_is_noise():
     g = np.repeat([0, 1, 2], 50)
     perfect = g.astype(float)
@@ -62,9 +60,7 @@ def test_top_k_returns_the_within_region_ranking_by_default():
     assert YL.top_k(audit, 2, by="eta2_year") == ["a", "c"]
 
 
-# ------------------------------------------------------------------------------------
-# 2b — LODYO, the joint out-of-distribution evaluation
-# ------------------------------------------------------------------------------------
+# --- 2b: LODYO, the joint out-of-distribution evaluation ---
 def test_lodyo_scores_lodo_predictions_per_cohort(tmp_path, monkeypatch):
     """The decision: hold out the *department* (LODO already did) and then vary the *year*.
     LOYO holds place approximately fixed and so cannot see spatial memorisation; this can."""
@@ -97,9 +93,7 @@ def test_lodyo_scores_lodo_predictions_per_cohort(tmp_path, monkeypatch):
     assert summ["n_cohorts"] == 2
 
 
-# ------------------------------------------------------------------------------------
-# 3 — OLI overlap
-# ------------------------------------------------------------------------------------
+# --- 3: OLI overlap ---
 def test_oli_acceptance_thresholds_are_registered_constants():
     """Registered before the test was run (plan §3a). Pinned so a later edit that relaxes one
     is a visible change to the criterion, not a quiet change to the answer."""
@@ -145,9 +139,7 @@ def test_oli_bundles_never_collide_with_the_audited_panel_bundle():
     assert O.bundle_dir(2019).name != "2019"
 
 
-# ------------------------------------------------------------------------------------
-# 2c — quantile alignment
-# ------------------------------------------------------------------------------------
+# --- 2c: quantile alignment ---
 def test_quantile_align_maps_onto_the_reference_distribution():
     rng = np.random.default_rng(0)
     ref = rng.normal(10, 2, 5000)
@@ -182,14 +174,12 @@ def test_aligned_bundles_are_written_to_a_suffixed_directory(tmp_path):
     assert aligned["NDVI_median"].min() >= 0.5                      # mapped onto ref
 
 
-# ------------------------------------------------------------------------------------
-# 3c — refitting the OLI correction (RESULTS.md §9.5)
-# ------------------------------------------------------------------------------------
+# --- 3c: refitting the OLI correction (RESULTS.md §9.5) ---
 def test_refit_default_is_offset_only_because_a_slope_is_not_identified():
     """The decision: on this data only a per-band *offset* is estimable. Same-day parcel
-    medians disagree more than parcels differ from each other (SD of the difference exceeds
-    the SD of either sensor's values), so any slope fitted from them is diluted — OLS gives
-    0.116 in blue against a physical ~0.85. Defaulting to a slope would silently ship that."""
+    medians disagree more than parcels differ from each other, so any slope fitted from them
+    is diluted — OLS gives 0.116 in blue against a physical ~0.85. Defaulting to a slope
+    would silently ship that."""
     from crop_classifier.archive import oli_refit as RF
 
     fit = {"NIR": {"slope": 0.52, "intercept": 0.11, "theilsen_slope": 0.83,

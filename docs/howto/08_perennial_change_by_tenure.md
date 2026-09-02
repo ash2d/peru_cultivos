@@ -13,6 +13,65 @@ Three routes below. They use different instruments and answer different question
 
 ---
 
+## The table underneath all of it
+
+If what you want is the data rather than an estimate — every parcel, what was declared on it,
+what the 2012 census recorded, and what 2019+ satellite imagery shows — this is one command
+and about ten seconds:
+
+```bash
+uv run cc -w national analysis parcel-table                       # -> data/processed/cenagro/parcel_table.parquet
+uv run cc -w national analysis parcel-table --out parcels.csv     # or a CSV to open in Excel
+```
+
+One row per parcel, one column per observation of it:
+
+| column | what it is |
+|---|---|
+| `COD_PREDIO`, `dept`, `area_ha` | the parcel |
+| `tenure`, `frac_inscrito`, `reg_year` | registered or not at the declaration, and when |
+| `pett_year`, `pett_class` | the crop the farmer declared, and the year they declared it |
+| `cen_class`, `cen_sown_ha`, `cen_any_export` | the 2012 census reading |
+| `s2_label`, `s2_class`, `s2_class_woody_perennial` | a person's reading of 2019+ imagery |
+| `s2_pred_label`, `s2_pred_class`, `s2_pred_proba` | the Sentinel-2 classifier's reading |
+| `s2_pred_source`, `weight`, `n_observations` | how to read the three columns above |
+
+All four class columns use the same three words — `PERENNIAL`, `ANNUAL`, `PASTURE_FALLOW` —
+so you can crosstab any two of them directly.
+
+**It is 95,941 parcels, and the imagery columns are filled on 157 of them.** That is not a
+bug and not fixable by re-running anything. The table's universe is the parcels with *both* a
+declaration and a 2012 census record; the labelling campaign drew its 865 parcels from the
+much larger declaration population, so the overlap is incidental. `n_observations` says how
+many of the four each row actually has — filter on it rather than assuming.
+
+Four things to know before you compute anything from it:
+
+- **Weight the imagery columns.** The campaign deliberately over-sampled perennial parcels,
+  so an unweighted share of `s2_class` is about three times the real one. Use `weight`. It is
+  empty for the 120 pilot parcels, which were drawn under a different design.
+- **`s2_pred_source` tells you whether a prediction is honest.** The classifier was trained on
+  these parcels, so the default fills the column only from predictions made on parcels held
+  out of training (`out_of_fold`, `locked_test`). If you pass `--preds` with your own
+  `cc predict` output it is marked `applied`, and applying the model to parcels it trained on
+  produces scores far better than the 0.774 it earned on held-out data.
+- **`WOODY_NON_CROP` appears twice on purpose.** `s2_class` leaves tree cover that is not a
+  crop unmapped; `s2_class_woody_perennial` counts it as perennial. That single choice moves
+  the imagery result by 26 points against a census effect of about 10, so report both.
+- **Crop *names* are not in it** — the class only. The declared crop text needs the 417 MB
+  national parcel table and the census crop text needs the licensed archive
+  ([`../DATA_ACCESS.md`](../DATA_ACCESS.md)); neither ships with the repo.
+
+To fill the 2025 columns for parcels of your own, score them first
+([`04_predict_new_parcels.md`](04_predict_new_parcels.md) §C, needs Earth Engine) and pass the
+result:
+
+```bash
+uv run cc -w national analysis parcel-table --preds preds2025.parquet
+```
+
+---
+
 ## Route A — two declarations, no classifier
 
 The strongest result here, because there is no model in it: the same land declared twice, by

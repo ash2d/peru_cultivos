@@ -1,30 +1,21 @@
 """Rule-based phenology classifier — the scientific control (plan §4, decision D4).
 
-An explicit, auditable depth-2 decision rule on NDVI level and NDVI seasonal amplitude.
-If a transparent rule does nearly as well as an attention network, the paper should say
-so — and the rule is far easier to defend when applied to years with no ground truth.
+An explicit depth-2 decision rule on NDVI level and seasonal amplitude: if a transparent
+rule does nearly as well as an attention network, the paper should say so.
 
-**The physics it encodes.** Over one Landsat year in Piura:
-
-* *perennial* — canopy present all year: high NDVI **p25** (an orchard never goes bare),
-  **low seasonal amplitude**, low BSI maximum;
-* *annual* — one or two green peaks separated by bare soil: low NDVI p25, **high
-  amplitude**, high BSI maximum;
-* *pasture/fallow* — low-to-moderate NDVI throughout, low amplitude but a *low* mean.
-  Low amplitude with a **high** mean is what separates perennial from this.
-
-So the discriminating plane is (NDVI level, NDVI amplitude), and the rule is::
+Physics encoded, over one Landsat year in Piura: *perennial* = canopy all year (high NDVI
+p25, low amplitude, low BSI max); *annual* = green peaks separated by bare soil (low p25,
+high amplitude, high BSI max); *pasture/fallow* = low amplitude but a *low* mean (a high
+mean at low amplitude is what separates perennial from it). So the discriminating plane is
+(NDVI level, amplitude)::
 
     if NDVI_p25 >= t_hi and NDVI_amp <= t_amp:   PERENNIAL
     elif NDVI_amp > t_amp or NDVI_max >= t_peak: ANNUAL
     else:                                        PASTURE_FALLOW
 
-NDVI **p25** rather than min: the minimum is one cloud-edge pixel away from garbage.
-
-Registered as a model so ``train.py``/``evaluate.py``/``infer.py`` drive it unchanged and
-it goes through the identical spatial-CV protocol. Thresholds are **fitted on the training
-fold only**, never on validation data. numpy/pandas only — no torch, no lightgbm (macOS
-libomp).
+NDVI p25 not min — the minimum is one cloud-edge pixel from garbage. Registered as a model
+so train/evaluate/infer drive it unchanged; thresholds fitted on the training fold only.
+numpy/pandas only — no torch, no lightgbm (macOS libomp).
 """
 
 from __future__ import annotations
@@ -48,9 +39,9 @@ def _logistic(x: np.ndarray, scale: float) -> np.ndarray:
 class RuleModel:
     """Depth-2 phenology rule with grid-searched thresholds.
 
-    ``predict_proba`` returns **soft** scores (a logistic squash of each margin), not
-    one-hot: the reliability curve, temperature scaling and the probability-weighted area
-    estimate all need a spread of confidences to mean anything.
+    ``predict_proba`` returns soft scores (logistic squash of each margin), not one-hot —
+    the reliability curve, temperature scaling and the probability-weighted area estimate
+    all need a spread of confidences.
     """
 
     input_kind = "flat"
@@ -96,10 +87,8 @@ class RuleModel:
         return level, amp, peak, nan
 
     def _class_ids(self) -> tuple[int, int, int]:
-        """Label ids of (PERENNIAL, ANNUAL, PASTURE_FALLOW).
-
-        Falls back to alphabetical order — which for these three names *is*
-        ANNUAL=0, PASTURE_FALLOW=1, PERENNIAL=2 — when class names were not supplied.
+        """Label ids of (PERENNIAL, ANNUAL, PASTURE_FALLOW). Falls back to alphabetical
+        order (ANNUAL=0, PASTURE_FALLOW=1, PERENNIAL=2) when class names were not supplied.
         """
         names = self.class_names or ["ANNUAL", "PASTURE_FALLOW", "PERENNIAL"]
         idx = {n: i for i, n in enumerate(names)}
@@ -110,18 +99,15 @@ class RuleModel:
     def _strata(self, ds) -> np.ndarray:
         """Stratum id per row from the climate columns, using the fitted median cuts.
 
-        A rule model cannot take a covariate the way a booster does — there is no
-        coefficient to give it. What climate *can* do inside a depth-2 phenology rule is
-        move the thresholds: 'high NDVI all year' means something different in a 1,600 mm
-        valley and on the 20 mm coastal desert, so the rule is fitted **separately either
-        side of the training median** of each climate column. One column gives 2 strata,
-        two columns give a 2x2 = 4.
+        A rule model has no coefficient to give a covariate; what climate can do is move the
+        thresholds ('high NDVI all year' differs between a 1,600 mm valley and 20 mm desert),
+        so the rule is fitted separately either side of each climate column's training
+        median (1 column -> 2 strata, 2 -> 4).
 
-        ⚠️ This is the one place in this comparison where the extra input also multiplies
-        the number of fitted parameters — 3 thresholds per stratum instead of 3 in total —
-        so an improvement here is not the same kind of evidence as an improvement in
-        LightGBM, and a *loss* here can be plain overfitting on ~140 rows per cell.
-        ``min_stratum`` sends any thinner cell back to the global thresholds.
+        ⚠️ This is the one place the extra input also multiplies the fitted parameters (3
+        thresholds per stratum), so an improvement is not the same evidence as in LightGBM,
+        and a loss can be overfitting on ~140 rows/cell. ``min_stratum`` sends thinner cells
+        back to the global thresholds.
         """
         if not self.climate_features:
             return np.zeros(len(ds.y) if hasattr(ds, "y") else len(ds.X), dtype=int)
@@ -157,8 +143,8 @@ class RuleModel:
         self.fallback_class = int(counts.argmax())
 
         def q(v: np.ndarray, n: int) -> np.ndarray:
-            """Grid over quantiles of the training distribution, not of an arbitrary
-            fixed range — thresholds stay meaningful whatever the radiometry."""
+            """Grid over quantiles of the training distribution — thresholds stay
+            meaningful whatever the radiometry."""
             return np.unique(np.nanquantile(v[ok], np.linspace(0.02, 0.98, n)))
 
         g_hi, g_amp, g_peak = (q(level, self.grid_steps), q(amp, self.grid_steps),
@@ -227,8 +213,8 @@ class RuleModel:
     def predict_proba(self, ds) -> np.ndarray:
         level, amp, peak, nan = self._columns(ds)
         n = len(level)
-        # per-row thresholds: the global set, overridden inside any climate stratum that
-        # was thick enough to fit its own
+        # per-row thresholds: global set, overridden inside any climate stratum thick
+        # enough to have fitted its own
         t_hi = np.full(n, self.thresholds["NDVI_level_hi"], dtype=float)
         t_amp = np.full(n, self.thresholds["NDVI_amp_max"], dtype=float)
         t_peak = np.full(n, self.thresholds["NDVI_peak_min"], dtype=float)
@@ -253,8 +239,8 @@ class RuleModel:
         score += 1e-3                                           # never a hard zero
         prob = score / score.sum(axis=1, keepdims=True)
 
-        # rows with NaN rule features (fewer than 4 observations -> no harmonic fit)
-        # fall through to the documented default; they are counted, never silent.
+        # NaN rule features (fewer than 4 observations -> no harmonic fit) fall through to
+        # the fallback class; counted, never silent.
         if nan.any():
             prob[nan] = 1e-3
             prob[nan, self.fallback_class] = 1.0

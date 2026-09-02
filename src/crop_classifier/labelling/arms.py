@@ -1,9 +1,8 @@
 """Drive one training arm of the S2 campaign: pick the workspace, then run the step.
 
 This was ~120 lines inside the ``s2-train`` CLI command. It is not argument parsing — it is
-the arm-selection policy, and three of its branches exist to *refuse* a combination rather
-than run it. Policy that says no belongs where it can be read and tested, not in a command
-body that only ever runs when someone types the command.
+arm-selection policy, three branches of which exist to *refuse* a combination. Policy that
+says no belongs where it can be read and tested, not in a command body.
 
 An "arm" is (label set) x (climate covariates) x (pilot folded in or held out). Each gets its
 own workspace directory on disk, so every arm is a set of files that can be re-read rather
@@ -36,8 +35,8 @@ def resolve_workspace(target: str, climate: str, pilot: bool) -> Path:
     else:
         ws = P.ws_dir(target, pilot)
     if not (ws / "modeling_parcels.parquet").exists():
-        # `prep` builds the plain label sets; the climate arms are built only when it is
-        # asked for one, so name the exact command rather than the bare step.
+        # `prep` builds the plain label sets; climate arms only when asked, so name the
+        # exact command.
         cmd = "cc labelling train prep" + (
             f" --target {target} --climate {climate}" if climate != "none" else "")
         raise SystemExit(f"{ws} not built — run `{cmd}` first")
@@ -47,10 +46,9 @@ def resolve_workspace(target: str, climate: str, pilot: bool) -> Path:
 def check_model_is_runnable(step: str, model: str, target: str) -> None:
     """Refuse `rules` where it would return a number instead of an error.
 
-    The rule maps three *semantic* groups (PERENNIAL / ANNUAL / PASTURE_FALLOW) onto label
-    ids. In a two-class space its fallback resolves PASTURE_FALLOW to id 1, which is
-    PERENNIAL. It would run to completion and the result would be meaningless — which is
-    worse than a crash, because nothing about the output says so.
+    The rule maps three semantic groups (PERENNIAL / ANNUAL / PASTURE_FALLOW) onto label ids.
+    In a two-class space its fallback resolves PASTURE_FALLOW to PERENNIAL, so it runs to
+    completion and returns a meaningless number — worse than a crash, nothing says so.
     """
     from crop_classifier.label_sets import rules_incompatible
 
@@ -91,12 +89,12 @@ def run_step(step: str, *, model: str = "lightgbm", target: str = "",
     if step not in STEPS:
         raise SystemExit(f"unknown step {step!r}; expected one of {', '.join(STEPS)}")
 
-    # the model/label-space check first: it is about the arm itself, so a combination that
-    # can never run should be refused whether or not its workspace happens to be built
+    # the model/label-space check first: about the arm itself, so refuse an impossible
+    # combination whether or not its workspace is built
     check_model_is_runnable(step, model, target)
     if step == "fit" and eval_test and model == "rules":
-        # the rule is a floor exercise, not a candidate; §8.8/§8.8b never proposes it. Same
-        # reasoning as above: refuse the combination itself, before any path is resolved.
+        # the rule is a floor exercise, not a candidate (§8.8/§8.8b never proposes it);
+        # refuse the combination before any path is resolved.
         raise SystemExit("--eval-test is for a selected model; `rules` is a control.")
     ws = resolve_workspace(target, climate, pilot)
 
@@ -132,6 +130,6 @@ def run_step(step: str, *, model: str = "lightgbm", target: str = "",
     elif step == "lodo":
         # the climate arms address their workspace explicitly; the plain arm keeps the
         # historical behaviour (pilot always folded in) so its numbers stay comparable with
-        # the LODO CSVs already on disk
+        # the LODO CSVs on disk
         extra = {"ws": ws, "tag": f"_clim_{climate}"} if climate != "none" else {}
         P.dept_transfer(target=target, model_name=model, model_kw=kw or None, **extra)

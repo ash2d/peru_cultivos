@@ -1,27 +1,16 @@
 """The evaluation protocol, as one command: CV / LODO / LOYO / LODYO with their floor.
 
-**Why this is a module and not a note in the docs.** The four splits already existed as four
-separate commands, and reading only the first one is how this project produced three wrong
-conclusions:
+One command because reading only the first split produced three wrong conclusions:
+``centroid_lat`` gains +0.047 macro-F1 on CV and LOYO and loses 0.060 when the department
+changes (CV holds out 5 km cells inside seen departments; LOYO holds region roughly fixed);
+``frac_l7`` manufactured *change* and static features *stability*; LTAE wins CV 8/8 on the
+S2 store and loses LODO 4/4. An evaluation nobody remembers to run does not exist, so the
+protocol is the default.
 
-* ``centroid_lat`` gains **+0.047** macro-F1 on cross-validation and **+0.047** on
-  leave-one-year-out, and loses **0.060** when the department changes. Spatial CV holds out
-  5 km cells *inside departments the model has already seen*, and LOYO holds region roughly
-  fixed, so neither can tell memorisation from signal.
-* ``frac_l7`` manufactured *change*; static features manufactured *stability*.
-* LTAE wins CV in 8 arms of 8 on the Sentinel-2 store and loses LODO in 4 of 4 — an
-  architecture doing what the feature did.
-
-An evaluation nobody remembers to run is an evaluation that does not exist, so the protocol is
-the default and the individual splits are the special case.
-
-**And every macro-F1 is printed beside its floor.** macro-F1 is not comparable across label
-spaces: collapsing 4 classes to 2 raised it from 0.672 to 0.715 *and raised the
-always-guess-the-largest-class floor from 0.171 to 0.467*. Normalised, the 2-class arm was the
-worst in the study. The ``skill`` column here is that normalisation —
-``(macro_f1 - floor) / (1 - floor)`` — and it is the column to compare across label spaces.
-
-``docs/RESULTS.md`` §4.6, §8.2c; ``docs/LESSONS.md``.
+Every macro-F1 is printed beside its floor. It is not comparable across label spaces —
+collapsing 4 classes to 2 raised it 0.672 -> 0.715 *and* raised the floor 0.171 -> 0.467.
+The ``skill`` column is ``(macro_f1 - floor) / (1 - floor)`` — the one to compare across
+label spaces. ``docs/RESULTS.md`` §4.6, §8.2c; ``docs/LESSONS.md``.
 """
 
 from __future__ import annotations
@@ -32,9 +21,8 @@ from pathlib import Path
 
 import pandas as pd
 
-#: What each split holds out, in one line, printed under the table. A reader who does not
-#: know the difference between LOYO and LODYO cannot read the table, and that difference is
-#: the whole point of it.
+#: What each split holds out, printed under the table — the LOYO/LODYO difference is the
+#: whole point of it.
 SPLIT_MEANING = {
     "CV": "5 km blocks, held out INSIDE departments the model has seen",
     "LODO": "a whole department, unseen — the spatial generalisation test",
@@ -47,12 +35,10 @@ SPLIT_MEANING = {
 class Row:
     """One split's line.
 
-    ``mean``/``sd`` are over the held-out UNITS (departments, cohorts, folds); ``pooled`` is
-    over every held-out parcel at once. They are not the same number and the gap between them
-    is information: LODO pools to 0.538 and averages to 0.479 because the departments differ
-    in size and in difficulty. The mean is the honest out-of-distribution summary — it is what
-    you would expect from *a* new department — so it leads. Reporting only the pooled figure
-    quietly weights the answer toward whichever unit happened to be largest.
+    ``mean``/``sd`` are over held-out UNITS (departments, cohorts, folds); ``pooled`` is
+    over every held-out parcel at once. The gap is information — LODO pools to 0.538,
+    averages to 0.479, because departments differ in size and difficulty. The mean leads:
+    it is what to expect from *a* new department; pooled weights toward the largest unit.
     """
 
     split: str
@@ -68,9 +54,7 @@ class Row:
 
 def majority_class_floor(y_true) -> float:
     """macro-F1 of the always-guess-the-largest-class predictor, on this exact label vector.
-
-    Computed from the data rather than from a formula so that it is right for whatever label
-    space is in play — which is the only reason it is worth printing.
+    Computed from the data, not a formula, so it is right for whatever label space is in play.
     """
     from sklearn.metrics import f1_score
     y = pd.Series(y_true)
@@ -83,10 +67,9 @@ def majority_class_floor(y_true) -> float:
 def _y_pred(d: pd.DataFrame, label_map: dict[str, int] | None) -> pd.Series | None:
     """The predicted class id, from either shape a prediction file comes in.
 
-    LODO/LOYO store a hard ``y_pred``; a training run stores one ``prob_<CLASS>`` column per
-    class, because the abstain threshold and the probability-summing binary reading both
-    need the distribution. Take the argmax, mapped back through the run's label map so the
-    ids match ``y_true`` rather than the alphabetical column order.
+    LODO/LOYO store a hard ``y_pred``; a training run stores ``prob_<CLASS>`` columns. Take
+    the argmax, mapped back through the run's label map so the ids match ``y_true`` rather
+    than alphabetical column order.
     """
     if "y_pred" in d.columns:
         return d["y_pred"]
@@ -137,19 +120,16 @@ def _pooled_folds(run: Path, label_map: dict[str, int] | None):
 def _cv_row(run: Path) -> Row | None:
     """CV from a run directory.
 
-    The mean/sd come from ``cv_metrics.json`` — the fold statistics the run actually
-    recorded, so this command reports the same CV number as everything else in the project
-    rather than a second, slightly different one recomputed here. The predictions file is
-    read only for the floor and the pooled figure, which the JSON does not carry.
+    mean/sd come from ``cv_metrics.json`` (the recorded fold stats), so this reports the
+    same CV number as everything else. The predictions file is read only for the floor and
+    pooled figure, which the JSON does not carry.
     """
     lm = run / "label_map.json"
     label_map = json.loads(lm.read_text()) if lm.exists() else None
     pooled, floor, n = _pooled_and_floor(run / "preds_cv.parquet", label_map)
     if pooled is None:
-        # `preds_cv.parquet` is written by `pool-cv`, which not every run has been through.
-        # The per-fold validation predictions are always there and are the same rows, so
-        # pool them here rather than leaving the floor blank — a macro-F1 printed with no
-        # floor beside it is the thing this command exists to prevent.
+        # not every run has been through `pool-cv`; the per-fold val predictions are the
+        # same rows, so pool them rather than leave the floor blank
         pooled, floor, n = _pooled_folds(run, label_map)
     j = run / "cv_metrics.json"
     if not j.exists():
@@ -176,11 +156,8 @@ def _summary_row(split: str, summary: Path, preds: Path, units: str,
 
 
 def collect(run: Path, tag: str = "", proc_dir: Path | None = None) -> tuple[list[Row], dict]:
-    """Gather whatever of the four splits is already on disk.
-
-    Reads, never computes: LODO refits a model per department and is hours, so this
-    reports what exists and says plainly what does not, rather than silently starting one.
-    """
+    """Gather whatever of the four splits is already on disk. Reads, never computes — LODO
+    refits per department and is hours, so this reports what exists and what does not."""
     from crop_classifier.paths import proc
     p = Path(proc_dir) if proc_dir else proc()
     suf = f"_{tag}" if tag else ""
@@ -211,8 +188,7 @@ def collect(run: Path, tag: str = "", proc_dir: Path | None = None) -> tuple[lis
 
 
 def format_table(rows: list[Row], extra: dict, run: Path, tag: str) -> str:
-    """The table, plus the two things that make it readable: what each split holds out, and
-    how far the held-out units spread around the mean."""
+    """The table, plus what each split holds out and how far the units spread around the mean."""
     out = [f"evaluation protocol — run={run.name}" + (f"  tag={tag}" if tag else ""), ""]
     head = (f"{'split':<7} {'mean±sd over units':>20} {'pooled':>8} {'floor':>7} "
             f"{'skill':>7} {'units':>18} {'n':>9}")
@@ -226,8 +202,7 @@ def format_table(rows: list[Row], extra: dict, run: Path, tag: str) -> str:
             mean = f"{r.mean:.4f} ± {r.sd:.4f}".rjust(20)
         pooled = f"{r.pooled:.4f}" if r.pooled is not None else "       -"
         floor = f"{r.floor:.3f}" if r.floor is not None else "      -"
-        # skill normalises the headline (mean over units) by the floor, and is the only
-        # column comparable across label spaces
+        # skill = headline normalised by the floor; the only column comparable across label spaces
         head_f1 = r.mean if r.mean is not None else r.pooled
         if head_f1 is not None and r.floor is not None and r.floor < 1:
             skill = f"{(head_f1 - r.floor) / (1 - r.floor):.3f}"

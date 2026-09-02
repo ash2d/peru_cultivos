@@ -5,8 +5,8 @@ appended to ``CLAUDE.md`` — which is auto-loaded into every agent context. The
 what stop that coming back: they fail if a doc link dangles or if ``CLAUDE.md`` grows back
 into a results document.
 
-Three more were added after a clean-up on 2026-08-31, one per thing that had actually gone
-wrong and that reading the docs would not have surfaced:
+Three more added after a 2026-08-31 clean-up, one per thing that had gone wrong and that
+reading the docs would not surface:
 
 * a **code comment** pointing at a doc the consolidation deleted — 41 of them, invisible to
   a checker that only walks markdown;
@@ -29,9 +29,8 @@ ROOT = Path(__file__).resolve().parents[1]
 # Orientation only. Results go in docs/RESULTS.md, status in docs/STATUS.md.
 CLAUDE_MD_MAX_LINES = 250
 
-# A notebook carrying its rendered imagery is tens of MB of base64 in git. 01 keeps its
-# TEXT outputs on purpose — they are the forensic record of what each raw file is — so the
-# cap is per-notebook and generous rather than a blanket "strip everything".
+# A notebook with rendered imagery is tens of MB of base64 in git. 01 keeps its TEXT outputs
+# on purpose (the forensic record of each raw file), so the cap is per-notebook and generous.
 NOTEBOOK_MAX_MB = 1.0
 
 # The whole documentation set. Adding a file here is a deliberate act, not an accident.
@@ -90,9 +89,8 @@ def test_no_internal_markdown_link_is_broken():
 def test_no_code_comment_points_at_a_doc_that_does_not_exist():
     """The consolidation deleted 13 planning docs and left 41 references to them.
 
-    Comments are where a lesson gets recorded next to the code it is about, so a comment
-    citing a file that no longer exists is a dead end at exactly the moment someone needs
-    it. Markdown-only link checking cannot see them.
+    A comment citing a deleted file is a dead end at exactly the moment someone needs the
+    lesson it records. Markdown-only link checking cannot see them.
     """
     known = {p.name for p in _docs()} | {str(p.relative_to(ROOT)) for p in _docs()}
     dangling = []
@@ -133,10 +131,10 @@ def test_every_doc_is_non_empty(name):
 
 
 def test_every_committed_figure_is_referenced_by_a_doc():
-    """24 of 37 figures were orphans, 11 MB of them, because nothing asked.
+    """24 of 37 figures were orphans, 11 MB, because nothing asked.
 
-    ``docs/figures/`` is checked in, so anything in it that no document cites is weight
-    with no reader. Regenerate-and-forget is the normal way it happens.
+    ``docs/figures/`` is checked in, so anything no document cites is weight with no reader —
+    regenerate-and-forget is how it happens.
     """
     # tracked files only: several CLI commands default to writing here, and a figure
     # someone regenerated locally is not repository weight until it is committed.

@@ -1,16 +1,13 @@
 """Named workspaces, read from ``workspaces.yaml`` at the repo root.
 
-**Why this module exists.** Which dataset a command touches used to be decided by three
-environment variables — ``CC_PROC``, ``CC_FEAT``, ``CC_RUNS``. Forget one ``export`` and the
-command does not fail: it silently reads or writes the wrong store, and every cookbook recipe
-in the docs began with an ``export`` line for exactly that reason. A workspace gives that
-triple a *name*, checked against a file, so ``-w national`` replaces three exports that must
-agree.
+**Why this module exists.** Which dataset a command touches used to be three environment
+variables — ``CC_PROC``, ``CC_FEAT``, ``CC_RUNS``. Forget one ``export`` and the command
+silently reads or writes the wrong store. A workspace names that triple, checked against a
+file, so ``-w national`` replaces three exports that must agree.
 
-**How it plugs in.** ``activate()`` sets the same three environment variables. Every module
-downstream keeps resolving paths through :mod:`crop_classifier.paths` at call time and is
-unchanged — the call-time rule in that module still holds and still matters. This layer only
-decides *what to put in the variables*, and makes the answer visible.
+**How it plugs in.** ``activate()`` sets the same three variables; downstream modules keep
+resolving through :mod:`crop_classifier.paths` at call time, unchanged. This layer only
+decides *what to put in the variables* and makes the answer visible.
 
 Omitting ``-w`` leaves the environment untouched, so an explicit ``CC_PROC`` still wins and
 pre-existing shell sessions keep working. ``cc workspaces`` prints whichever is in effect.
@@ -28,9 +25,8 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_NAME = "workspaces.yaml"
 
-#: The three environment variables a workspace sets. Kept as the mechanism deliberately:
-#: it is what the whole codebase already reads, and it means a workspace and a hand-set
-#: variable cannot disagree.
+#: The three environment variables a workspace sets. Kept as the mechanism deliberately —
+#: what the whole codebase already reads, so a workspace and a hand-set variable can't disagree.
 ENV_VARS = ("CC_PROC", "CC_FEAT", "CC_RUNS")
 
 
@@ -114,9 +110,9 @@ def activated() -> str | None:
 def activate(name: str) -> Workspace:
     """Select ``name`` for this process by setting the three environment variables.
 
-    Does **not** create the directories — that is ``paths.proc()`` and friends, at call
-    time, only for the workspace a command actually touches. Creating all three here would
-    scatter empty directories every time someone ran ``--help``.
+    Does **not** create the directories — that is ``paths.proc()`` and friends, at call time,
+    only for the workspace a command touches. Creating all three here would scatter empty
+    directories on every ``--help``.
     """
     global _ACTIVATED
     ws = resolve(name)

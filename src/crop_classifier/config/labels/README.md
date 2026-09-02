@@ -32,7 +32,7 @@ five-class space.
 4. `uv run cc labelling train prep --target <name>` then `... fit --target <name>`.
 5. `uv run cc evaluate <run> --tag <tag>`.
 
-## ⚠️ Read the verdict across the bracket, not at one point
+## Read the verdict across the bracket, not at one point
 
 `t4` and `t3w` differ only in what happens to `WOODY_NON_CROP`, and that one decision moves
 `PERENNIAL` F1 by **0.190** — larger than most effects anyone measures here. A feature adopted
@@ -42,7 +42,7 @@ other end it is 7 of 14 at p = 0.345.
 
 **Re-run anything that decides something at both ends of the bracket.**
 
-## ⚠️ And macro-F1 is not comparable across these files
+## macro-F1 is not comparable across these files
 
 Collapsing to two classes raises macro-F1 *and* raises the always-guess-the-largest-class floor
 further. `cc evaluate` prints the floor and the normalised `skill` beside every score for this

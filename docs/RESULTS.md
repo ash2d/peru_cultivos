@@ -23,11 +23,11 @@ that generalise beyond Peru, see [`LESSONS.md`](LESSONS.md).
 | 4b | All-Peru 25-year panel | annual trajectory per parcel | ⛔ FAILED gate, all 3 arms | `perennial/panel.py` |
 | 5 | Window pivot | 5-year window shares | ⛔ FAILED 3 pre-gates | `allperu/windows.py` |
 | 6 | Temporal OOD fixes | make 2019–23 predictable | ⛔ FAILED; 4 routes closed | `allperu/density.py`, `oli_*.py` |
-| 7 | Tenure DiD (v3) | does title cause conversion? | ⚖️ **COMPLETE — bounded null** | `allperu/tenure_did.py` |
-| 8 | S2 endpoint labelling | validated 2020+ labels | 🔴 **LIVE** — 1,012/1,112 labelled, G2/G3-dept pass | `labelling/`, `features/s2_*` |
+| 7 | Tenure DiD (v3) | does title cause conversion? | **COMPLETE — bounded null** | `allperu/tenure_did.py` |
+| 8 | S2 endpoint labelling | validated 2020+ labels | **LIVE** — 1,012/1,112 labelled, G2/G3-dept pass | `labelling/`, `features/s2_*` |
 | 8.8 | Climate covariates | does temp + rainfall help? | ✅ **YES, and on LODO** — LightGBM LODO 0.539 → 0.568 (`t4`), 0.697 → 0.724 (`t3w`) | `allperu/climate.py`, `labelling/climate_arms.py` |
 | 8.8b | …read across the `t4`/`t3w` bracket | is that gain the WOODY boundary? | ✅ **NO** — but adopt `temp`, not `both`: `rain` does not replicate | `labelling/climate_arms.py` |
-| 8.9 | 🔓 **The S2 locked test, SPENT** | does the CV estimate hold on held-out data? | ✅ **YES** — 0.789 acc / **0.774 macro-F1** / `PERENNIAL` F1 0.780, n=161 | `train.py --eval-test` |
+| 8.9 | **The S2 locked test, spent** | does the CV estimate hold on held-out data? | ✅ **YES** — 0.789 acc / **0.774 macro-F1** / `PERENNIAL` F1 0.780, n=161 | `train.py --eval-test` |
 
 **The one result to know before doing any modelling:** `centroid_lat` is worth **+0.047
 macro-F1 on spatial CV, +0.047 on leave-one-year-out, and −0.060 on
@@ -36,7 +36,7 @@ already seen*, so it cannot separate memorisation from signal. §4.2.
 
 ---
 
-## 1. The 12-class crop classifier — ⛔ CLOSED, superseded
+## 1. The 12-class crop classifier — CLOSED, superseded
 
 **Verdict: the annual crops are not separable from one another at 30 m, and no model choice
 fixes it.**
@@ -68,13 +68,13 @@ peaking Mar–May, senescent by August (`figures/profiles_12class_ndvi.png`).
 not "which crop" but "does this parcel hold canopy year-round" — which is also the distinction
 the research question needs (perennial ≈ export, annual ≈ domestic).
 
-⚠️ **The 12-class locked test is spent** (macro-F1 0.427).
-⚠️ `CAÑA DE AZUCAR` looks perennial (high NDVI all year) but is classed `ANNUAL` by policy,
+**The 12-class locked test is spent** (macro-F1 0.427).
+`CAÑA DE AZUCAR` looks perennial (high NDVI all year) but is classed `ANNUAL` by policy,
 because it is replanted on a multi-year cycle. Deliberate, and a registered sensitivity arm.
 
 ---
 
-## 2. The 3-class land-state classifier, Piura — ✅ WORKS
+## 2. The 3-class land-state classifier, Piura — WORKS
 
 **Verdict: 0.681 macro-F1 on a locked test. This is the one component of the project that is
 solid, and everything downstream assumes it.**
@@ -105,7 +105,7 @@ scientific control).
 leakage did not inflate CV. Temperature scaling gave T = 1.440, ECE 0.093 → 0.037, argmax
 preserved.
 
-⚠️ **The Piura locked test is SPENT TWICE.** It was used a second time on 2026-08-05 at the
+**The Piura locked test has been spent twice.** It was used a second time on 2026-08-05 at the
 user's explicit request, for tuned LTAE, out of interest. Nothing was selected on it, but it is
 **no longer a clean held-out estimate for any future selection**. Tuned LTAE beats LightGBM on
 all 5 CV folds (0.658 vs 0.647) and **loses the locked test** (0.661 vs 0.681) — CV rank and
@@ -134,7 +134,7 @@ is, and parcel size cannot fix that.
 **Frame this honestly:** S3 passed for a structural reason, not because a fair contest was won.
 The useful conclusion is the positive one — a parcel-level model is *necessary* here precisely
 because the off-the-shelf product does not resolve the distinction the question depends on.
-⚠️ MapBiomas is itself Landsat-derived at 30 m, so it shares sensors, cloud regimes and
+MapBiomas is itself Landsat-derived at 30 m, so it shares sensors, cloud regimes and
 mixed-pixel problems. It is a benchmark, not ground truth.
 
 ### 2.2 The `rules` control was under-specified
@@ -149,7 +149,7 @@ control's one clean win, threshold stability. Both are kept
 
 ---
 
-## 3. The Piura 28-year panel — ⛔ FAILED its gate
+## 3. The Piura 28-year panel — FAILED its gate
 
 **Verdict: the classifier works; the trend does not. No trajectories, transitions or area
 estimates exist, and none should be produced.** That code is built and unit-tested and stays
@@ -184,7 +184,7 @@ S5 is therefore gameable: LightGBM's 0.428 is the optimistic end and LTAE's 0.78
 one. **"Try the other model" is a closed route** — any fix must change the data or the
 estimand.
 
-### 3.2 The El Niño confound — the smoking gun
+### 3.2 The El Niño confound — the direct cause
 
 Trained on 1999+2000, tested on 1998, with the required control arm: `PERENNIAL` recall
 **0.361 → 0.000**, `PASTURE_FALLOW` 0.589 → 0.100, `ANNUAL` *up* 0.049. Robust across seeds,
@@ -202,14 +202,14 @@ normal years then sits inside both distributions, so recall goes to zero. **`BSI
 feature that holds** (−0.76 → −0.90 SD; the raw gap widens too, so it is not a normalisation
 artefact). Numbers in `figures/elnino_signature_collapse.csv`.
 
-⚠️ **"Separation" here is a property of the dataset, not a computation the model performs.**
+**"Separation" here is a property of the dataset, not a computation the model performs.**
 The quantity is `(median PERENNIAL − median ANNUAL) / pooled SD`, measured across parcels after
 the fact (`perennial/report_figures.py::elnino_signature_collapse`, restricted to regions present
 in both cohorts so place is held roughly fixed). **No model in this project uses any neighbour
 feature** — every prediction comes from one parcel's own time series. Earlier revisions of this
 paragraph said "contrast with annual neighbours", which wrongly implied a spatial computation.
 
-⚠️ **Do not read that as a missing-feature problem.** LightGBM *has* `BSI_max` (rank 9/135) and
+**Do not read that as a missing-feature problem.** LightGBM *has* `BSI_max` (rank 9/135) and
 still lost `PERENNIAL` on 1998. The deficit is **weighting** (all `BSI_*` = 6.51 % of gain
 against a dominant greenness family), and reweighting is a testable hypothesis, not a
 demonstrated fix.
@@ -224,7 +224,7 @@ years it still covers (pooled CV on ≥1999 validation parcels 0.6412 vs 0.6415)
 truncated to ≥1999 also pass S4 at 0.076, so most of the S4 gain is the shorter panel, not the
 retrain. Always pair `--train-years` with a truncation control.
 
-### 3.4 ✅ `frac_l7` — resolved, and the reason it matters
+### 3.4 `frac_l7` — resolved, and the reason it matters
 
 `data.py` fed LightGBM every column except `COD_PREDIO`/`label_id`, so acquisition metadata
 were model inputs. `frac_l7` was the **2nd-highest-gain feature** and ramps 0.000 across the
@@ -238,7 +238,7 @@ independent measurement that **gain ≠ contribution**.
 
 ---
 
-## 4. All of Peru, single year — ✅ WORKS
+## 4. All of Peru, single year — WORKS
 
 **Verdict: the national single-year classifier is sound, and it produced the project's most
 important methodological finding.**
@@ -259,7 +259,7 @@ Per class the national profile is **much more balanced**: `PASTURE_FALLOW` 0.485
 sierra supplies grazing land Piura lacked), `ANNUAL` 0.781 → 0.627 (Piura's rice monoculture
 made it nearly trivial), `PERENNIAL` 0.685 → 0.655.
 
-⚠️ **The sample's class mix is not the population's.** Square-root department allocation
+**The sample's class mix is not the population's.** Square-root department allocation
 upweights small departments, which are the coastal perennial ones, so `PERENNIAL` runs at
 **20.2 % of the sample against 9.9 % of the population**. Good for training; **any area or
 share figure must use `sample_weight`**, which reconstructs the population exactly (total
@@ -271,7 +271,7 @@ weight = 726,808).
 also holds sierra and southern parcels that are perfectly readable. The primary national model
 keeps all years.
 
-### 4.2 ⭐ `centroid_lat` is spatial memorisation, not agro-climatic signal
+### 4.2 `centroid_lat` is spatial memorisation, not agro-climatic signal
 
 With 14 departments the pipeline can finally hold out a *place* rather than a neighbouring
 5 km cell.
@@ -290,7 +290,7 @@ Two companions:
 
 * **The spatial-generalisation gap is ~0.09 macro-F1** (0.629 unseen-cell → 0.539
   unseen-department), invisible to every evaluation a single-department project could run.
-* ⚠️ **"Piura is one of the hardest departments to predict" was an artefact of
+* **"Piura is one of the hardest departments to predict" was an artefact of
   `centroid_lat`, not a fact about Piura.** It scores 0.301 (13th of 14) under the *rejected*
   `nometa` model, but **0.479 (6th of 14)** under the selected `nolat` model and **0.512 (2nd
   of 14)** under LTAE, which has no location feature at all. Piura is the most distinctive
@@ -309,14 +309,14 @@ across-department *spread* (0.056 vs 0.082/0.098) and lifts the two hardest depa
 still transfers worse.** *"Fewer statics" is not a monotone recipe for generalisation; the
 specific feature was the problem, not staticness.*
 
-⚠️ **This verdict is about LTAE *on the Landsat store*, and it carries over only in part.**
+**This verdict is about LTAE *on the Landsat store*, and it carries over only in part.**
 Re-asked on the Sentinel-2 store — median 47 clear dates per parcel-year against 13–24 here —
 LTAE wins **CV in 8 of 8 arms** and **loses LODO in 4 of 4 targets**, dropping 1.4–3.4× more
 than LightGBM when the department changes. So the *deciding* axis agrees with this section and
 the CV axis does not: LTAE's extra S2 skill is skill that does not leave the training
 departments. §8.2.
 
-### 4.4 ⛔ The national panel failed the same gate, on all three arms
+### 4.4 The national panel failed the same gate, on all three arms
 
 25 years, 2,949 chunks, 37.6 M pixel-obs, **114,125 parcel-years per arm** (4,565 × 25).
 
@@ -339,7 +339,7 @@ everything to *not changing your mind*.
 2. **There are no thin years** — Piura's flagged coverage failures (2009 at 49.2 %, 2011 at
    43.3 %) pass at 95.4 / 96.2 % nationally, minimum 93.4 % over 25 years. **So 0.98 flicker
    cannot be a coverage artefact.**
-3. The El Niño arm shows no class-specific collapse — but ⚠️ **do not read that as a
+3. The El Niño arm shows no class-specific collapse — but **do not read that as a
    clearance**: the national 1998 arm is only 5.5 % Piura, so it never tested the flood.
 
 **What that isolates:** not the baseline, not coverage, not the sensor boundary, not the
@@ -349,7 +349,7 @@ enough for a per-parcel annual trajectory** — per-year errors are near-indepen
 
 ---
 
-## 5. The window pivot — ⛔ CLOSED, three pre-gates failed
+## 5. The window pivot — CLOSED, three pre-gates failed
 
 **Verdict: aggregating to 5-year windows fixes flicker and does not fix the estimand. No
 extraction was funded.**
@@ -360,15 +360,15 @@ PETT label instead of predicting it, and identify the tenure contrast within-yea
 * **M1 works.** Aggregating window-mean *probability* (not modal class) collapses annual
   3-class flicker 0.75 → **8.8 % of parcels with ≥2 window-state changes**; 82 % never change
   state. The Phase-7 instability is genuinely fixed by aggregation.
-* **⛔ T3 fails on W2, every arm.** The PETT-`PERENNIAL` control pool — which must be flat for
+* **T3 fails on W2, every arm.** The PETT-`PERENNIAL` control pool — which must be flat for
   the at-risk series to mean anything — drifts **−0.044 / −0.059 / −0.103 per decade**
   (`nometa` / `nolat` / `ltae`) while the at-risk pool rises only **+0.018**. The yardstick
   moves 7× further than the signal, the other way. Not composition: a balanced panel gives the
   same series.
-* **⛔ T2 (leave-one-year-out) fails.** Worst non-1998 cohort **0.406** against CV 0.581
+* **T2 (leave-one-year-out) fails.** Worst non-1998 cohort **0.406** against CV 0.581
   (tolerance 0.10); `PERENNIAL` recall spans 0.370–0.882. 1998 is mid-pack nationally (0.523).
   **A 2019–23 prediction is not licensed.**
-* **⛔ T1 fails on the leg that matters.** Accuracy is non-differential in tenure (coef +0.013,
+* **T1 fails on the leg that matters.** Accuracy is non-differential in tenure (coef +0.013,
   p 0.107) but the **at-risk false-positive rate is 0.111 `INSCRITO` vs 0.155 `NO INSCRITO`**
   (−1.75 pp conditional on region + size, p 0.016) — the size of the target effect, pointing
   the *opposite* way to the cross-sectional association.
@@ -385,17 +385,17 @@ few statics the arm carries**.
 of **2.36**, not the assumed 1.4; `PERENNIAL` is **57 % export / 20 % mixed / 23 % domestic**;
 declared woody non-crop is **2.79 %** of the pool — bigger than the effect being sought.
 
-⚠️ **Piura's supporting evidence came from `lightgbm_nometa`, the arm LODO disqualified.** On
+**Piura's supporting evidence came from `lightgbm_nometa`, the arm LODO disqualified.** On
 the selected `nolat` arm Piura already drifts −0.017/decade.
 
 ---
 
-## 6. Temporal out-of-distribution fixes — ⛔ CLOSED, four routes measured shut
+## 6. Temporal out-of-distribution fixes — CLOSED, four routes measured shut
 
 **Verdict: the acceptance test failed. A new primary model was adopted at zero cost, but no
 2019–23 estimate is licensed.**
 
-### 6.1 ⭐ LOYO inherits spatial CV's blind spot
+### 6.1 LOYO inherits spatial CV's blind spot
 
 Leave-one-year-out holds region approximately fixed so that year varies — so a *time-invariant*
 feature is as exploitable there as in CV:
@@ -411,8 +411,8 @@ The free fix is **`allperu lodyo`**, which re-scores the *existing* LODO predict
 label-year cohort — no new fits. **An OOD evaluation is only blind-sided along the axis it
 holds fixed. Report CV / LODO / LOYO / LODYO for every candidate.**
 
-**LODYO now runs automatically at the end of every `allperu lodo`** — an evaluation nobody
-remembers to run is an evaluation that does not exist, and this is the one that overturned the
+**LODYO now runs automatically at the end of every `allperu lodo`** — an evaluation that is easy
+to forget is one that will be skipped, and this is the one that overturned the
 selection.
 
 ### 6.2 New primary model, adopted for consistency not for effect
@@ -423,11 +423,11 @@ year-identifying features withheld. Beats the incumbent on **all five** criteria
 LODO +0.0024, LOYO +0.0025, LODYO +0.0040, **W2 control slope −0.0592 → −0.0382 (35 %
 flatter)**.
 
-⚠️ **No labelled difference is individually significant** (paired p 0.14–0.54). Adopted for
+**No labelled difference is individually significant** (paired p 0.14–0.54). Adopted for
 consistency in sign at zero cost, not for a demonstrated effect. The two changes are **not
 additive** — `yleak10` alone makes W2 *worse* (−0.0679).
 
-⛔ **Step 1 acceptance FAILED.** W2 target |0.01| (best 0.038); LOYO worst-cohort gap target
+**Step 1 acceptance FAILED.** W2 target |0.01| (best 0.038); LOYO worst-cohort gap target
 0.10 (best 0.151). Observation density is a real mechanism worth ~a third of the artefact,
 **not** the artefact.
 
@@ -440,7 +440,7 @@ additive** — `yleak10` alone makes W2 *worse* (−0.0679).
 * **Per-year quantile alignment is worse than doing nothing** — W2 **−0.1023**, nearly 2× the
   baseline.
 
-### 6.4 ⛔ The OLI route is closed — twice, and the second time tells you why
+### 6.4 The OLI route is closed — twice, and the second time tells you why
 
 OLI alone would give **21.8 clear observations per parcel-year against L7's 13.1** — the
 largest lever on the density mechanism anyone found. It fails anyway.
@@ -464,16 +464,16 @@ band-level linear map moves all classes *together* and cannot remove a differenc
 them; the only map that would work is conditioned on cover type, which is what the model is
 trying to predict.
 
-⛔ **Do not propose refitting the coefficients — it is done.** Reopening needs a *cleaner
+**Do not propose refitting the coefficients — it is done.** Reopening needs a *cleaner
 paired sample* (pixel-level co-registration, or larger parcels — not parcel medians in scene
-sidelaps). ⚠️ The registered 0.95 agreement criterion was also **never achievable**: the
+sidelaps). The registered 0.95 agreement criterion was also **never achievable**: the
 model's split-half self-agreement ceiling is **0.655**.
 
 ### 6.5 Two structural feature results
 
 * **Order statistics are density-fragile.** `_min`/`_max`/`_amp` move **0.347** within-SD per
   e-fold of observation count against **0.080** for the harmonic/slope fits — a 4.3× gap, land
-  held fixed. ⚠️ **Do not act on that ranking alone**: dropping all 33 of them is the arm LOYO
+  held fixed. **Do not act on that ranking alone**: dropping all 33 of them is the arm LOYO
   *rejects* (mean −0.0026, worst `PERENNIAL` recall 0.344).
 * **The features identify the label year at 0.508 accuracy against a 0.155 baseline**, held out
   by region. `frac_l7` was one symptom of a systemic property.
@@ -483,7 +483,7 @@ model's split-half self-agreement ceiling is **0.655**.
 
 ---
 
-## 7. ⚖️ The two-period tenure DiD — COMPLETE, a bounded null
+## 7. The two-period tenure DiD — COMPLETE, a bounded null
 
 **Verdict: the project's first actual estimate. Titling moves predicted perennial probability
 by less than ±1.3 pp. Do not reopen for a bigger sample — the population is exhausted.**
@@ -508,14 +508,14 @@ NO INSCRITO → REGISTERED.** The classifier supplies the *outcome* at both date
 Extraction: 15 years (1999–2003, 2014–2023), **211,567 parcel-years, 63.6 M pixel-obs, ~13.5 h
 on 5 workers**. 219,375 parcel-years inferred.
 
-### 7.2 ⭐ The result
+### 7.2 The result
 
 Registered before extraction in `did2_registration.json`. Placebo estimated **first**, enforced
 by the code path.
 
 | arm | placebo (2.5 y) | headline W99→W14+W19 | corrected M = 7 | decision |
 |---|---:|---:|---:|---|
-| **`nolat_aug_yleak10`** ⭐ | **−0.0029** (0.0037) | **−0.0011** (0.0059, p 0.85) | **+0.0195** (0.0268) | **NOT-SEPARABLE** |
+| **`nolat_aug_yleak10`** | **−0.0029** (0.0037) | **−0.0011** (0.0059, p 0.85) | **+0.0195** (0.0268) | **NOT-SEPARABLE** |
 | sens: `nolat` | −0.0009 (0.0042) | −0.0020 (0.0056) | +0.0042 (0.0301) | NOT-SEPARABLE |
 | neg. control: `ltae` | −0.0026 (0.0101) | −0.0154 (0.0080, p 0.055) | +0.0031 (0.0709) | NOT-SEPARABLE |
 
@@ -539,14 +539,14 @@ window midpoints in code**, never hard-coded (17.5 y headline / 2.5 y placebo). 
 registered in advance and is unflattering: only an effect larger than **~3.3 pp** can survive
 the correction.
 
-**⭐ The v2 gate was unpassable at any sample size — measurable only after running.** v2
+**The v2 gate was unpassable at any sample size — measurable only after running.** v2
 demanded *proof* the pre-trend was negligible (equivalence, 25,202 parcels/arm against 6,559
 that exist). The measured placebo point estimate is **−0.00295, already outside the registered
 ±0.0025 band**, so the SE letting its CI fit inside is **negative**: more precision returns
 FAIL, never PASS. And it would have failed on −0.0118/decade — a pre-trend that cannot change a
 null. See [`LESSONS.md`](LESSONS.md).
 
-⚠️ **Never read a direction from the corrected point estimate.** The correction's sign flips
+**Never read a direction from the corrected point estimate.** The correction's sign flips
 between outcomes (−0.0029 on probability, +0.0029 on the thresholded share), which is what a
 noise term does.
 
@@ -567,36 +567,36 @@ noise term does.
   (draw from the full national table, not the model's own sample); shared regions 0.366 →
   **0.849** (draw controls region-first).
 
-### 7.5 ⚠️ The caveat that binds every number
+### 7.5 The caveat that binds every number
 
 **Tenure is last observed ~2011–12; the outcome runs to 2023, and Peru's titling programme kept
 running.** An unknown share of the control arm was certainly titled and unobserved. That
 attenuates any real effect **toward zero**. So a positive finding here would be an
-underestimate, and **this null is partly attributable to that contamination and is NOT evidence
+underestimate, and **this null is partly attributable to that contamination and is not evidence
 that titling has no effect.** Bounding it needs a third dated observation, which does not exist.
 
-⚠️ **Common support still fails** (0.409 at department level) and is structural — 75 % of
+**Common support still fails** (0.409 at department level) and is structural — 75 % of
 treated parcels are La Libertad + Cajamarca, so the estimate applies to where titling actually
 happened.
 
-⚠️ **Magnitude is architecture-dependent even though sign is not.** `ltae` gives −0.0154
+**Magnitude is architecture-dependent even though sign is not.** `ltae` gives −0.0154
 against LightGBM's −0.0011. Any future design needing a *level* rather than a null must treat
 architecture as a first-order uncertainty.
 
-### 7.6 The cross-sectional companion — descriptive, NOT an estimate
+### 7.6 The cross-sectional companion — descriptive, not an estimate
 
 Computed on request (`allperu tenure-xsec`). Among at-risk parcels the
 `INSCRITO` − `NO INSCRITO` gap runs **−0.0429 at W99 → −0.0216 at W19**. Three findings, none
 of which is a treatment effect:
 
-1. **The W99 gap IS the classifier's false-positive-rate gap.** True perennial share at the
+1. **The W99 gap *is* the classifier's false-positive-rate gap.** True perennial share at the
    label year is ≈0 by construction, so the baseline gap is pure error — and it comes out at
    −0.0429 against T1's independently measured −0.044 (§5), from a completely different
    direction. **The baseline "association" is a property of the instrument, not of the land.**
 2. **The sign is department-specific**, so the pooled number describes a quantity that does not
    exist. `INSCRITO` reads higher in 5 of 14 departments at W99 and 4 of 14 at W19; spread runs
    Lima +0.110 to Ayacucho −0.186.
-3. ⚠️ **The Piura figure does not replicate and the direction reverses.** The old
+3. **The Piura figure does not replicate and the direction reverses.** The old
    perennial-strand "24.9 % vs 10.9 %, `INSCRITO` higher" comes out as **−0.081, `INSCRITO`
    lower** here. **Do not carry that figure forward as a national fact.**
 
@@ -604,31 +604,31 @@ The artifact carries an `IS_NOT_CAUSAL` field so it cannot be lifted out of cont
 
 ---
 
-## 8. S2 endpoint labelling — 🔴 LIVE
+## 8. S2 endpoint labelling — LIVE
 
 **Verdict: 1,012 of 1,112 labellings are in, all three models are trained and compared, and the
 comparison produced a reversal. Only the 100-parcel overlap shard (gate G1) is outstanding.**
 
-⭐ **The headline: LTAE wins cross-validation in all 8 arms and loses leave-one-department-out
+**The headline: LTAE wins cross-validation in all 8 arms and loses leave-one-department-out
 in all 4 targets.** Its CV advantage is skill that does not leave the training departments —
 the fourth instance of this project's central finding, and the first to catch an *architecture*
 rather than a feature. §8.2.
 
-⭐ **The campaign's own deliverable is now readable, and it does not show the shift the project
+**The campaign's own deliverable is now readable, and it does not show the shift the project
 was built around**: of parcels declared `ANNUAL` in 1996–2006, **2.9 % [0, 5.9] read as
 perennial today** — while **57.9 %** read as farmable ground not currently cropped. §8.2b.
 
-⭐ **Collapsing to two classes (perennial vs not) makes macro-F1 rise and the model worse.**
+**Collapsing to two classes (perennial vs not) makes macro-F1 rise and the model worse.**
 The floor rises with it — always guessing the largest class scores 0.467 at two classes against
 0.171 at four — and normalised against that floor, `t2` is the **lowest-skill arm in the study**.
 `PERENNIAL` F1 gains +0.004 over the 3-class model. §8.2c.
 
-⭐ **Using the 2012 census as the "before" instead of the PETT declaration** gives the project's
+**Using the 2012 census as the "before" instead of the PETT declaration** gives the project's
 first paired two-declaration comparison: on 8,669 Piura parcels, perennial declarations go
 **28.2 % → 40.7 % of parcels (+12.5 pp) and 51.4 % → 66.0 % of cadastral area (+14.6 pp)**
 between ~1999 and 2012, with conversion concentrated on the larger parcels. §8.5.
 
-🔓 **The locked test (201 parcels, 161 usable) was SPENT on 2026-09-01** — once, on the two
+**The locked test (201 parcels, 161 usable) was spent on 2026-09-01** — once, on the two
 arms §8.8b had already selected. **§8.9** is the only section that reads it; everything else
 in §8 is CV/LODO and was measured before it.
 
@@ -641,7 +641,7 @@ Delivered: eligible universe **614,876 parcels**, **4,519 Esri centroids probed*
 87.6 % ≤1.2 m and ≥2019), **2,224 chips**, **117,768 S2 parcel-dates**, **9 HTML shards
 covering 1,112 parcels**, split frozen before labelling.
 
-⭐ **Sentinel-2 gives a median 19–113 clear dates per parcel-agricultural-year by department,
+**Sentinel-2 gives a median 19–113 clear dates per parcel-agricultural-year by department,
 against the Landsat store's 13–24.** Observation density is the one mechanism this project has
 *measured* driving the panel failures (§5), and S2 roughly triples it. That does not mean the
 artefact is gone — measure it, do not assume.
@@ -659,19 +659,19 @@ a boundary mismatch between the polygon and the imagery.
 |---|---|---|---|---|
 | **G1** `kappa_called` | do two passes over the same parcels agree, counting only parcels *both* passes actually called? | ≥ 0.75 | **not measurable** | the overlap shard is not in the return. Not a failure — an *absence* |
 | **G2** `UNSURE` share | what fraction of parcels could the annotator not call at all? | < 0.25 | **0.139** ✅ **PASS** | at 1.2 m imagery, 86 % of parcels are callable. This was the live unknown |
-| **G3** labels per department | is any department too thin to hold out? | ≥ 35 usable | **48** (Moquegua) ✅ **PASS** | ⭐ first time. **All 14 departments** now clear it, against 4 at the last read |
+| **G3** labels per department | is any department too thin to hold out? | ≥ 35 usable | **48** (Moquegua) ✅ **PASS** | first time. **All 14 departments** now clear it, against 4 at the last read |
 | **G3** labels per class | is any class too thin to learn? | ≥ 150 usable | **54** (`NON_AGRICULTURE`) ⛔ **FAIL** | pre-registered as *pool into `OTHER`, do not re-draw* — that is the `t4` target below. `PERENNIAL` (115) and `ANNUAL` (141) also sit under the floor |
 
 **Label counts, all 1,012 returned:** `OTHER` 395, `WOODY_NON_CROP` 166, `UNSURE` 141,
 `ANNUAL` 141, `PERENNIAL` 115, `NON_AGRICULTURE` 54.
 
-⚠️ **G1 is unmeasured and every number below inherits that.** The campaign still has no
+**G1 is unmeasured and every number below inherits that.** The campaign still has no
 measurement of its own label noise. Related and on the record: the annotator's **median time
 per parcel is 2–4 seconds** (76 % of `shard01` under 5 s), against the plan's ~2 min budget.
 That does not make the labels wrong; it means the noise floor is unquantified, and the intra-rater
 re-label of 100 parcels is what would quantify it.
 
-### 8.2 ⭐ The result: LTAE wins cross-validation and loses out-of-department
+### 8.2 The result: LTAE wins cross-validation and loses out-of-department
 
 **This reverses the previous reading of §8.2, which was taken on 4 departments and 354 labels.**
 
@@ -682,7 +682,7 @@ resolved, because the gap between them *is* the size of the decision:
 | target | what it is | classes | n usable |
 |---|---|---|---|
 | `t5` | the campaign's own scheme, untouched | `PERENNIAL` / `ANNUAL` / `OTHER` / `WOODY_NON_CROP` / `NON_AGRICULTURE` | 865 |
-| **`t4`** ⭐ | `NON_AGRICULTURE` → `OTHER`. The pre-registered pooling G3 calls for | 4 | 865 |
+| **`t4`** | `NON_AGRICULTURE` → `OTHER`. The pre-registered pooling G3 calls for | 4 | 865 |
 | `t3` | drops `WOODY_NON_CROP` and `NON_AGRICULTURE` — the clean 3-class head-to-head, at the cost of a quarter of the data | 3 | 646 |
 | `t3w` | `WOODY_NON_CROP` → `PERENNIAL`. Keeps every parcel; the *generous* reading, since a model with no woody class does this anyway | 3 | 865 |
 
@@ -730,7 +730,7 @@ folds), LTAE − LightGBM clears p < 0.05 in **5 of 8**: `t4` +0.058 (p = 0.027)
 +0.037 (p = 0.034), `t3` +0.068 (p = 0.046), `t3w` +0.063 (p = 0.042), `t3w`+pilot +0.057
 (p = 0.013). The `t5` arms run +0.013 to +0.035 at p = 0.13–0.25.
 
-⭐ **Leave-one-department-out, macro-F1 (mean ± SD over departments), and it goes the other way:**
+**Leave-one-department-out, macro-F1 (mean ± SD over departments), and it goes the other way:**
 
 | target | departments held out | LightGBM | `rules` | LTAE |
 |---|---|---|---|---|
@@ -748,7 +748,7 @@ the same held-out departments — LTAE − LightGBM is **−0.047** (`t5`, p = 0
 in sign across four independent targets, none individually significant at p < 0.05 — the same
 evidentiary shape as the CV result, with the sign flipped.
 
-⭐ **The mechanism is visible in the size of the drop.** Same model, same labels, seen versus
+**The mechanism is visible in the size of the drop.** Same model, same labels, seen versus
 unseen department:
 
 | target | model | CV | LODO | drop |
@@ -772,7 +772,7 @@ rather than a feature: `frac_l7` manufactured change, statics manufactured stabi
 `centroid_lat` manufactured accuracy that stayed inside the training departments — and here an
 attention encoder over 47 dates manufactures the same thing. **Never select on CV alone.**
 
-⚠️ **This does not re-close "try another architecture", and it does not restore §4.3.** LTAE
+**This does not re-close "try another architecture", and it does not restore §4.3.** LTAE
 is not worse than LightGBM here; it is *equal to slightly worse out of department and clearly
 better within one*. What changed against the earlier reading is the evidence, not the store:
 **4 departments became 14** and 354 labels became 865. A 4-department LODO mean is 4 numbers
@@ -787,7 +787,7 @@ with an SD of 0.15.
 | `PERENNIAL` | 0.483 / 0.406 / 0.441 | **0.526 / 0.594 / 0.558** | 69 |
 | `WOODY_NON_CROP` | 0.683 / 0.724 / 0.703 | **0.677 / 0.759 / 0.715** | 116 |
 
-⚠️ **`PERENNIAL` — the class the research question is about — is the worst class in both
+**`PERENNIAL` — the class the research question is about — is the worst class in both
 models**, at F1 0.44 (LightGBM) and 0.56 (LTAE) on 69 parcels. Under `t3w`, where
 `WOODY_NON_CROP` counts as `PERENNIAL`, it rises to 0.744 / 0.791 on 185 parcels. **That gap
 is not a modelling gain; it is the codebook decision.**
@@ -806,7 +806,7 @@ The dominant residual confusion is `OTHER` ↔ `WOODY_NON_CROP` (29 + 15 = 44 pa
 as the hardest call. `ANNUAL` is nearly clean (81 of 98 correct, and only 5 parcels anywhere
 in the matrix confuse `ANNUAL` with `PERENNIAL` in either direction).
 
-⭐ **The learning curve has flattened with respect to the pilot.** At 354 labels, folding in the
+**The learning curve has flattened with respect to the pilot.** At 354 labels, folding in the
 120-parcel pilot (+48 % data) moved LightGBM **+0.050** on `t4`. At 865 labels the same pilot
 (+14 % data) moves LightGBM **+0.021** and LTAE **−0.001**. The remaining 100 labellings (the
 overlap shard) should be spent on **G1**, not on more training data.
@@ -819,7 +819,7 @@ reason: it has no way to express `WOODY_NON_CROP` or `NON_AGRICULTURE` at all.
 **Full tables:** `labels_s2/model_comparison.csv` (every arm, CV + LODO),
 `labels_s2/ws_<target>_pilot/lodo_<model>.csv` (per department).
 
-### 8.2b ⭐ The transition matrix — the campaign's own deliverable, no classifier in it
+### 8.2b The transition matrix — the campaign's own deliverable, no classifier in it
 
 The weighted **declared (1996–2006) → observed (2019+)** matrix, read straight off the 865
 photo-interpreted labels. Rows are what the PETT programme recorded the farmer growing; columns
@@ -833,20 +833,20 @@ the effective sample size.
 | **PASTURE_FALLOW** | 0.116 ±0.059 | 0.065 ±0.045 | **0.737 ±0.081** | 0.036 ±0.034 | 0.047 ±0.039 |
 | **PERENNIAL** | 0.083 ±0.036 | 0.053 ±0.029 | 0.324 ±0.061 | 0.211 ±0.053 | **0.329 ±0.061** |
 
-⭐ **This is the descriptive conversion estimate the project has never been able to produce, and
+**This is the descriptive conversion estimate the project has never been able to produce, and
 it does not show the shift the research question was built around.** Of parcels declared
 `ANNUAL` in 1996–2006, **2.9 % [0, 5.9] read as perennial today** — indistinguishable from
 zero. What they overwhelmingly read as is `OTHER`: **57.9 %** are farmable ground not currently
 cropped. Declared `PASTURE_FALLOW` behaves the same way (73.7 % `OTHER`).
 
-⚠️ **And the declared-`PERENNIAL` row is a warning about every accuracy figure above.** Only
+**And the declared-`PERENNIAL` row is a warning about every accuracy figure above.** Only
 21.1 % of parcels declared perennial still read `PERENNIAL`; **32.9 % read `WOODY_NON_CROP`**
 and 32.4 % read `OTHER`. Whether that third is "orchard gone wild" (a perennial that stopped
 being farmed) or "riparian scrub that was never the crop" is the single hardest call in the
 codebook, it carries a third of the perennial sample, and **G1 — the measurement that would
 tell us how reliably it is being made — does not exist.**
 
-⚠️⚠️ **And it is a national average that does not describe any particular department.**
+**And it is a national average that does not describe any particular department.**
 Restricted to **Piura**, the same table reads completely differently: **86.7 %** of
 declared-`ANNUAL` parcels still read `ANNUAL` (against 31.1 % nationally) and only **6.7 %**
 read `OTHER` (against 57.9 %). The national "farmable but not currently cropped" result is
@@ -854,12 +854,12 @@ carried by other departments, not by Piura's irrigated coastal valleys. n = 65 f
 that contrast is indicative, not precise — but it is large enough that the national row must
 not be read as a statement about anywhere in particular. §8.5.
 
-⚠️ **This is a transition in *observed land state*, not evidence about titling.** It is
+**This is a transition in *observed land state*, not evidence about titling.** It is
 unweighted by area, it rests on one annotator, and `OTHER` at 2019+ includes ordinary
 between-season fallow, which a single endpoint observation cannot separate from abandonment.
 Source: `labels_s2/declared_to_observed_transitions.csv`.
 
-### 8.2c ⭐ Two classes — the macro-F1 goes up and the model gets worse
+### 8.2c Two classes — the macro-F1 goes up and the model gets worse
 
 Asked directly: collapse the label space to the only distinction the research question turns
 on, **perennial vs not**, and see what the F1 does. Two readings, differing only in which side
@@ -870,7 +870,7 @@ on, **perennial vs not**, and see what the F1 does. Two readings, differing only
 | `t2` | `PERENNIAL` | `ANNUAL` + `OTHER` + `NON_AGRICULTURE` + `WOODY_NON_CROP` | **12.2 %** |
 | `t2w` | `PERENNIAL` + `WOODY_NON_CROP` | `ANNUAL` + `OTHER` + `NON_AGRICULTURE` | **31.7 %** |
 
-⚠️ `rules` is **not run** on either. Its rule maps three semantic groups onto label ids and in
+`rules` is **not run** on either. Its rule maps three semantic groups onto label ids and in
 a two-class space its fallback resolves `PASTURE_FALLOW` to id 1 — which is `PERENNIAL`. It
 would have run and returned a number. The CLI now refuses it (`tests/test_s2_train.py`).
 
@@ -883,7 +883,7 @@ would have run and returned a number. The CLI now refuses it (`tests/test_s2_tra
 | `t3w` (3 classes) | 0.747 | **0.804** | **0.697** | 0.633 |
 | `t2w` (2 classes) | 0.821 | **0.858** | **0.747** | 0.684 |
 
-⛔ **That reading is wrong, and the reason is the baseline.** Macro-F1 averages the per-class
+**That reading is wrong, and the reason is the baseline.** Macro-F1 averages the per-class
 F1 with equal weight. With two classes, a model that never predicts the minority still collects
 a full score on the majority and divides by 2, so **the floor triples as classes are removed**:
 
@@ -896,7 +896,7 @@ a full score on the majority and divides by 2, so **the floor triples as classes
 | `t2w` | 2 | 68.3 % | **0.406** |
 | `t2` | 2 | **87.8 %** | **0.467** |
 
-⭐ **Normalised against its own floor — `skill = (macro-F1 − floor) / (1 − floor)`, so 0 is
+**Normalised against its own floor — `skill = (macro-F1 − floor) / (1 − floor)`, so 0 is
 "no better than guessing the largest class" and 1 is perfect — the two-class collapse is the
 *worst* thing in the study:**
 
@@ -933,7 +933,7 @@ two buys +0.004 — nothing.** The classifier was never losing perennial parcels
 annual/fallow/non-agriculture distinctions, so deleting those distinctions recovers almost
 nothing and throws away four interpretable outputs.
 
-⭐ **What the two-class run does settle is where the difficulty actually lives.** `t2` and `t2w`
+**What the two-class run does settle is where the difficulty actually lives.** `t2` and `t2w`
 differ *only* in which side `WOODY_NON_CROP` sits on, and that single choice moves `PERENNIAL`
 F1 from **0.620 to 0.810** — **6× the gain from collapsing the label space at all**. The
 binding constraint on this classifier is not the number of classes. It is that
@@ -943,14 +943,14 @@ binding constraint on this classifier is not the number of classes. It is that
 **LightGBM now beats LTAE on LODO in 6 of 6 targets** (`t2` +0.085, `t2w` +0.063), which is the
 strongest form §8.2's finding has taken.
 
-**Practical reading:** ⛔ **do not adopt `t2`.** If a binary output is wanted, take it from the
+**Practical reading:** **do not adopt `t2`.** If a binary output is wanted, take it from the
 `t3w` or `t4` model by summing probabilities — the multi-class model is at least as good at
 `PERENNIAL` and still says what the other parcels are. Full table:
 `labels_s2/skill_by_target.csv`.
 
-### 8.3 The transferred Landsat baseline — ⚠️ SUPERSEDED SAMPLE, and it cannot adjudicate G4
+### 8.3 The transferred Landsat baseline — SUPERSEDED SAMPLE, and it cannot adjudicate G4
 
-⚠️ **Every number in this section was measured on the 354-label return, not the 865.** It is
+**Every number in this section was measured on the 354-label return, not the 865.** It is
 deliberately not recomputed, because it cannot decide anything either way (below) — but that
 makes it the one section here whose figures are **not comparable** with §8.1–8.2c's. Do not
 read a row of it beside a row of theirs.
@@ -969,11 +969,11 @@ which the sample carries.
 | Landsat primary → S2 features, `t3` | 245 | 0.352 | 0.400 |
 | Landsat primary → S2 features, `t3w` | 354 | 0.445 | 0.441 |
 
-⚠️ **These two rows were measured on the 354-label return and have not been recomputed on the
+**These two rows were measured on the 354-label return and have not been recomputed on the
 865.** They are not re-run because they cannot decide anything either way (see below) — but do
 not compare them line-for-line against §8.2's numbers, which are measured on 2.4× the data.
 
-⚠️ **Read this as a lower bound on the Landsat model, not a measurement of it.** The booster was
+**Read this as a lower bound on the Landsat model, not a measurement of it.** The booster was
 fitted on Landsat 5/7 reflectance and is being fed Sentinel-2 reflectance under the same column
 names, and §6.4 established *on this project's own data* that the sensor difference is
 cover-type dependent and that no global linear map removes it. The distortion is visible in the
@@ -998,7 +998,7 @@ rather than asserted.
 * **G2 passes at 0.139** and **G3-per-department now passes at 48**, for the first time: all 14
   departments clear the 35-label floor, so LODO is a 14-department estimate instead of a
   4-department one. That change alone is what reversed §8.2.
-* ⭐ **The learning curve has flattened with respect to the pilot.** At 354 labels the pilot
+* **The learning curve has flattened with respect to the pilot.** At 354 labels the pilot
   (+48 % data) moved LightGBM +0.050 on `t4`; at 865 labels the same pilot (+14 %) moves it
   +0.021 and moves LTAE −0.001. **The remaining 100 labellings should buy G1, not more training
   data.**
@@ -1009,7 +1009,7 @@ rather than asserted.
   parcels after a gap. Until then the campaign has no measure of its own label noise, and every
   number above inherits that.
 
-### 8.5 ⭐ CENAGRO 2012 as the "before" — the first two-declaration comparison
+### 8.5 CENAGRO 2012 as the "before" — the first two-declaration comparison
 
 Every before/after above uses the **PETT declaration** as its baseline: one observation per
 parcel, made when the parcel was titled. The **2012 agricultural census** is an independently
@@ -1019,10 +1019,10 @@ anywhere**.
 
 `allperu cenagro`, module `allperu/cenagro.py`, tables in `data/processed/cenagro/`.
 
-⚠️ **Three limits, all binding, stated before any number.**
+**Three limits, all binding, stated before any number.**
 1. **This section is Piura only**, because `IV_CENAGRO_Piura.dta` was the only census file
    available when it was run. Nothing *in §8.5* is national — and Piura is the department every
-   earlier strand was built on, so it is not a neutral sample. ⭐ **The census itself is no
+   earlier strand was built on, so it is not a neutral sample. **The census itself is no
    longer Piura-only**: all 25 departments were extracted on 2026-08-29 (`DATA.md` §1.5) and
    **§8.6 repeats this comparison nationally**. §8.5 is kept as the first, independently built
    version of it — Piura's +12.5 pp here against §8.6's +11.6 pp there is the one external
@@ -1031,7 +1031,7 @@ anywhere**.
    farmer's name, so the link is **farmer-level, not parcel-level**: which of a producer's
    polygons a census row refers to is uncertain (`DATA.md` Chain B). Every figure is therefore
    also reported by `link_confidence`.
-3. ⚠️ **The matched subset over-represents perennials by 1.6×.** It is **23.3 %** `PERENNIAL`
+3. **The matched subset over-represents perennials by 1.6×.** It is **23.3 %** `PERENNIAL`
    against Piura's true **14.4 %**. Name-matched producers are not a random sample of the
    department, so the *levels* below describe the matched subset, not Piura. The *change* is
    paired within parcel and is the part worth reading.
@@ -1055,7 +1055,7 @@ question 024 asks which crop is grown, so a parcel lying fallow contributes no r
 the frame entirely.** The two instruments do not share a class space, and the only defensible
 comparison is conditional on a crop being recorded on both sides.
 
-⭐ **PETT declaration (median 1999) → CENAGRO 2012, same parcel, crop recorded on both sides,
+**PETT declaration (median 1999) → CENAGRO 2012, same parcel, crop recorded on both sides,
 n = 8,669:**
 
 | | PETT ~1999 | CENAGRO 2012 | change | 95 % CI | ratio |
@@ -1077,12 +1077,12 @@ weight, `DATA.md` Chain B.)
 | **annual** | 4,967 (79.8 %) | **1,255 (20.2 %)** | | 0.38 ha → **0.85 ha** |
 | **perennial** | 174 (7.1 %) | 2,273 (92.9 %) | | 0.51 ha → 1.16 ha |
 
-⭐ **The flow is strongly asymmetric: 20.2 % of parcels declaring an annual crop in ~1999
+**The flow is strongly asymmetric: 20.2 % of parcels declaring an annual crop in ~1999
 declared a perennial in 2012, against 7.1 % moving the other way.** Perennial declarations are
 also *sticky* — 92.9 % persist — which is what a tree crop should do and an annual rotation
 should not.
 
-⭐ **And conversion happened on the larger parcels.** Parcels that switched annual→perennial had
+**And conversion happened on the larger parcels.** Parcels that switched annual→perennial had
 a median cadastral area of **0.85 ha** against **0.38 ha** for those that stayed annual — which
 is why the shift is **+14.6 pp by area against +12.5 pp by parcel count**. Any area-based
 estimate that assumed conversion was size-neutral would be biased low.
@@ -1093,7 +1093,7 @@ gradient is mild and the sign and rough size are stable across it, so the findin
 mainly an artefact of the name match — which was the live risk and is the reason the breakdown
 exists.
 
-#### ⚠️ How this sits beside §8.2b, which appeared to say the opposite
+#### How this sits beside §8.2b, which appeared to say the opposite
 
 §8.2b, on the **photo-interpreted national** sample, found only **2.9 %** of declared-annual
 parcels reading as perennial in 2019+. Here it is 20.2 % in 2012. These are not in conflict;
@@ -1102,7 +1102,7 @@ they are four different things at once, and the difference is the point:
 * **Place.** §8.2b is national; this is Piura. **Restricted to Piura, the photo-interpreted
   picture is completely different from the national one** — 86.7 % of declared-annual Piura
   parcels still read `ANNUAL` in 2019+, against 31.1 % nationally, and only 6.7 % read `OTHER`
-  against 57.9 %. ⚠️ **The national "farmable but not currently cropped" finding is not a Piura
+  against 57.9 %. **The national "farmable but not currently cropped" finding is not a Piura
   finding.** Piura's irrigated coastal valleys are still being cropped; the national figure is
   carried by other departments.
 * **Instrument.** The census records what a farmer *declares they grow*; the S2 campaign records
@@ -1114,7 +1114,7 @@ they are four different things at once, and the difference is the point:
   set — the Piura-only S2 figure has an interval of roughly ±13 pp and settles nothing on its
   own.
 
-⚠️ **What this section is not.** It is a change in **declared** land use on a non-random Piura
+**What this section is not.** It is a change in **declared** land use on a non-random Piura
 subsample between two administrative instruments with different class spaces. It is **not**
 evidence about titling, it carries no counterfactual, and the 2012 endpoint is seven years
 before the imagery every other endpoint number in §8 is measured on.
@@ -1126,7 +1126,7 @@ crosswalk. Of the 15 that CENAGRO recorded as perennial, 7 read `PERENNIAL`, 6 r
 a sample size that can only be called an anecdote.
 ---
 
-### 8.6 ⭐⭐ The national PETT → CENAGRO 2012 comparison, split by tenure
+### 8.6 The national PETT → CENAGRO 2012 comparison, split by tenure
 
 §8.5 did this for Piura on 8,669 parcels. The 25-department census extract (`DATA.md` §1.5)
 plus a national name link (`allperu/cenagro_link.py`) extends it to **95,941 parcels across
@@ -1141,23 +1141,23 @@ uv run python -m crop_classifier.cli allperu cenagro-shift    # the comparison
 
 #### The headline
 
-⚠️ **Read the like-for-like row, not the first one.** The census cannot record fallow —
+**Read the like-for-like row, not the first one.** The census cannot record fallow —
 question 024 asks which crop is grown, so a fallow parcel contributes no row and leaves the
 frame. `PASTURE_FALLOW` 30.8 % → 6.3 % is that instrument difference, not land change. The
 defensible comparison is **conditional on a crop being recorded on both sides**.
 
 | estimator | n | PERENNIAL ~1999 | PERENNIAL 2012 | change |
 |---|---:|---:|---:|---|
-| all parcels (⚠️ fallow artefact) | 95,941 | 16.6 % | 26.9 % | +10.3 pp |
-| ⭐ **like-for-like, parcels** | 63,766 | 24.6 % | 33.0 % | **+8.4 pp ± 0.3** |
-| ⭐ like-for-like, **cadastral area** | 63,766 | 30.8 % | 41.7 % | **+10.8 pp** |
-| ⭐ **post-stratified to the national population, parcels** | 63,766 | 16.5 % | 26.4 % | **+9.9 pp ± 0.3** |
-| ⭐ post-stratified, **cadastral area** | 63,766 | 21.0 % | 33.5 % | **+12.5 pp** |
+| all parcels (fallow artefact) | 95,941 | 16.6 % | 26.9 % | +10.3 pp |
+| **like-for-like, parcels** | 63,766 | 24.6 % | 33.0 % | **+8.4 pp ± 0.3** |
+| like-for-like, **cadastral area** | 63,766 | 30.8 % | 41.7 % | **+10.8 pp** |
+| **post-stratified to the national population, parcels** | 63,766 | 16.5 % | 26.4 % | **+9.9 pp ± 0.3** |
+| post-stratified, **cadastral area** | 63,766 | 21.0 % | 33.5 % | **+12.5 pp** |
 
 Gross parcel flows: **7,158 annual → perennial against 1,832 the other way**, a 3.9:1 ratio.
 The shift is real, large, and it is not a net figure hiding offsetting churn.
 
-⚠️ **Post-stratification is not optional here.** The name link is not a random sample: it needs
+**Post-stratification is not optional here.** The name link is not a random sample: it needs
 a name on both sides and a district agreement, and the parcels that satisfy that are the
 larger, valley-floor, better-documented ones. The linked panel is **16.6 % PERENNIAL against
 the population's 9.9 %**, and its median parcel is 0.53 ha against 0.43 ha. Reweighting on
@@ -1174,7 +1174,7 @@ recomputes the numbers from the data, **checks them against the ones baked into 
 and prints a paste-ready block if they have drifted, so the reproduction and the pipeline
 figure cannot diverge silently.*
 
-*⚠️ **The three points are three instruments, not one series.** The solid legs are the census
+* **The three points are three instruments, not one series.** The solid legs are the census
 panel; the 2025 points are 214 / 364 photo-interpreted parcels from a different frame with a
 different restriction, so each imagery reading is drawn from **its own baseline** rather than
 continued off the census line — connecting them would invent a trend neither instrument
@@ -1198,7 +1198,7 @@ The two imagery readings' 2025 intervals **overlap each other and both census en
 `WOODY_NON_CROP` decision moves the INSCRITO endpoint from 13.9 % to 39.6 % — 26 pp, against a
 census effect of ~10 pp — which is why §8.7 says that arm should not be quoted on tenure.
 
-#### ⭐ The tenure split — the answer is no, and slightly the other way
+#### The tenure split — the answer is no, and slightly the other way
 
 | tenure at declaration | n | PERENNIAL ~1999 | 2012 | change |
 |---|---:|---:|---:|---|
@@ -1214,14 +1214,14 @@ NO INSCRITO +11.0 pp, a difference of +0.3 pp — opposite in sign to the parcel
 indistinguishable from zero. A tenure effect that flips sign between counting parcels and
 counting hectares is not an effect; it is a composition difference in parcel size.
 
-⚠️ **Descriptive, not causal.** Title is not randomly assigned. Note the **baseline** gap:
+**Descriptive, not causal.** Title is not randomly assigned. Note the **baseline** gap:
 titled parcels started 4.1 pp *lower* on perennials, which is the same cross-sectional tenure
 gap §7 documents — and a difference in change computed off different baselines is exactly the
 quantity a pre-trend correction exists to discipline. **This does not overturn §7's bounded
 null; it agrees with it** from a completely independent instrument (two declarations, no
 imagery, no classifier).
 
-⚠️ **The sign flips by department**, exactly as `RESULTS.md` §7's cross-sectional companion
+**The sign flips by department**, exactly as `RESULTS.md` §7's cross-sectional companion
 found. 9 of 14 departments give a negative tenure difference, 5 positive — and all five
 positives (Tacna +18.0, Moquegua +14.3, Huancavelica +10.2, Pasco +4.6, Ayacucho +3.9) are
 small-n southern or sierra departments. **An OOD estimate over 14 units is 14 numbers**; the
@@ -1263,7 +1263,7 @@ Validation against notebook 02's independently-built Piura crosswalk: the **high
 tier reproduces the same `COD_PREDIO` on 95.5 %** of shared producers (medium 48.7 %, low
 34.8 %) — the grade means what it says.
 
-#### ⚠️ The lexicon trap fired again, and bigger
+#### The lexicon trap fired again, and bigger
 
 The Piura audit (§8.5) found `VERGEL FRUTICOLA` — 80 % of a 4.09 % unmapped tail, worth 10 pp
 on the headline. The **national** vocabulary reran the same failure: **`MELOCOTONERO` (peach
@@ -1284,7 +1284,7 @@ ten. Never accept the budget check alone.**
 
 Same 865 usable labels as §8.2, tenure known for **all 865** (489 INSCRITO / 376 NO INSCRITO).
 
-⚠️ **The design weight is doing most of the work.** The campaign over-sampled PERENNIAL so the
+**The design weight is doing most of the work.** The campaign over-sampled PERENNIAL so the
 rare class would be learnable; unweighted, the sample is 13.3 % PERENNIAL, and design-weighted
 it is **4.7 %**. The weights validate cleanly against the population they were drawn from:
 
@@ -1316,7 +1316,7 @@ photo-interpreted `WOODY_NON_CROP` or `NON_AGRICULTURE`** — nearly half of dec
 reads as woody non-crop from the air. That is the §8.2c boundary problem quantified against a
 declared source rather than against another label.
 
-### 8.8 ⭐ Climate covariates — the first added feature that helps CV *and* LODO
+### 8.8 Climate covariates — the first added feature that helps CV *and* LODO
 
 **Question:** does giving the endpoint classifier the parcel's mean temperature and mean annual
 rainfall improve it, and does the improvement survive leaving a department out?
@@ -1330,7 +1330,7 @@ Three model classes × four feature sets, each with 5-fold spatially-blocked CV 
 leave-one-department-out over **all 14** departments. Driver:
 `allperu s2-train {prep,fit,lodo,report} --climate {none,temp,rain,both,latlon}`.
 
-⭐ The **`latlon` control** is what makes the table readable: centroid latitude + longitude in
+The **`latlon` control** is what makes the table readable: centroid latitude + longitude in
 place of the two climate columns — same count, same time-invariance, same smoothness over
 space, no agro-climatic content. A climate gain that `latlon` also buys is geography.
 
@@ -1361,7 +1361,7 @@ where no statics file exists.
 
 #### What it says
 
-⭐ **1. Climate is the first feature this project has added that improves the out-of-department
+**1. Climate is the first feature this project has added that improves the out-of-department
 number.** Every one of the nine climate arms is positive on **both** axes. That is the opposite
 of `centroid_lat` (+0.047 CV, **−0.060** LODO, §4.2) and of LTAE-vs-LightGBM (§8.2), and it is
 why the arm is worth adopting rather than merely reporting.
@@ -1375,7 +1375,7 @@ control:
 | ΔLODO from lat/lon (control) | +0.014 | +0.037 | **−0.021** |
 
 LightGBM gets **2.7× more** out-of-department gain from climate than from raw coordinates, and
-the rule gets a gain from climate where coordinates make it **worse**. ⚠️ **LTAE is the
+the rule gets a gain from climate where coordinates make it **worse**. **LTAE is the
 exception**: its LODO gain from climate (+0.027 to +0.040) is *matched* by the coordinate
 control (+0.037), so what the attention model extracts from a climate input is not
 distinguishable from location. That is §8.2's verdict on LTAE arriving a second way.
@@ -1413,7 +1413,7 @@ project has twice measured that gain ≠ contribution (dropping 29.8 % of gain c
 macro-F1, `LESSONS.md`), so read it only as "the booster looked at the column"; ΔLODO above is
 what it was worth.
 
-#### ⚠️ Caveats that bind
+#### Caveats that bind
 
 * **Climate does carry department identity.** A random forest on `(tmean_c, precip_mm_yr)`
   alone recovers the department at **0.676** 5-fold accuracy against a 0.091 prior — 86 % of
@@ -1422,7 +1422,7 @@ what it was worth.
   It does not show that the channel is absent, and it will not stay outweighed on a store with
   different department coverage.
 * **The normals are time-invariant, and that is safe *here only*.** A single-epoch endpoint
-  classifier has no trend for a constant to manufacture. ⛔ **Do not carry these columns into
+  classifier has no trend for a constant to manufacture. **Do not carry these columns into
   the panel** — that is the exact family §4.4/§5 measured manufacturing stability. Across years
   use `parcel_rainfall_annual` (CHIRPS, year-resolved).
 * **1970–2000 normals against 2019+ imagery.** The normals precede the labelled imagery by two
@@ -1435,13 +1435,13 @@ what it was worth.
 * **The rule cannot score above ~0.75 on `t4` at all.** Its label space has three semantic
   groups, so `WOODY_NON_CROP` is never predicted and its F1 is **0.000 in every arm**. Its
   numbers here are a floor exercise, not a competitor.
-* **~~One target.~~** ✅ **Resolved by §8.8b**, which re-ran all five arms on `t3w`. The verdict changed: adopt `temp`, not `both`. The other four targets were not re-run.
+* **~~One target.~~** **Resolved by §8.8b**, which re-ran all five arms on `t3w`. The verdict changed: adopt `temp`, not `both`. The other four targets were not re-run.
 * **All of it inherits the unmeasured label noise floor** — one annotator, G1 still not
   measured (`s2_labelling/plan.md` §2.1).
 
 #### Verdict
 
-⚠️ **SUPERSEDED BY §8.8b — adopt `--climate temp`, not `both`.** On `t4` alone, `both` reads
+**SUPERSEDED BY §8.8b — adopt `--climate temp`, not `both`.** On `t4` alone, `both` reads
 +0.029 CV, **+0.038 LODO**, +0.103 `PERENNIAL` F1, 12 of 14 departments improved, paired
 p = 0.004, and 2.7× the coordinate control. **That consistency does not replicate on `t3w`**
 (7/14, p = 0.345), and the column that costs it the replication is `precip_mm_yr`, worth
@@ -1450,10 +1450,10 @@ The rest of the verdict stands. **Do not adopt it for LTAE** — the gain is the
 department memorisation by another route, and §8.2 already says carry LightGBM forward. The
 rule stays what it is: a control.
 
-⚠️ This is a **CV/LODO** result on 704 trainval parcels. 🔓 The locked test was subsequently
+This is a **CV/LODO** result on 704 trainval parcels. The locked test was subsequently
 spent on exactly this recommendation — **§8.9**, which confirms it at 0.774 macro-F1.
 
-### 8.8b ⭐ The same climate arms on `t3w` — the gain survives the bracket, the *rainfall* half does not
+### 8.8b The same climate arms on `t3w` — the gain survives the bracket, the *rainfall* half does not
 
 **Why this run exists.** §8.8 was one target. §8.2c established that folding
 `WOODY_NON_CROP` into `PERENNIAL` moves `PERENNIAL` F1 by **+0.190** — more than anything else
@@ -1470,12 +1470,12 @@ annotator's own rainfall-aligned boundary. `t3w` deletes that boundary, so it is
 dead-zones, same seeds, all five arms symlinked off the same `modeling_parcels.parquet`. Locked
 test untouched. `rules` was run after all — it costs 6 s per arm.
 
-✅ **The regression gate passed before any delta was read.** All three `none` arms replay §8.2
+**The regression gate passed before any delta was read.** All three `none` arms replay §8.2
 bit-for-bit — LightGBM CV **0.7472** / LODO **0.6974**, LTAE **0.8043** / **0.6326**, `rules`
 **0.6747** / **0.5952** — and the per-department LODO maximum absolute difference against the
 artefacts already on disk is **0.0000** for all three.
 
-⚠️ **Majority-class macro-F1 floor 0.228** on `t3w` against **0.171** on `t4`
+**Majority-class macro-F1 floor 0.228** on `t3w` against **0.171** on `t4`
 (the largest class is 51.8 % in both, but three classes divide instead of four). **Raw macro-F1
 is not comparable between the two tables below.** `skill = (F1 − floor)/(1 − floor)`.
 
@@ -1517,14 +1517,14 @@ Because the floor moves, the comparable columns are **skill** and **`PERENNIAL` 
 |---|---|---:|---:|---|
 | LightGBM | temp | +0.029 | +0.027 | ✅ yes, unchanged |
 | LightGBM | rain | +0.023 | **−0.001** | ⛔ **no** |
-| LightGBM | both | **+0.038** | +0.020 | ⚠️ halved |
+| LightGBM | both | **+0.038** | +0.020 | halved |
 | LTAE | temp | +0.040 | +0.054 | ✅ grows |
 | LTAE | rain | +0.023 | +0.045 | ✅ grows |
 | LTAE | both | +0.027 | +0.045 | ✅ grows |
 | rules | rain | +0.037 | **+0.083** | ✅ grows |
 | rules | both | +0.028 | +0.072 | ✅ grows |
 
-#### ⭐ Against the `latlon` control — which way `t3w` falls
+#### Against the `latlon` control — which way `t3w` falls
 
 Read against `none` alone, every climate arm at `t3w` except LightGBM/`rain` is positive on both
 axes. Read against the control, paired over the **same 14 departments**
@@ -1540,7 +1540,7 @@ axes. Read against the control, paired over the **same 14 departments**
 | rules | `t4` | +0.028 | −0.021 | — | +0.049 | 9/14 | 0.035 |
 | rules | `t3w` | +0.072 | **−0.024** | — | **+0.096** | 11/14 | 0.030 |
 
-⭐ **`t3w` falls the same way `t4` did, and slightly harder.** For **LightGBM** the coordinate
+**`t3w` falls the same way `t4` did, and slightly harder.** For **LightGBM** the coordinate
 control buys essentially **nothing** out of department at `t3w` (+0.002) while climate buys
 +0.020 to +0.027 — a wider margin over the control than `t4`'s 2.7×, even though the absolute
 gain is smaller. For **LTAE** the control still matches the climate arm (1.3×, paired
@@ -1549,12 +1549,12 @@ target**: what the attention model extracts from a climate column is not disting
 where the parcel is. For the **rule**, coordinates make it *worse* at both targets while climate
 helps at both, and `t3w` is the strongest version of that (+0.096 over control, 11/14, p = 0.030).
 
-⚠️ **But the paired-against-control test is not significant for LightGBM at either target**
+**But the paired-against-control test is not significant for LightGBM at either target**
 (p = 0.117 and 0.116–0.345). §8.8's p = 0.004 was measured **against `none`**, not against the
 control, and it is the against-`none` comparison that fails to replicate (below). The sign is
 consistent across two targets and three model classes; the significance is not there.
 
-#### ⚠️ …and §8.8's consistency headline does NOT replicate
+#### §8.8's consistency headline does not replicate
 
 This is the finding that most changes §8.8:
 
@@ -1571,7 +1571,7 @@ comes back 7/14 at p = 0.345 when `WOODY_NON_CROP` is folded in.** The mean gain
 positive (+0.020) but it is no longer consistent across departments. The arm that holds its
 shape across the bracket is **`temp`** (11/14 → 9/14, +0.029 → +0.027).
 
-#### ⭐ The caveat, tested directly: the gain is NOT the annotator's WOODY boundary
+#### The caveat, tested directly: the gain is not the annotator's WOODY boundary
 
 The bracket answers this two ways, and both say the same thing.
 
@@ -1596,7 +1596,7 @@ the right one of the two):
 | LTAE | temp | 0.632 | +0.081 | +0.112 | +0.044 | +0.044 |
 | LTAE | rain | 0.583 | +0.031 | +0.092 | −0.003 | +0.035 |
 
-⭐ **Rainfall never bought the boundary.** Its whole `t4` gain sat in `ANNUAL`/`OTHER`
+**Rainfall never bought the boundary.** Its whole `t4` gain sat in `ANNUAL`/`OTHER`
 (+0.028) while the `PERENNIAL`/`WOODY` sub-problem got **worse** (−0.018) and `PERENNIAL` F1
 moved **exactly 0.000**. So the caveat's mechanism — "rainfall is learning the annotator's
 700 mm rule" — is **not what happened**, and `t3w` is not where a boundary artefact went to die.
@@ -1609,7 +1609,7 @@ is unchanged. Temperature, by contrast, improves the boundary **and** the other 
 agro-climatic covariate should look like, since it is temperature and not rainfall that sets
 where a tree crop can stand.
 
-⚠️ The rainfall-aligned annotator boundary described above **is still real** and still
+The rainfall-aligned annotator boundary described above **is still real** and still
 uncontrolled — 1 of 87 declared-perennial parcels above 700 mm called `PERENNIAL` is a striking
 number, and G1 has never measured whether a second annotator would draw it the same way. What
 `t3w` establishes is only that **§8.8's measured gain does not depend on it.**
@@ -1627,7 +1627,7 @@ number, and G1 has never measured whether a second annotator would draw it the s
 
 #### Verdict — §8.8 revised
 
-⚠️ **§8.8's verdict is amended, not overturned.** Adopt **`--climate temp` for LightGBM**, not
+**§8.8's verdict is amended, not overturned.** Adopt **`--climate temp` for LightGBM**, not
 `--climate both`. `temp` is the only arm that is positive on both axes at **both** ends of the
 bracket, above the coordinate control at both (+0.015 / +0.025), positive on `PERENNIAL` F1 at
 both (+0.057 / +0.058), and the only one whose out-of-department gain is the same size after the
@@ -1642,8 +1642,8 @@ project that improves the out-of-department number**, now at two targets rather 
 but the honest effect size is **+0.027 LODO macro-F1 at 9/14 departments, p = 0.17**, not
 §8.8's +0.038 at 12/14, p = 0.004.
 
-⚠️ Still **CV/LODO on 704 trainval parcels**, one annotator, G1 unmeasured. Nothing in *this*
-section touched the locked test; 🔓 **§8.9** then spent it on this section's recommendation.
+Still **CV/LODO on 704 trainval parcels**, one annotator, G1 unmeasured. Nothing in *this*
+section touched the locked test; **§8.9** then spent it on this section's recommendation.
 
 **Full tables**, all written by `allperu s2-train report --target {t4,t3w} --pilot --climate both`:
 `labels_s2/climate_arms_t3w{,_consistency,_per_class,_lodo_per_class,_vs_control,_gain}.csv`,
@@ -1654,9 +1654,9 @@ section — `lodo_per_class`, `control_paired`, `woody_boundary`, `bracket` — 
 
 ---
 
-### 8.9 🔓 The locked test, SPENT — `t3w` + `temp`, and it holds
+### 8.9 The locked test, spent — `t3w` + `temp`, and it holds
 
-⚠️ **The locked test is no longer unspent.** On 2026-09-01 it was scored, once, on the two
+**The locked test is no longer unspent.** On 2026-09-01 it was scored, once, on the two
 configurations §8.8b had already selected on CV/LODO: LightGBM / `t3w`+pilot / `--climate temp`
 and the same with `--climate both`. Nothing else has been or should be scored on it. Every
 number elsewhere in §8 remains a CV/LODO number and was produced before this section existed.
@@ -1667,12 +1667,12 @@ distinct 5 km regions across **all 14 departments**. The split was frozen in
 the 704 trainval+pilot minus the **71** that sit inside the 3 km dead-zone around a test
 parcel — so no training parcel is within 3 km of a scored one.
 
-⚠️ **Majority-class macro-F1 floor on the test split is 0.219** (largest class `OTHER`,
+**Majority-class macro-F1 floor on the test split is 0.219** (largest class `OTHER`,
 79/161 = 49.1 %), against 0.228 on trainval. `skill = (F1 − floor)/(1 − floor)`.
 
 | arm | macro-F1 | 95 % CI (bootstrap) | **skill** | accuracy | balanced acc | weighted-F1 | κ |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| **`temp`** ⭐ | **0.774** | [0.697, 0.845] | **0.711** | **0.789** | 0.751 | 0.787 | 0.647 |
+| **`temp`** | **0.774** | [0.697, 0.845] | **0.711** | **0.789** | 0.751 | 0.787 | 0.647 |
 | `both` | 0.764 | [0.688, 0.834] | 0.698 | 0.783 | 0.743 | 0.781 | 0.637 |
 
 **Per class, `temp`:**
@@ -1693,13 +1693,13 @@ parcel — so no training parcel is within 3 km of a scored one.
 
 #### What it says
 
-⭐ **1. The CV number was honest.** Test macro-F1 **0.774** against CV **0.762** — the held-out
+**1. The CV number was honest.** Test macro-F1 **0.774** against CV **0.762** — the held-out
 set scores *slightly above* cross-validation, so the 5-fold estimate was not inflated by the
 fold structure. `PERENNIAL` F1 is **0.780** on the test against **0.789** out-of-fold: the
 class the research question turns on reproduces to within 0.01 on data the model has never
 seen in any form.
 
-⚠️ **2. Read 0.774 as the in-department number, not the transfer number.** The test holds out
+**2. Read 0.774 as the in-department number, not the transfer number.** The test holds out
 5 km regions, and every one of the 14 departments appears on **both** sides of the split — so
 it is a CV-regime estimate, and it tracks CV (0.762), not LODO (0.724). It is **not** evidence
 about a new department. The out-of-department expectation stays **0.724 ± 0.112**, and §4.2's
@@ -1718,23 +1718,23 @@ direction) — the same shape §8.2 found out-of-fold, now on held-out data. `AN
 the weak spot (0.600 at precision 0.938): the model under-calls annual cropland rather than
 over-calling it, on 25 parcels.
 
-⚠️ **5. The interval is wide and that is structural.** ±7 pp at 95 %. 161 parcels over 14
+**5. The interval is wide and that is structural.** ±7 pp at 95 %. 161 parcels over 14
 departments is what the campaign budgeted; per-department accuracy ranges 0.57–1.00 on
 handfuls of parcels each and **should not be read per department at all**.
 
-⚠️ **6. The label-noise floor underneath all of this is still unmeasured.** One annotator, G1
+**6. The label-noise floor underneath all of this is still unmeasured.** One annotator, G1
 never run (`s2_labelling/plan.md` §2.1). A 0.774 against labels of unknown reliability is not
 0.774 against ground truth.
 
 #### Verdict
 
-✅ **The `t3w` + `--climate temp` LightGBM endpoint classifier is confirmed on held-out data:
+**The `t3w` + `--climate temp` LightGBM endpoint classifier is confirmed on held-out data:
 0.789 accuracy, 0.774 macro-F1, `PERENNIAL` F1 0.780, n = 161 across 14 departments.** It is
 the project's first accuracy measured on data locked away before labelling began, and it
 agrees with the cross-validated estimate. Carry it forward as the model of record for the
 endpoint reading.
 
-⛔ **The test is now spent. Do not score another configuration on it.** Any future model
+**The test is now spent. Do not score another configuration on it.** Any future model
 change is a CV/LODO decision, and if it is ever scored here the number must be reported as a
 second look, not as a fresh confirmation.
 
@@ -1755,9 +1755,9 @@ All unit-tested; all blocked by a gate that failed. They stay unrun.
 | `allperu/oli_refit.py`, `oli_overlap.py` | locally refitted OLI correction | §6.4 — closed |
 | `perennial/gapfill.py` | one-time re-extraction of the parcels the 3-class map newly admits | superseded — the 3-class store was built through `allperu labels`; kept as the record of how the 12→3-class parcel gain was to be closed |
 
-⛔ **All seven are reachable from `allperu closed …`** (`oli`, `oli-refit`, `windows`,
+**All seven are reachable from `allperu closed …`** (`oli`, `oli-refit`, `windows`,
 `window-sample`, `estimate`, `external`, `tenure-did` v2), which is a sub-group precisely so
 that `allperu --help` lists live work. Moving them there changed nothing about how they run.
 
-⚠️ **The national locked test is UNSPENT** and should stay that way until an estimand passes
+**The national locked test is unspent** and should stay that way until an estimand passes
 its gate.

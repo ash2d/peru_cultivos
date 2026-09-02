@@ -42,6 +42,14 @@ from crop_classifier.paths import ROOT, labels_dir
 
 
 def __getattr__(name: str):                     # PEP 562
+    if name == "FEAT_S2":
+        # The S2 feature store of whichever round is in play. `--round <name>` moves the
+        # store to `features_s2_<name>` and `campaign combine` writes a merged one, so
+        # binding this at import trained a new round's parcels against the campaign of
+        # record's features — silently, because a parcel missing from the table comes out
+        # all-NaN rather than as an error.
+        import os
+        return Path(os.environ["CC_FEAT"]) if os.environ.get("CC_FEAT") else _FEAT_S2_DEFAULT
     if name == "TARGETS":
         from crop_classifier.label_sets import targets
         return targets()
@@ -55,7 +63,7 @@ def __getattr__(name: str):                     # PEP 562
 # that — which is what `PASTURE_FALLOW` means in the Landsat label space.
 TO_LANDSAT = {"PERENNIAL": "PERENNIAL", "ANNUAL": "ANNUAL", "OTHER": "PASTURE_FALLOW"}
 
-FEAT_S2 = ROOT / "data" / "processed" / "all_peru" / "features_s2"
+_FEAT_S2_DEFAULT = ROOT / "data" / "processed" / "all_peru" / "features_s2"
 SPLIT_CFG = ROOT / "src" / "crop_classifier" / "config" / "split_s2labels.yaml"
 N_FOLDS = 5
 
@@ -168,15 +176,36 @@ def build_workspace(target: str, include_pilot: bool = False,
         json.dump(label_map, f, indent=2)
 
     # the feature store under the file names data.py expects
+    feat_s2 = __getattr__("FEAT_S2")
     fdir = out / "features"
     fdir.mkdir(exist_ok=True)
     for src, dst in [("s2_features_lightgbm.parquet", "features_lightgbm.parquet"),
                      ("tensor_perdate.npz", "tensor_perdate.npz")]:
-        link, tgt = fdir / dst, FEAT_S2 / src
+        link, tgt = fdir / dst, feat_s2 / src
         if link.is_symlink() or link.exists():
             link.unlink()
         if tgt.exists():
             link.symlink_to(tgt)
+
+    # Count the parcels the feature table actually covers. A labelled parcel with no row
+    # there trains as an all-NaN example and reports nothing: LightGBM takes NaN natively,
+    # so a round assembled into the wrong store, or not assembled at all, would score as a
+    # slightly worse model rather than as an error.
+    lgbm = feat_s2 / "s2_features_lightgbm.parquet"
+    if not lgbm.exists():
+        raise SystemExit(
+            f"no feature table at {lgbm}. Run `cc labelling campaign assemble` for this "
+            f"round first — and `campaign combine` before training on a merged one "
+            f"(docs/howto/06_label_more_parcels.md).")
+    have = set(pd.read_parquet(lgbm, columns=["COD_PREDIO"])["COD_PREDIO"].astype(str))
+    gap = sorted(set(df["COD_PREDIO"].astype(str)) - have)
+    if gap:
+        raise SystemExit(
+            f"{len(gap)} of {len(df)} labelled parcels have no row in {lgbm} "
+            f"(e.g. {gap[:3]}). Their features are missing, not zero, and training would "
+            f"silently treat them as empty. Run `cc labelling campaign assemble` for this "
+            f"round, and `campaign combine` before training on a merged one "
+            f"(docs/howto/06_label_more_parcels.md).")
 
     if verbose:
         print(f"[{target}{'+pilot' if include_pilot else ''}] {len(df)} parcels "
@@ -214,7 +243,7 @@ def landsat_baseline(run: Path, target: str = "t3",
 
     ws = ws_dir(target, include_pilot)
     parcels = gpd.read_parquet(ws / "modeling_parcels.parquet")
-    feats = pd.read_parquet(FEAT_S2 / "s2_features_lightgbm.parquet")
+    feats = pd.read_parquet(__getattr__("FEAT_S2") / "s2_features_lightgbm.parquet")
     sample = gpd.read_parquet(labels_dir() / "label_sample.parquet")
     feats = feats.merge(sample[["COD_PREDIO", "n_pixels_est"]], on="COD_PREDIO",
                         how="left")

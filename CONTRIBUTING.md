@@ -31,7 +31,7 @@ uv run ruff check .
 * A machine-specific absolute path in `src/` — there is a test that greps for this, because a
   grep is the only thing that notices. Configuration goes in `workspaces.yaml`.
 
-## ⭐ If a result changes, stop
+## If a result changes, stop
 
 The numbers in [`docs/RESULTS.md`](docs/RESULTS.md) are the record. A refactor that moves one is
 not a refactor.
@@ -54,7 +54,7 @@ project, each time only when a whole department was held out. See
 ## Adding things
 
 **A new label set** is a YAML file in `src/crop_classifier/config/labels/` — no Python.
-[`docs/howto/03_new_label_set.md`](docs/howto/03_new_label_set.md).
+[`docs/howto/07_new_label_set.md`](docs/howto/07_new_label_set.md).
 
 **A new workspace** is an entry in `workspaces.yaml`.
 

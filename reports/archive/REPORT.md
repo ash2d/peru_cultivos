@@ -1,4 +1,4 @@
-> ⚠️ **Superseded.** The current narrative is [`reports/peru_report.tex`](../peru_report.tex)
+> **Superseded.** The current narrative is [`reports/peru_report.tex`](../peru_report.tex)
 > and its PDF. This file is kept as an earlier snapshot; where the two disagree, the
 > numbers of record are in [`docs/RESULTS.md`](../../docs/RESULTS.md).
 
@@ -142,7 +142,7 @@ With 14 departments the model can be tested on a *place* it has never seen —
 | | cross-validation (unseen block) | LODO (unseen department) |
 |---|---:|---:|
 | with `centroid_lat` | **0.628** | 0.417 |
-| **without `centroid_lat`** ⭐ selected | 0.581 | **0.477** |
+| **without `centroid_lat`** selected | 0.581 | **0.477** |
 | difference | **−0.047** | **+0.060** |
 
 **Latitude helps by +0.047 when the test is a nearby field and hurts by −0.060 when the test is
@@ -186,7 +186,7 @@ Two gates had to pass before any trend could be believed.
 | model | time-invariant features | S4 (national) | flicker, criterion 0.15 |
 |---|---:|---|---:|
 | LightGBM (with latitude) | 3 | PASS | **0.517** ⛔ |
-| LightGBM (no latitude) ⭐ | 2 | PASS | **0.744** ⛔ |
+| LightGBM (no latitude) | 2 | PASS | **0.744** ⛔ |
 | LTAE (none at all) | 0 | FAIL | **0.980** ⛔ |
 
 ### 3.1 The El Niño (Piura only, but it explains the shape of the failure)
@@ -299,7 +299,7 @@ Two diagnostic findings from this round are worth carrying:
 
 ---
 
-## 6. Attempt 4 — the tenure difference-in-differences ⭐ the one that returned a number
+## 6. Attempt 4 — the tenure difference-in-differences the one that returned a number
 
 ### 6.1 The idea
 
@@ -385,11 +385,11 @@ Read plainly:
 
 ### 6.4 What limits it
 
-* **⚠️ The control group is contaminated after 2011.** Tenure is last observed at the cadastre
+* **The control group is contaminated after 2011.** Tenure is last observed at the cadastre
   cut; the outcome runs to 2023 and Peru's titling programme did not stop. An unknown share of
   controls was titled and is invisible here. That pushes any real effect **toward zero**, so
   this null is **not** evidence that titling has no effect.
-* **⚠️ The magnitude depends on the architecture, though the sign does not.** LTAE gives
+* **The magnitude depends on the architecture, though the sign does not.** LTAE gives
   −0.0154 against LightGBM's −0.0011. All arms agree in sign and all are NOT-SEPARABLE, but no
   precise magnitude can be quoted.
 * **Where it applies.** 75 % of qualifying treated parcels are in La Libertad and Cajamarca,
@@ -413,7 +413,7 @@ Three measured reasons not to read it as an effect:
    of −0.044 — the same number reached from a completely different direction.
 2. **The sign is department-specific.** Titled parcels read *higher* perennial in 5 of 14
    departments and lower in 9. A pooled figure names a quantity that does not exist.
-3. ⚠️ **An earlier Piura figure — "24.9 % of titled parcels read perennial vs 10.9 % of
+3. **An earlier Piura figure — "24.9 % of titled parcels read perennial vs 10.9 % of
    untitled" — does not replicate.** Piura's gap in the national panel is −0.081, the opposite
    direction. It should not be carried forward.
 
@@ -436,7 +436,7 @@ bigger sample — the pool here is 363,529 parcels, about 55× the DiD's. Which 
 - **A feasibility method**: required sample from measured variance versus available sample from
   the archive, computable in minutes — which is what stopped the wrong version of the DiD before
   it spent anything.
-- ⭐ **An endpoint measurement, at last** (§8): 865 hand-interpreted parcels on 2019+ imagery
+- **An endpoint measurement, at last** (§8): 865 hand-interpreted parcels on 2019+ imagery
   across all 14 departments. Classifier 0.672 macro-F1 in-department and 0.539 out; and a
   declared→observed transition matrix with no classifier in it at all.
 - **The test suite passes.** Both locked tests — national and S2 — are **still unspent**.
@@ -492,7 +492,7 @@ deferred — and it is the only one that would let anybody state an endpoint num
 
 ---
 
-## 8. Attempt 5 — photo-interpret the endpoint ⭐ done, and it answers the question
+## 8. Attempt 5 — photo-interpret the endpoint done, and it answers the question
 
 The task described above was carried out. **1,012 parcels labelled on ≤1.2 m imagery from
 2019–2025, 865 usable**, one annotator, across all 14 linkable departments — the project's
@@ -516,7 +516,7 @@ crops twenty-odd years ago, **2.9 % [0, 5.9] read as perennial today** — indis
 zero. What they overwhelmingly read as is **farmable ground that is not currently cropped**
 (57.9 %). Land declared as pasture or fallow behaves the same way (73.7 %).
 
-⚠️ **This is a national average and it describes no particular department.** In **Piura** the
+**This is a national average and it describes no particular department.** In **Piura** the
 same table reads the other way round: 86.7 % of declared-annual parcels still read as an annual
 crop, and only 6.7 % as uncropped. The "not currently cropped" result is carried by other
 departments; Piura's irrigated coastal valleys are still being farmed. (65 Piura parcels, so
@@ -557,7 +557,7 @@ structure that identifies which department a parcel is in, and that structure is
 anywhere else. **A model class can manufacture accuracy that does not travel, just as a feature
 can.**
 
-⚠️ And a caution about this document's own history: an earlier version of this comparison, run
+And a caution about this document's own history: an earlier version of this comparison, run
 on a third of the labels, concluded the opposite. Nothing was wrong with it except that its
 unseen-department average was taken over **four** departments. There are now fourteen. An
 out-of-distribution mean has two sample sizes — parcels and *groups* — and it is the second that
@@ -590,7 +590,7 @@ land area**. One in five parcels growing an annual crop had switched to a perenn
 fourteen went the other way, and the parcels that switched were more than twice the size of
 those that did not — which is why the shift is larger measured by area than by count.
 
-⭐ **It has since gone national.** All twenty-five census departments were extracted, and the
+**It has since gone national.** All twenty-five census departments were extracted, and the
 same comparison over the fourteen linkable ones covers **63,766 parcels** with a crop recorded on
 both sides — the largest change measurement in the project. Reweighted to the national
 population, perennial rises **+9.9 pp of parcels and +12.5 pp of land area**, with 7,158 parcels

@@ -24,11 +24,11 @@ Every model arm has been fitted. Numbers: [`RESULTS.md`](../RESULTS.md) §8.1–
 | labellings | **1,012** of 1,112 | 865 usable (139 `UNSURE`, 6 with no S2 observation, 2 boundary mismatch) |
 | **G1** κ_called ≥ 0.75 | **unmeasured** | the overlap shard is still not in the return — an *absence*, not a failure. **The only blocker left** |
 | **G2** `UNSURE` < 25 % | **0.139 ✅ PASS** | at 1.2 m the annotator could call 86 % of parcels |
-| **G3** ≥35/dept | **48 ✅ PASS** | ⭐ first time. All **14** departments clear it, against 4 at the last read — which is what makes LODO a real estimate |
+| **G3** ≥35/dept | **48 ✅ PASS** | first time. All **14** departments clear it, against 4 at the last read — which is what makes LODO a real estimate |
 | **G3** ≥150/class | **54 ⛔ FAIL** | `NON_AGRICULTURE`, as pre-registered → pool into `OTHER` (`--target t4`). `PERENNIAL` (115) and `ANNUAL` (141) are also under the floor |
-| locked test | 🔓 **SPENT 2026-09-01** | 201 parcels, **161 usable**. Scored once on LightGBM/`t3w`/`temp` (+ the `both` arm): **0.774 macro-F1, 0.789 accuracy**, RESULTS.md §8.9. `--eval-test` exists now; do not use it again |
+| locked test | **SPENT 2026-09-01** | 201 parcels, **161 usable**. Scored once on LightGBM/`t3w`/`temp` (+ the `both` arm): **0.774 macro-F1, 0.789 accuracy**, RESULTS.md §8.9. `--eval-test` exists now; do not use it again |
 
-⭐ **Step 3 has now been executed, not rehearsed, and it reversed its own earlier reading.**
+**Step 3 has now been executed, not rehearsed, and it reversed its own earlier reading.**
 LTAE wins CV in **8 of 8** arms and loses leave-one-department-out in **4 of 4** targets. See
 §2 step 3 below — the recommendation there has flipped.
 
@@ -46,7 +46,7 @@ LTAE wins CV in **8 of 8** arms and loses leave-one-department-out in **4 of 4**
 | Draw | **992 main + 120 pilot**, split frozen in `config/split_s2labels.yaml` |
 | Test fold | 201 parcels in 150 regions, every department on both sides |
 
-⭐ **Sentinel-2 gives a median 19–113 clear dates per parcel-agricultural-year by department,
+**Sentinel-2 gives a median 19–113 clear dates per parcel-agricultural-year by department,
 against the Landsat store's 13–24.** Even Pasco, the cloudiest, sits at the top of the Landsat
 range. Observation density is the one mechanism this project has *measured* driving the panel
 failures ([`RESULTS.md`](../RESULTS.md) §5), and S2 roughly triples it. **That does not mean the
@@ -61,7 +61,7 @@ label.**
 
 ---
 
-## 2. ⭐ What is left
+## 2. What is left
 
 Steps 1–2 are human and are the only blockers.
 
@@ -74,29 +74,29 @@ label noise**. Every accuracy figure in `RESULTS.md` §8.2 inherits that.
 
 With one labeller κ becomes **intra-rater: re-label 100 parcels after a gap.**
 
-⭐ **It is now the only labelling worth doing.** The learning curve has flattened — the last
+**It is now the only labelling worth doing.** The learning curve has flattened — the last
 +14 % of training data moved LightGBM +0.021 and LTAE −0.001 — so 100 more *training* labels
 buy almost nothing, while 100 *re-labels* buy the one number the campaign has never had.
 
-⚠️ On the record beside it: the annotator's **median time per parcel is 2–4 seconds**
+On the record beside it: the annotator's **median time per parcel is 2–4 seconds**
 (76 % of `shard01` under 5 s), against this plan's ~2 min budget. That does not make the labels
 wrong. It means the noise floor is unquantified, and G1 is what would quantify it.
 
-⚠️ **If G1 fails, revise the codebook — not the sample.**
+**If G1 fails, revise the codebook — not the sample.**
 
-### 2. ✅ The remaining shards are in
+### 2. The remaining shards are in
 
 `shard01`–`shard05` + `pilot` returned. **G2 passes at 0.139. G3-per-department passes at 48 —
 all 14 departments.** G3-per-class fails for `NON_AGRICULTURE` (54 against 150), exactly as
 pre-registered: **pool it into `OTHER` via `--target t4`. There is no second round; do not
 re-draw.**
 
-⭐ **The learning curve has flattened.** At 354 labels, folding in the 120-parcel pilot
+**The learning curve has flattened.** At 354 labels, folding in the 120-parcel pilot
 (+48 % training data) moved LightGBM **+0.050** macro-F1 on `t4`. At 865 labels the same pilot
 (+14 %) moves LightGBM **+0.021** and LTAE **−0.001**. **More labels are no longer the
 constraint — label *noise* is, and that is G1.**
 
-### 3. ✅ Train and compare — done, and the default flipped back
+### 3. Train and compare — done, and the default flipped back
 
 ```bash
 uv run python -m crop_classifier.cli allperu s2-labels ingest --csv-dir data/processed/labels_s2
@@ -106,7 +106,7 @@ uv run python -m crop_classifier.cli allperu s2-train lodo --model lightgbm --ta
 uv run python -m crop_classifier.cli allperu s2-train report
 ```
 
-⚠️ **Start from LightGBM, not LTAE.** This reverses what this section said before, and the
+**Start from LightGBM, not LTAE.** This reverses what this section said before, and the
 reversal is the interesting part.
 
 * On **cross-validation** LTAE wins **8 of 8** arms (+0.013 to +0.068, p < 0.05 in 5 of 8).
@@ -120,26 +120,26 @@ per parcel and ~500 training parcels, the attention encoder finds structure that
 *department*; that pays inside it and is worth nothing outside. It is what `centroid_lat` does,
 produced by a model class instead of a feature.
 
-⚠️ **What actually changed is the evidence, not the store.** The earlier "LTAE wins LODO in
+**What actually changed is the evidence, not the store.** The earlier "LTAE wins LODO in
 both arms" was a mean over **4** departments (SD 0.15) — the only four that then had ≥40 labels.
 There are now **14**. *Always report a LODO figure as "0.539 over 14 departments".*
 
-⚠️ **LODO is not optional**, unchanged and now demonstrated: the CV→LODO drop here is
+**LODO is not optional**, unchanged and now demonstrated: the CV→LODO drop here is
 **−0.05 to −0.19 macro-F1**, and it is the axis on which the model ranking inverts.
 
-⛔ **Two extra targets were run and one of them should not be adopted.** `t2`/`t2w` collapse the
+**Two extra targets were run and one of them should not be adopted.** `t2`/`t2w` collapse the
 label space to `PERENNIAL` vs `NON_PERENNIAL`. Raw macro-F1 rises (`t2` 0.769 CV), but so does
 the majority-class floor — **0.467 at two classes against 0.171 at four** — and normalised
 against it `t2` is the **lowest-skill arm in the study** (LODO skill 0.180). Collapsing 3
-classes to 2 moves `PERENNIAL` F1 by **+0.004**. ⭐ What it does settle: moving
+classes to 2 moves `PERENNIAL` F1 by **+0.004**. What it does settle: moving
 `WOODY_NON_CROP` from one side to the other moves `PERENNIAL` F1 by **+0.190** — the binding
 constraint is that one codebook boundary, not the number of classes, **and G1 is the thing that
 would measure it.** `RESULTS.md` §8.2c.
 
-⚠️ **One arm per process** — LightGBM and torch cannot share one on macOS. The CLI steps are
+**One arm per process** — LightGBM and torch cannot share one on macOS. The CLI steps are
 separate commands for that reason; drive them from a shell loop.
 
-### 3c. ✅ Climate covariates — run, and adopted for LightGBM
+### 3c. Climate covariates — run, and adopted for LightGBM
 
 ```bash
 uv run python -m crop_classifier.cli allperu s2-train prep   --target t4 --pilot --climate both
@@ -151,16 +151,16 @@ uv run python -m crop_classifier.cli allperu s2-train report --target t4 --pilot
 ```
 
 Mean temperature and mean annual rainfall (WorldClim normals) as two extra inputs, on `t4`+pilot,
-3 model classes × 4 feature sets **+ a `latlon` control**. ⭐ **The first feature this project
+3 model classes × 4 feature sets **+ a `latlon` control**. **The first feature this project
 has added that improves the out-of-department number**: LightGBM **CV 0.672 → 0.701, LODO
 0.539 → 0.577** over 14 departments, `PERENNIAL` F1 **0.471 → 0.574**, 12/14 departments
 improved, paired p = 0.004 — and **2.7× what the raw-coordinate control buys**.
 
-⚠️ **LightGBM only.** LTAE's climate gain is *matched* by the coordinate control, so for the
+**LightGBM only.** LTAE's climate gain is *matched* by the coordinate control, so for the
 attention model it is department memorisation by another route — §8.2's verdict arriving a
 second way. Full table, caveats and the `latlon` reading: [`RESULTS.md`](../RESULTS.md) §8.8.
 
-### 3b. ⚠️ G4 must be restated before it can be adjudicated
+### 3b. G4 must be restated before it can be adjudicated
 
 The gate as written says *"the S2 model must beat the existing Landsat model scored on the same
 held-out labelled parcels — those Landsat predictions already exist"*. **They do not.** The
@@ -180,7 +180,7 @@ linear map removes it. The distortion is visible (ANNUAL recall 0.932 at precisi
 * **(b)** drop the comparison and let G4 become the S2 model's own locked-test number against a
   stated floor.
 
-⚠️ **G4 still has no recovery path.** If the S2 model loses, the labels become a **validation
+**G4 still has no recovery path.** If the S2 model loses, the labels become a **validation
 set** — still the project's first endpoint accuracy measurement, and still worth having. That
 was on the record before any number arrived and it stays there.
 
@@ -195,13 +195,13 @@ classifier in it**. This is the descriptive conversion estimate the project has 
 to produce. Report it weighted, with CIs, and state where 1,000 labels sits on the learning
 curve as a limitation.
 
-✅ **Run, on all 865 usable labels** —
+**Run, on all 865 usable labels** —
 `labels_s2/declared_to_observed_transitions.csv`, tabulated in
 [`RESULTS.md`](../RESULTS.md) §8.2b. The headline: of parcels declared `ANNUAL` in 1996–2006,
 **2.9 % [0, 5.9] read as perennial in 2019+** and **57.9 %** read as farmable ground not
 currently cropped.
 
-⚠️ And the declared-`PERENNIAL` row is why the `WOODY_NON_CROP` mapping is a *reported target*
+And the declared-`PERENNIAL` row is why the `WOODY_NON_CROP` mapping is a *reported target*
 rather than a preprocessing step: only **21.1 %** still read `PERENNIAL`, **32.9 %** read
 `WOODY_NON_CROP` and 32.4 % read `OTHER`. A third of the perennial sample turns on the
 codebook's hardest call, and G1 — the measurement that would say how reliably it is made —
@@ -233,7 +233,7 @@ still does not exist.
   to it, and `_A`/`_B` in a filename is only a routing suggestion. Item order is md5-seeded per
   (shard, slot), so the two overlap shards hold the same parcels in different orders.
 * **The delivered set is Spanish** (`labels_s2/html_es/`, built with `s2-labels html --lang es`);
-  the English build stays as a reference in `labels_s2/html/`. ⚠️ **Translation touches the
+  the English build stays as a reference in `labels_s2/html/`. **Translation touches the
   display name only** — the value written to the CSV, and every value `ingest.py` compares
   against, stays the canonical English constant. Localising the stored value would have made the
   ingest match nothing and report an empty label distribution *rather than an error*, which is
@@ -246,7 +246,7 @@ still does not exist.
   gap between `t3` and `t3w` is then a measured quantity, not an assumption. The Landsat panel
   independently calls **5 of 5** woody parcels `PERENNIAL`, which is what `t3w` had assumed.
 * **Blindness is asserted on the raw HTML string** — no declared class, split or fold appears
-  anywhere (`tests/test_build_html.py`). ⚠️ One documented exception: `overlap_A/B.html` contain
+  anywhere (`tests/test_build_html.py`). One documented exception: `overlap_A/B.html` contain
   the string `overlap` once, as their own `SHARD_ID`. So **a labeller can tell which shard is
   double-labelled, and κ is measured on exactly that shard.** Pinned by a test.
 
@@ -273,11 +273,11 @@ quantiles over a parcel's pixels, never the pixels, so PSE-LTAE is not buildable
 
 ---
 
-## 4. ⚠️ Known limits — state these in the model card
+## 4. Known limits — state these in the model card
 
 * **One round, 1,000 parcels. There is no second pass.** The allocation had to be defensible
   before it was drawn rather than corrected afterwards.
-* ⚠️ **One annotator so far.** Every figure in `RESULTS.md` §8.2 rests on a single person's
+* **One annotator so far.** Every figure in `RESULTS.md` §8.2 rests on a single person's
   reading with **no κ**, so it carries an unmeasured label-noise term. Two of the six labels
   (`WOODY_NON_CROP`, `OTHER`) sit on the codebook boundary the design flagged as hardest and
   together account for 62 % of the usable sample.
@@ -287,7 +287,7 @@ quantiles over a parcel's pixels, never the pixels, so PSE-LTAE is not buildable
   class, so no stratified draw. A permanent limit, not a to-do.
 * **The training prior is a ~5× `PERENNIAL` over-sample.** Prior-correct the *model*, not just
   the estimates.
-* ⚠️ **Piura is one of the three worst-covered departments for recent high-res imagery** (0.61
+* **Piura is one of the three worst-covered departments for recent high-res imagery** (0.61
   eligible, with Cajamarca 0.60 and Pasco 0.39; eight departments are 1.00). Every earlier
   strand was built on Piura — a campaign scoped to Piura would have lost a third of its draw,
   and it would have looked like a sampling bug.
@@ -307,7 +307,7 @@ earlier as the noise floor, and read the verdict off raw bands, never an index.*
 SWIR1 / R / NIR steps **+0.009 / +0.009 / +0.002**, against **+0.10** for an unremoved +1000 DN
 offset. NDVI reads −0.034 and that is Peruvian weather, not Sentinel-2.
 
-### ⚠️ The NDVI ribbon needed data that did not exist
+### The NDVI ribbon needed data that did not exist
 
 `s2_perdate.parquet` held band **medians** and a pixel count — no within-parcel quantiles — and
 **no arithmetic on medians recovers a quantile**. Fixed by adding
@@ -318,7 +318,7 @@ plotted line onto `NDVI_px_p50`: it differs from band-median NDVI by 0.0025, eno
 median outside its own band on some dates. Model features are untouched and the columns are
 named `NDVI_px_*` so they cannot collide with `add_indices`.
 
-⚠️ **The 215 cached chunks were content-addressed on parcel-set + window, so the new columns
+**The 215 cached chunks were content-addressed on parcel-set + window, so the new columns
 would have been silently skipped — the cache had to be invalidated by hand.** Re-extraction:
 215 chunks / 2 workers / ~2 h, no errors, with GEE in restricted mode throughout. **100 % of the
 117,755 old parcel-dates reproduced**, 0.079 % of bands moving >1 DN, 0 quartile-ordering
@@ -332,7 +332,7 @@ violations, median IQR 0.0835 NDVI.
 2. **Chunking by extraction window alone spans the whole country**, because parcels sharing an
    imagery month sit in all 14 departments; `filterBounds` then reduces every granule in that
    rectangle and the first run stalled at 3 of 89 chunks at 0 % CPU. Fixed with a 1 deg² bbox
-   cap. ⚠️ `landsat_gee._chunk_todo` **already carried that exact lesson in a comment** — it was
+   cap. `landsat_gee._chunk_todo` **already carried that exact lesson in a comment** — it was
    learned twice because the new module copied the old one's structure, not its chunker.
 
 ### A third GEE throttle shape

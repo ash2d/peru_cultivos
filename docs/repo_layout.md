@@ -33,7 +33,7 @@ history keep working.
 CV, LODO, LOYO and LODYO in one table, each beside its majority-class floor. They existed as
 four separate commands, and reading only the first is how `centroid_lat`, an entire
 architecture, and a `--climate both` recommendation all got adopted before a held-out department
-overturned them. An evaluation nobody remembers to run is an evaluation that does not exist, so
+overturned them. An evaluation that is easy to forget will be skipped, so
 the protocol is the default and a single split is the special case. See
 [`LESSONS.md`](LESSONS.md).
 
@@ -55,7 +55,7 @@ code works; the question did not survive contact with the data. The README there
 one tried and which gate killed it. Deleting it would mean the next person spends a month
 rediscovering it.
 
-⚠️ Not everything closed is in there. `perennial/panel.py`, `diagnostics.py`, `trajectories.py`
+Not everything closed is in there. `perennial/panel.py`, `diagnostics.py`, `trajectories.py`
 and `harmonization.py` belong to failed estimands too, but live code depends on them —
 `features/assemble.py` calls `harmonization.oli_to_etm`, and `perennial/report_figures.py`
 builds committed figures out of the panel. Tangling the live path to tidy the dead one is a bad
@@ -68,7 +68,7 @@ could run nothing at all. The demo is 1,302 real parcels over six departments �
 `cc advanced lodo` runs, so a newcomer can see cross-validation and leave-one-department-out
 disagree before they have any data of their own.
 
-⚠️ It is *stratified*, not representative. No share, area or prevalence from it means anything.
+It is *stratified*, not representative. No share, area or prevalence from it means anything.
 
 ## The tests guard the documentation too
 

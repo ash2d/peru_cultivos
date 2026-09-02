@@ -8,8 +8,10 @@
 4. **[`docs/DATA.md`](docs/DATA.md)** — datasets, linkage chains, the four silent traps.
 
 `cc reproduce` re-derives every published number from the committed data (~90 s); `cc data
-verify` says what a clone can do; [`docs/howto/`](docs/howto/) is the task-shaped documentation
-(`06_label_more_parcels.md` = the label-more-and-retrain loop, for a non-programmer). Also
+verify` says what a clone can do. [`docs/howto/`](docs/howto/01_setup.md) is the task-shaped
+documentation, written for a non-programmer: setup, reproduce, train, predict (04, including
+`tools/prepare_parcels.py` for polygons of the user's own), imagery, label-and-retrain (06),
+label sets, tenure. Also
 [`docs/LESSONS.md`](docs/LESSONS.md) (method findings worth reusing),
 [`docs/s2_labelling/plan.md`](docs/s2_labelling/plan.md) (the only live work),
 [`docs/cenagro_columns.md`](docs/cenagro_columns.md) (the 2012 census columns), and
@@ -20,7 +22,7 @@ this file is orientation only, and is auto-loaded into every context.
 
 ---
 
-## ⭐ The one result to know before modelling
+## The one result to know before modelling
 
 `centroid_lat` is worth **+0.047 macro-F1 on spatial CV, +0.047 on leave-one-year-out, and
 −0.060 on leave-one-department-out.**
@@ -31,11 +33,10 @@ region approximately fixed — so neither can separate spatial memorisation from
 free (LODYO is re-scored automatically at the end of every LODO run). `cc evaluate <run>
 --tag <tag>` prints all four in one table, each beside its majority-class floor.
 
-The same lesson has three independent instances: `frac_l7` manufactured *change*, statics
-manufacture *stability*, and `centroid_lat` manufactures *accuracy that does not leave the
-training departments*.
+Three instances of the same lesson: `frac_l7` manufactured *change*, statics manufacture
+*stability*, `centroid_lat` manufactures *accuracy that does not leave the training departments*.
 
-## ⚠️ …and the same lesson caught an architecture, not just a feature
+## The same lesson caught an architecture, not just a feature
 
 `RESULTS.md` §4.3 records LTAE as a national negative result on the **Landsat** store.
 Re-asked on the Sentinel-2 store — median **47** clear dates per parcel-year against 13–24 —
@@ -54,7 +55,7 @@ code.
 
 ---
 
-## ⚠️ Two traps that make a number look better than it is
+## Two traps that make a number look better than it is
 
 **macro-F1 is not comparable across label spaces.** Collapsing 4 classes to 2 raised it from
 0.672 to 0.715 — and raised the "always guess the largest class" floor from **0.171 to 0.467**.
@@ -62,35 +63,32 @@ Normalised, the 2-class arm was the *worst* in the study. **Print the majority-c
 beside every macro-F1**, and compare label spaces on the F1 of the class you actually care
 about (`RESULTS.md` §8.2c).
 
-**An unmapped-token catch-all is never uniformly distributed.** Mapping the 2012 census
-vocabulary onto the project's crop classes left 4.09 % of tokens falling to a blanket `ANNUAL`
-— **80 % of it the single token `VERGEL FRUTICOLA`, "fruit orchard"**. The headline moved from
-+2.4 pp to +12.5 pp when it was fixed. The budget check passed either way. **Print the tail
-sorted by frequency and read the top ten** (§8.5).
+**An unmapped-token catch-all is never uniformly distributed.** 4.09 % of 2012 census tokens
+fell to a blanket `ANNUAL`, and **80 % of that was one token, `VERGEL FRUTICOLA`** ("fruit
+orchard"): the headline moved +2.4 pp → +12.5 pp when it was fixed, and the percentage budget
+passed either way. **Print the tail sorted by frequency and read the top ten** (§8.5).
 
 ---
 
-## ⭐ …and the one case where a feature helped BOTH — because it was scored against a control
+## The one case where a feature helped both — because it was scored against a control
 
-Mean temperature added to the S2 endpoint classifier raised CV **and** LODO
-(`RESULTS.md` §8.8/§8.8b) — the first feature in the project to do that. What makes it readable
-is the fourth arm: **centroid lat/lon in place of the two climate columns**, same count, same
-smoothness over space, no agro-climatic content. LightGBM got several times more
-out-of-department gain from climate than from coordinates (adopt it); **LTAE got the same from
-both** (do not).
+Mean temperature added to the S2 endpoint classifier raised CV **and** LODO (§8.8/§8.8b) — the
+first feature in the project to do that. What makes it readable is the fourth arm: **centroid
+lat/lon in place of the two climate columns**, same count, same smoothness over space, no
+agro-climatic content. LightGBM got several times more out-of-department gain from climate than
+from coordinates (adopt); **LTAE got the same from both** (do not).
 
 **When a feature is a smooth function of something the model must not memorise, the comparison
 that decides is not *feature vs nothing* — it is *feature vs a same-shaped surrogate carrying
-only the thing you are worried about*.** Run it in the same folds and label it a control.
-And verify the "nothing" arm reproduces its recorded numbers before reading any delta.
+only the thing you are worried about*.** Run it in the same folds, label it a control, and check
+the "nothing" arm reproduces its recorded numbers before reading any delta.
 
-⚠️ **And the follow-up caught the recommendation, not the feature.** §8.8 adopted
-`--climate both` on 12 of 14 departments at p = 0.004. Re-run at the other end of the
-`t4`/`t3w` codebook bracket, that arm is **7/14 at p = 0.345** — the rainfall column is worth
-**−0.001** there. Temperature holds its gain at both ends; rainfall does not replicate.
-**A per-unit consistency result over 14 departments is 14 numbers, and the cheapest way to
-find out whether it is real is to re-ask it under a label-space choice you already know is
-larger than the effect** (§8.2c: the `WOODY_NON_CROP` decision moves `PERENNIAL` F1 by 0.190).
+**The follow-up then caught the recommendation, not the feature.** §8.8 adopted `--climate both`
+on 12 of 14 departments at p = 0.004; at the other end of the `t4`/`t3w` bracket it is 7/14 at
+p = 0.345 and the rainfall column is worth **−0.001**. Temperature holds at both ends, rainfall
+does not. **A per-unit consistency result over 14 departments is 14 numbers**, and the cheapest
+test of one is to re-ask it under a label-space choice already known to be larger than the
+effect (§8.2c: `WOODY_NON_CROP` moves `PERENNIAL` F1 by 0.190).
 
 ---
 
@@ -158,7 +156,7 @@ will be**.
 
 ---
 
-## ⚠️ The four silent data traps
+## The four silent data traps
 
 Every one returns a plausible empty or column-less result instead of an error. Each is pinned by
 a test in `tests/test_allperu.py`. Read raw data through `allperu.sources`, which handles them.
@@ -185,7 +183,7 @@ src/crop_classifier/
   paths.py                 path resolution, at call time, never at import
   label_sets.py            label spaces from config/labels/*.yaml
   protocol.py              `cc evaluate` — CV / LODO / LOYO / LODYO + the floor
-  archive/                 ⛔ closed routes; README says which gate killed each
+  archive/                 closed routes; README says which gate killed each
   crop_normalization.py    one dirty CULTIVO cell → list of (crop, category)
   build_training_data.py   Chain A end-to-end for Piura
   labels.py  splits.py     label policy; spatially blocked splits + autocorrelation audit
@@ -214,7 +212,7 @@ way to see what the polygons actually look like.
 
 ---
 
-## ⚠️ Gotchas
+## Gotchas
 
 * **Never import torch and lightgbm in one process on macOS** — each bundles its own libomp and
   co-loading segfaults (exit 139). The lazy model registry exists for this. The test suite runs

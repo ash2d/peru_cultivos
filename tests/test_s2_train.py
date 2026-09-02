@@ -305,3 +305,39 @@ def test_eval_test_refuses_the_rules_control():
         capture_output=True, text=True)
     assert r.returncode != 0
     assert "control" in (r.stdout + r.stderr)
+
+
+def test_prep_refuses_labels_the_feature_table_does_not_cover(tmp_path, monkeypatch):
+    """A labelled parcel with no feature row trains as all-NaN and reports nothing.
+
+    LightGBM takes NaN natively, so a round assembled into the wrong store — or not
+    assembled at all — used to come out as a slightly worse model instead of an error.
+    That is the failure mode this project keeps meeting, so `prep` counts the coverage.
+    """
+    import geopandas as gpd
+    import pandas as pd
+    import pytest
+
+    from crop_classifier.labelling import train_prep as P
+
+    labels = tmp_path / "labels"
+    feats = tmp_path / "features"
+    labels.mkdir()
+    feats.mkdir()
+    monkeypatch.setenv("CC_LABELS", str(labels))
+    monkeypatch.setenv("CC_FEAT", str(feats))
+
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    src = root / "data" / "processed" / "all_peru" / "labels_s2"
+    if not (src / "labelled_parcels.parquet").exists():
+        pytest.skip("the campaign labels are not in this clone")
+    for fn in ("labelled_parcels.parquet", "label_sample.parquet"):
+        gpd.read_parquet(src / fn).to_parquet(labels / fn, index=False)
+
+    # a feature table that covers nothing
+    pd.DataFrame({"COD_PREDIO": ["nobody"]}).to_parquet(
+        feats / "s2_features_lightgbm.parquet", index=False)
+
+    with pytest.raises(SystemExit, match="no row in"):
+        P.build_workspace("t3w", verbose=False)

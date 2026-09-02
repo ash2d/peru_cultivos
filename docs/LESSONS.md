@@ -17,7 +17,7 @@ exploitable there. On leave-one-department-out it *loses* **0.0596**. On LODYO (
 **Do:** report CV / LODO / LOYO / LODYO for every candidate. LODYO is free — it re-scores
 existing LODO predictions per year cohort, no new fits.
 
-### An evaluation nobody remembers to run does not exist
+### Wire the decisive evaluation into the pipeline
 
 LODYO overturned the model selection, and it was the evaluation most likely to be skipped. It
 now runs automatically at the end of every `allperu lodo`. Wire the decisive check into the
@@ -46,12 +46,12 @@ dates per parcel-year instead of 13–24**. An attention encoder over an irregul
 being starved of the axis, and a starved model's verdict is a verdict about the diet.
 
 **The rule:** record what a negative architecture result was measured *on*, and re-ask it when
-the input distribution moves — not when someone merely dislikes the answer. The distinguishing
+the input distribution moves — not simply because the answer is unwelcome. The distinguishing
 question is whether a **mechanism** changed (here, observation density, which this project had
 already measured as the dominant driver of its other failures), not whether a new run might get
 lucky.
 
-### ⭐ …but re-ask it on the axis that decides, because an architecture can memorise too
+### Re-ask it on the axis that decides: an architecture can memorise too
 
 That CV win does not survive holding out a department. On the same S2 store LTAE loses
 leave-one-department-out in **4 of 4** label targets, and the reason is visible in the size of
@@ -64,7 +64,7 @@ the training departments, and it is worth nothing outside them. **A feature is n
 thing that can manufacture accuracy that does not travel; a model class can.** Any "architecture
 X beats Y" claim needs the same CV *and* OOD pair that a feature-selection claim needs.
 
-### ⭐ An OOD estimate over 4 units is 4 numbers
+### An OOD estimate over 4 units is 4 numbers
 
 The reading immediately above was, for two days, the opposite: "LTAE wins LODO in both arms."
 Nothing was wrong with the code, the data or the protocol. That LODO mean averaged **4
@@ -77,7 +77,7 @@ the one that governs, is usually an order of magnitude smaller, and is almost ne
 **Report a LODO figure as "0.539 over 14 departments", never as "0.539".** Ours would have been
 caught earlier by that one habit.
 
-### ⭐ macro-F1 is not comparable across label spaces — the floor moves with it
+### macro-F1 is not comparable across label spaces — the floor moves with it
 
 Collapsing the 4-class problem to 2 (perennial vs everything) raised macro-F1 from 0.672 to
 0.715, which reads as a large gain. It is not one. Macro-F1 averages per-class F1 with equal
@@ -93,7 +93,7 @@ how many others exist. Here that was decisive: collapsing 3 classes to 2 moved `
 by **+0.004**, while moving one ambiguous class (`WOODY_NON_CROP`) from one side to the other
 moved it by **+0.190**. The label space was never the constraint; one boundary inside it was.
 
-### ⭐ Classify both sides of a before/after with the same lexicon — then audit the tail
+### Classify both sides of a before/after with the same lexicon — then audit the tail
 
 Comparing a 1999 land declaration with a 2012 census means mapping two vocabularies onto one
 class space, and any slippage between them appears as change in the land. The census uses fuller
@@ -108,7 +108,7 @@ uniformly distributed, so its *concentration* matters far more than its size. **
 unmapped tokens sorted by frequency and read the top ten by hand**; the budget check alone would
 have passed this.
 
-### ⭐ Score a new covariate against a same-shaped control, not against nothing
+### Score a new covariate against a same-shaped control, not against nothing
 
 Adding mean temperature and rainfall to the S2 endpoint classifier raised cross-validation
 **and** leave-one-department-out (`RESULTS.md` §8.8). That is the right shape for a real
@@ -174,7 +174,7 @@ per log-observation on true perennials and −0.022 on true annuals** (p < 1e-6)
 revert to the base rate as evidence thins, which at the level of a share is **indistinguishable
 from real conversion**.
 
-⚠️ **This is not a calibration artefact and recalibration will not fix it.** Fitted temperature
+**This is not a calibration artefact and recalibration will not fix it.** Fitted temperature
 *falls* with density (T = 1.448 − 0.160·log n), so at low density the model is **over**-confident
 and the correct recalibration pushes probabilities *further* toward the base rate. Applying it
 moved the target metric by 0.0001.
@@ -237,7 +237,7 @@ are joined by an `atexit` hook, so every timeout orphaned a thread and all five 
 0 % CPU for up to 3 h **after their work was complete**, never exiting. (`cancel_futures=True`
 does not help — it only drops futures still queued.)
 
-### A guessed completeness threshold will cry wolf
+### A guessed completeness threshold raises false alarms
 
 A 0.995 tolerance failed 13 of 15 years on a *complete* extraction. The pattern was the
 diagnosis: a truncated year is an **outlier**; a uniform 99.4 % across 13 years extracted by 5
@@ -301,7 +301,7 @@ path. When finally run it was **harmful on every axis** — worse than no correc
 
 Grouping extraction chunks by time alone produced chunks spanning up to 110 deg²; `filterBounds`
 then reduces every granule in that rectangle and the job stalls at 0 % CPU with **no error**.
-⚠️ This was learned **twice** — the second module copied the first one's structure but not its
+This was learned **twice** — the second module copied the first one's structure but not its
 chunker, and the comment carrying the lesson was in the part not copied.
 
 ### Verify a sensor step against its own failure mode

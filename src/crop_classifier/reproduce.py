@@ -123,7 +123,7 @@ def _s2_model() -> list[Measure]:
 
 
 def _perennial_shift() -> list[Measure]:
-    """⭐ The headline. Two official declarations of the same land, no classifier in it.
+    """The headline. Two official declarations of the same land, no classifier in it.
 
     Runs the whole PETT → CENAGRO 2012 comparison and reads the three numbers the README
     leads with off the post-stratified tables.
@@ -191,7 +191,7 @@ CHECKS: tuple[Check, ...] = (
           "RESULTS.md §8.8b", _s2_model, "~1 min",
           ("data/processed/all_peru/labels_s2/labelled_parcels.parquet",
            "data/processed/all_peru/features_s2/s2_features_lightgbm.parquet")),
-    Check("perennial-shift", "⭐ the headline: PETT 1999 → CENAGRO 2012, by tenure",
+    Check("perennial-shift", "the headline: PETT 1999 → CENAGRO 2012, by tenure",
           "RESULTS.md §8.5, §8.6", _perennial_shift, "~30 s",
           ("data/processed/cenagro/national_panel.parquet",
            "data/raw/Cenagro_IV/Piura.parquet")),

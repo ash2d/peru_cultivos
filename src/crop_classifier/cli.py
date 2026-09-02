@@ -744,6 +744,12 @@ def allperu_s2_labels(
         max_chunks: int | None = typer.Option(None, help="extract: stop after N chunks"),
         supp_depts: str = typer.Option("", help="pool: comma list to supplement"),
         overwrite: bool = typer.Option(False, help="chips: re-render existing"),
+        total: int = typer.Option(0, help="draw: how many parcels to draw "
+                                          "(default 1,000, the campaign of record). The "
+                                          "per-department floor scales with it"),
+        pilot_n: int = typer.Option(-1, "--pilot-n",
+                                    help="draw: size of the disjoint pilot batch "
+                                         "(default 120; 0 for none)"),
         lang: str = typer.Option("en", help="html: interface + codebook language "
                                             "(en|es). Non-English writes to "
                                             "labels_s2/html_<lang>/"),
@@ -767,7 +773,8 @@ def allperu_s2_labels(
     _use_round(round_)
     C.run_step(step, source=source, csv_dir=csv_dir, workers=workers,
                chunk_size=chunk_size, max_chunks=max_chunks, overwrite=overwrite,
-               lang=lang,
+               lang=lang, total=total,
+               pilot_n=None if pilot_n < 0 else pilot_n,
                supp_depts=[d.strip() for d in supp_depts.split(",") if d.strip()])
 
 

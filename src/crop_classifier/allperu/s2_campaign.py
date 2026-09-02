@@ -146,14 +146,29 @@ def _consolidate_probe() -> gpd.GeoDataFrame:
     return cand
 
 
-def step_draw() -> None:
+def step_draw(total: int = 0, pilot_n: int | None = None) -> None:
+    """Draw the sample. ``total`` defaults to the campaign of record's 1,000.
+
+    A smaller round is a legitimate thing to want — a second batch is usually 100-300
+    parcels — so the size is an argument rather than a constant to edit. The per-department
+    floor scales with it: at ``total`` 100 over 14 departments a 55-parcel floor is
+    impossible, and ``allocate_departments`` would trim it away silently.
+    """
     cand = gpd.read_parquet(d() / F_CANDIDATES)
     popE = pd.read_csv(d() / F_POPELIG)
     sizes = popE.pivot(index="dept", columns="declared_class",
                        values="N_eligible").fillna(0)
-    s = LS.draw(cand, alloc_sizes=sizes, pop_eligible=popE)
+    total = int(total or LS.TOTAL)
+    floor = min(LS.DEPT_FLOOR, max(1, total // len(sizes)))
+    pilot = LS.PILOT_N if pilot_n is None else int(pilot_n)
+    # the double-labelled overlap is what makes kappa measurable, so it scales with the
+    # round rather than staying at 100 — which on a 100-parcel round would double-label
+    # every parcel in it
+    overlap = min(LS.OVERLAP_N, max(0, total // 4))
+    s = LS.draw(cand, total=total, floor=floor, pilot_n=pilot, overlap_n=overlap,
+                alloc_sizes=sizes, pop_eligible=popE)
     main = int((s.batch == "main").sum())
-    _record_gate("draw_size", main, f"== {LS.TOTAL}", main >= LS.TOTAL * 0.95,
+    _record_gate("draw_size", main, f"== {total}", main >= total * 0.95,
                  note="shortfalls are eligible-pool or region-cap limits, reported "
                       "per cell in the draw log")
 
@@ -340,7 +355,7 @@ STEPS = {
     "universe": lambda **k: step_universe(k["source"]),
     "pool": lambda **k: step_pool(k.get("supp_depts")),
     "probe": lambda **k: step_probe(max(4, k.get("workers", 8))),
-    "draw": lambda **k: step_draw(),
+    "draw": lambda **k: step_draw(k.get("total", 0), k.get("pilot_n")),
     "split": lambda **k: step_split(),
     "chips": lambda **k: step_chips(k.get("workers", 3), k.get("overwrite", False)),
     "extract": lambda **k: step_extract(k.get("chunk_size", 25), k.get("max_chunks"),

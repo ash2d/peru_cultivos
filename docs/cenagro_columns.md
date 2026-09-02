@@ -77,9 +77,9 @@ de-duplicate on `NPRIN` (or `NPRIN`+`NPARC`) before averaging anything.
 | `NPRIN` | **producer id** (número de cédula principal) | str(7) |
 | `NPARC` | parcel number within the producer | float |
 | `RESULTADO` | 1 Completa · 2 Incompleta · 3 Rechazo · 4 Ausente | code |
-| `P009_01` `P009_02` `P009_03` | ⚠️ **apellido paterno / materno / nombres — UNLABELLED** | str |
+| `P009_01` `P009_02` `P009_03` | **apellido paterno / materno / nombres — UNLABELLED** | str |
 | `P009_04` `P009_05` | razón social · RUC (11 digits, kept as text) | str |
-| `LONG_DECI` `LAT_DECI` | ⚠️ **SEA centroid**, shared by every UA in the SEA | decimal degrees |
+| `LONG_DECI` `LAT_DECI` | **SEA centroid**, shared by every UA in the SEA | decimal degrees |
 | `WALTITUD` | altitude | m.a.s.l. |
 | `WREGION` | 1 Costa · 2 Sierra · 3 Selva | code |
 | `WPISO` | piso altitudinal, 1 Chala … 9 Yunga Marítima | code |
@@ -95,11 +95,11 @@ de-duplicate on `NPRIN` (or `NPRIN`+`NPARC`) before averaging anything.
 | `P023_01` `P023_04` `P023_07` | out-of-district parcel: order · surface (ha) · ubigeo | |
 | `P037_0k_01` (k=1…5) | **tenure regime** = 1 when it applies: 1 propietario · 2 comunero · 3 arrendatario · **4 posesionario** · 5 otro | flag |
 | `P037_0k_02` (k=1…5) | surface conducted under regime *k* | **ha** |
-| `P037_01_03` | ⭐ owner's title status: **1 título inscrito en RRPP** · 2 título no inscrito · 3 sin título, en trámite · 4 sin título ni trámite | code |
-| `P037_SS` | ⚠️ **self-reported total parcel surface** | **ha** |
+| `P037_01_03` | owner's title status: **1 título inscrito en RRPP** · 2 título no inscrito · 3 sin título, en trámite · 4 sin título ni trámite | code |
+| `P037_SS` | **self-reported total parcel surface** | **ha** |
 | `P038_01…04` | acquired by: herencia · compra-venta · adjudicación · otro | flag |
 | `P039_01` `P040` | community type (campesina/nativa) · scattered trees | code |
-| `registrado`, `registrado_1/2`, `p_registrado`, `GP`, `GP_1`, `X_t` | ⚠️ **undocumented derived registration variables** — see the warning below | float |
+| `registrado`, `registrado_1/2`, `p_registrado`, `GP`, `GP_1`, `X_t` | **undocumented derived registration variables** — see the warning below | float |
 | `P024_01` `P024_03` | crop order within the parcel · **crop code** | code |
 | `P025` | **sown area of that crop** | **ha** |
 | `P026` `P027` | riego/secano · irrigation method | code |
@@ -111,7 +111,7 @@ de-duplicate on `NPRIN` (or `NPRIN`+`NPARC`) before averaging anything.
 flag) in **all 25 departments, 0.00 % unresolved**. Codes are 1–4 characters and are **not**
 consistently zero-padded on either side; `crop_code_table()` canonicalises both to an integer.
 
-⚠️ **Six derived registration variables ship with the source and none of them is documented.**
+**Six derived registration variables ship with the source and none of them is documented.**
 `registrado`, `registrado_1`, `registrado_2`, `p_registrado`, `GP`, `GP_1`, `X_t` are unlabelled
 and are **not** in the INEI questionnaire — someone added them upstream. Reverse-engineered on
 Piura they are *nearly* but not exactly what they look like:
@@ -128,11 +128,11 @@ Piura they are *nearly* but not exactly what they look like:
 A 96–98 % match to an unstated definition is not a definition. **Derive tenure security from
 `P037_01_03` yourself** and use these only as a cross-check.
 
-⚠️ **`P037_SS` is not the polygon area.** The census self-reported parcel surface is
+**`P037_SS` is not the polygon area.** The census self-reported parcel surface is
 **uncorrelated** with the cadastral polygon area (Pearson ~0.01, Chain B below). Weight areas
 by the cadastral `area_ha`, never by `P037_SS`.
 
-#### ⚠️ The name columns are the whole link, and they are unlabelled
+#### The name columns are the whole link, and they are unlabelled
 
 `P009_01/02/03` carry an **empty variable label** in the `.dta`. A `usecols` built from labels
 finds nothing; a column picked by position finds a plausible string column that is not the
@@ -146,7 +146,7 @@ Loreto 94.0 %. Adding `P009_04` (razón social) as a fallback recovers almost no
 **8.0 % of Madre de Dios producers have no personal name and no razón social**, against 1.0–3.0 %
 in most departments. None of this is a broken extraction; it is the census's own coverage.
 
-#### ⚠️ "sin posesionario" is a folder name, not a row filter
+#### "sin posesionario" is a folder name, not a row filter
 
 The source folder is named *(sin posesionario)*, which reads as a promise that
 posesionario — occupant-without-title — records were stripped. **They were not.** Checked three

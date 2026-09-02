@@ -43,11 +43,11 @@ Cada panel tiene su propia barra de escala.
 | `6` | **NO AGRÍCOLA** | fuera de uso agrícola: casas, invernaderos y galpones, carreteras, canales y reservorios, agua, cauce de río, canteras, roca desnuda |
 
 **Cómo se ven:** PERENNE — copas regulares o hileras, textura de dosel, verde en las dos
-temporadas de la curva. ⚠️ **La caña de azúcar va como ANUAL** (igual que en
+temporadas de la curva. **La caña de azúcar va como ANUAL** (igual que en
 `config/perennial_allperu.yaml`, `cana_policy: annual`, y en MapBiomas).
 ANUAL — textura uniforme, sin copas, bordes nítidos; uno o dos picos que vuelven a suelo
 desnudo. LEÑOSO NO CULTIVO — cobertura arbórea **sin** hileras ni marco de plantación.
-⚠️ **Nunca lo junte con PERENNE:** lo leñoso no cultivo declarado es 2.79 % del universo
+**Nunca lo junte con PERENNE:** lo leñoso no cultivo declarado es 2.79 % del universo
 nacional, más grande que el efecto que este estudio quiere medir.
 
 **NO SEGURO no es una falla y no se le cuenta en contra — úselo sin problema.** Una duda
@@ -98,7 +98,7 @@ Piura y en Huancavelica. La derecha da **textura**: copas regulares en marco = h
 plantado; manchas irregulares = leñoso no cultivo; tono uniforme = chacra anual o suelo
 desnudo.
 
-⚠️ La mayoría de imágenes son de 1,2 m, así que el acercamiento **agranda pero no revela más
+La mayoría de imágenes son de 1,2 m, así que el acercamiento **agranda pero no revela más
 detalle**. Si a 200 m de ancho todavía no se distingue, la información no está — eso es un
 `NO SEGURO`, no una mirada más larga.
 
@@ -132,7 +132,7 @@ hileras, o de verdad mitad y mitad, señal para aplicar la regla del >50 % o pul
 porque una adivinanza con confianza baja y una etiqueta real son indistinguibles una vez
 dentro del conjunto de entrenamiento. O la llama, o pulsa `5`.
 
-⚠️ **No consulte nada externo.** La parcela tiene una declaración de cultivo de 1997–2006 y a
+**No consulte nada externo.** La parcela tiene una declaración de cultivo de 1997–2006 y a
 propósito no se le muestra. Si estuviera anclado en ella, fabricaría concordancia entre la
 declaración y lo que ve, que es exactamente el error que esta campaña existe para no cometer.
 

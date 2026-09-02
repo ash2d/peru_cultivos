@@ -1,0 +1,242 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\graphicspath{{./}}
+\usepackage{amsmath}
+\usepackage[hidelinks]{hyperref}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage{titling}
+
+\captionsetup{font=small,labelfont=bf}
+\setlength{\parskip}{0.3em}
+\setlength{\parindent}{0pt}
+\setlength{\droptitle}{-2.2cm}
+\usepackage{titlesec}
+\titlespacing*{\section}{0pt}{1.0em}{0.35em}
+
+\title{\textbf{Has Peruvian farmland shifted from food crops to export tree crops,\\
+and does legal land title cause it?}\\[0.4em]
+\large Short summary of the project to date}
+\author{Daniel Ash}
+\date{31 August 2026}
+
+\begin{document}
+\maketitle
+\vspace{-1.2em}
+
+%======================================================================
+\section{Purpose and data}
+
+The project asks two questions. Has farmland in Peru moved from annual crops grown for the domestic
+market (rice, maize, beans) to perennial tree crops grown for export (mango, lime, coffee, banana)?
+And does secure legal title make that move more likely?
+
+The main source is the archive of Peru's land-titling programme, which records for about one
+million parcels the boundary, the crop the farmer declared, and the parcel's legal status. It
+records the crop only once, mostly between 1997 and 2006. Three further sources were used: a
+cadastral bridge file linking the crop registry to the parcel maps, the parcel maps themselves, and
+the 2012 agricultural census, which gives a second independent declaration of what is growing on
+some of the same parcels. Satellite imagery is available for every year from 1996. The bridge file
+covers only 15 departments and one yields nothing usable, so the project covers \textbf{14
+departments}, all coastal or lower-altitude. No labels exist for the sierra or the Amazon.
+
+The original plan was to use the archive as training labels, fit a classifier, apply it to every
+year of imagery, and read the change from the series. The classifier works. The year-by-year series
+does not.
+
+%======================================================================
+\section{What worked and what did not}
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Each line of work and its outcome.}
+\label{tab:scoreboard}
+\begin{tabular}{@{}p{4.6cm}p{3.3cm}p{7.4cm}@{}}
+\toprule
+\textbf{Attempted} & \textbf{Outcome} & \textbf{Reason} \\
+\midrule
+Identify 12 individual crops from imagery
+& Fails
+& Annual crops share one seasonal curve at 30\,m resolution \\[0.25em]
+
+Separate perennial, annual and bare ground
+& Works, 0.68 macro-F1
+& Year-round canopy is visible; crop identity is not \\[0.25em]
+
+Extend from Piura to the whole country
+& Works, and is more stable
+& 14 departments, 946{,}872 parcels \\[0.25em]
+Apply the classifier to every year, 1996--2023
+& Fails
+& A classifier correct 55--59\,\% of the time cannot support a 25-year series per parcel \\[0.25em]
+
+Aggregate that history into 5-year windows, then correct the drift
+& Fails; four corrections closed
+& The sensor difference depends on land cover, so no single linear correction removes it \\[0.25em]
+
+Photo-interpret recent high-resolution imagery
+& Works, 865 parcels labelled
+& The only accuracy measured in the period of interest \\[0.25em]
+
+Compare the 1999 declaration with the 2012 census
+& Works, 63{,}766 parcels
+& Two declarations of the same land, no imagery and no classifier \\[0.25em]
+
+Estimate the causal effect of legal title
+& A tight null
+& $-0.11$ points, 95\,\% interval $[-1.26, +1.04]$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The classifier separates three land states rather than individual crops: perennial, annual, and
+pasture or fallow. That is also the distinction the research question needs, since perennial
+approximates export and annual approximates domestic. Gradient-boosted trees (LightGBM) reading
+about 135 summary features per parcel-year were selected over a neural network and a hand-written
+rule baseline.
+
+%======================================================================
+\section{Main results}
+
+\textbf{1. The perennial share rose by about ten percentage points.} Between the titling
+declaration (median year 1999) and the 2012 census, the share of parcels declaring a perennial crop
+rose from 16.5\,\% to 26.4\,\% nationally, and from 21.0\,\% to 33.5\,\% by land area. The flow is
+asymmetric: 7{,}158 parcels moved from annual to perennial against 1{,}832 in the reverse
+direction. Conversion happened on larger parcels, median 0.85\,ha against 0.38\,ha for parcels that
+stayed annual. Three separate measurements agree on this rise within their uncertainty.
+
+\textbf{2. Legal title does not account for it.} Titled parcels rose 9.2 points and untitled
+parcels 11.3 points, so titled parcels shifted slightly less. Measured by area the difference
+disappears ($+10.7$ against $+11.0$), which suggests it reflects parcel size rather than tenure. A
+difference-in-differences estimate on 14{,}625 parcels and 15 years of imagery returns $-0.11$
+percentage points, 95\,\% interval $[-1.26, +1.04]$, and the interval contains zero under every
+assumption tested. This is a bounded null rather than proof of no effect: legal status is last
+observed in about 2011--12 while the outcome runs to 2023, and part of the comparison group was
+probably titled later without being recorded, which pushes any real effect toward zero.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{fig_shift_and_tenure.png}
+\caption{Left: every source agrees that the perennial share rose, and the two declared-crop
+sources agree closely on the size of the rise. The imagery estimates are consistent with them and
+too imprecise to add anything. Right: no source finds that legal title accounts for the rise.}
+\label{fig:forest}
+\end{figure}
+
+\textbf{3. Most land declared as annual cropland in 1999 is not currently cropped.} Read directly
+from 865 photo-interpreted parcels, 57.9\,\% of parcels that declared an annual crop are farmable
+ground with nothing growing on them, and only 2.9\,\% read as perennial. This is a national average
+and does not describe Piura, where 86.7\,\% of such parcels still carry annual crops.
+Figure~\ref{fig:transition} shows the full cross-tabulation.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.92\textwidth]{fig_transition_matrix.png}
+\caption{Land use declared to the titling programme in 1996--2006 against land use observed on
+2019 or later imagery, on 865 hand-labelled parcels, weighted to the national population. Rows sum
+to 100\,\%. No classifier is involved. The 95\,\% interval on the 2.9\,\% cell runs from 0 to
+5.9.}
+\label{fig:transition}
+\end{figure}
+
+%======================================================================
+\section{Why the year-by-year series failed, and what replaced it}
+
+Two checks were set before the attempt: predictions should degrade gradually when applied to years
+far from the training years, and a parcel's predicted history should not alternate implausibly. The
+second failed in every version, with 52 to 98\,\% of parcels changing class implausibly often
+against a criterion of 15\,\%. Three explanations were ruled out by measurement: prediction quality
+does not fall with distance in time, satellite coverage exceeds 93\,\% in all 25 years, and the
+failure worsens when the architecture changes. What remains is arithmetic. Errors in different
+years are close to independent, so 25 predictions from a classifier correct 55--59\,\% of the time
+are dominated by noise. No per-parcel trajectory or area trend was produced from this panel. Two
+further obstacles: the 1997--98 El Ni\~no flood makes the baseline years unusable, since perennial
+recall on 1998 imagery is 0.000, and five-year aggregation fixes the instability but not the
+estimate, because parcels already perennial drift downward faster than the group of interest rises.
+The change was therefore measured directly instead, using the 2012 census and photo-interpretation
+of recent imagery, neither of which needs a working annual series.
+
+%======================================================================
+\section{Method finding}
+
+Cross-validation that holds out nearby land still overstates how well a model performs in a region
+it has never seen. Only holding out a whole department reveals the gap, which is about 0.09
+macro-F1. This caught three things. Parcel latitude helped by 0.048 macro-F1 on held-out blocks and
+hurt by 0.060 when a whole department was held out, so it was acting as a lookup table for
+departments already memorised. The neural network won cross-validation in all eight arms and lost
+the held-out-department test in all four. And any time-invariant input creates false stability in a
+year-by-year model. A second rule follows: score a new input against a same-shaped substitute
+rather than against nothing. Climate covariates passed this test for LightGBM and failed it for the
+neural network.
+
+%======================================================================
+\section{Limitations}
+
+\begin{enumerate}[leftmargin=1.5em,itemsep=1pt]
+\item 14 coastal and lower-altitude departments only. No sierra or Amazon.
+\item The labels are declarations, not observations, and declaration dates are unreliable.
+\item Most accuracy figures come from 1997--2006. Only the recent-imagery figures fall in the
+period of interest, and they rest on 865 labels from a single labeller whose consistency has not
+been measured.
+\item The census link is by farmer name, so it identifies the parcel only approximately and
+favours larger, better-documented parcels. Reweighting is applied.
+\item One ambiguous class carries a third of the perennial sample. Whether abandoned woody
+vegetation counts as perennial moves the 2025 estimates by 8 points on the level and 14 points on
+the tenure split, both larger than the effect being measured.
+\item Legal status is last observed in 2011--12 while the outcome runs to 2023.
+\end{enumerate}
+
+%======================================================================
+\section{Next steps}
+
+The main opportunity is to add a properly measured 2025 observation to the 1999 and 2012 points, so
+the change can be traced across three dates on the same parcels and split by tenure.
+Figure~\ref{fig:tenure} shows the current state of that comparison: the 2025 point is too
+imprecise to say anything, and its position depends on how one ambiguous class is treated.
+Sentinel-2 gives 19 to 113 clear observations per parcel-year against 13 to 24 for Landsat, so a
+single-year 2025 estimate avoids both failures of the year-by-year panel.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.76\textwidth]{fig_tenure_over_time.png}
+\caption{The three observations of the same quantity, by tenure at titling. The solid lines are the
+census panel. The 2025 points come from a different frame with a different restriction, so each is
+drawn from its own baseline rather than continued from the census line. The two imagery readings
+differ only in whether abandoned woody vegetation counts as perennial, and that choice moves the
+2025 point by more than the effect being measured.}
+\label{fig:tenure}
+\end{figure}
+
+\begin{enumerate}[leftmargin=1.5em,itemsep=3pt]
+\item \textbf{Label more parcels on Sentinel-2 and recent high-resolution imagery.} The campaign
+has 865 usable labels and the 2025 intervals are near $\pm$17 points. Keep the existing five
+categories and the per-department minimum so a department can still be held out.
+
+\item \textbf{Measure labelling noise first.} Re-label one hundred parcels after an interval.
+Report consistency separately for the abandoned orchard against riverside scrub boundary, which is
+the hardest call and carries a third of the perennial sample.
+
+\item \textbf{Train a new model on the full 2025 Esri and Sentinel-2 data.} Fit on the new labels
+together with the existing ones. Report the held-out-department score as the headline, not the
+cross-validation score.
+
+\item \textbf{Run inference on a national sample of parcels for 2025.} Draw from the eligible
+universe of 614{,}876 parcels, stratified by department, and reweight to the national population.
+The output is the perennial, annual and other split for 2025.
+
+\item \textbf{Place 1999, 2012 and 2025 on one axis for the same parcels.} Restrict to parcels in
+the census link, and report the transitions between dates as well as the level at each.
+
+\item \textbf{Split the change by tenure status.} Use legal status at declaration and the
+cadastre's 2011--12 status. Report the split by parcel count and by land area, and report it both
+with and without abandoned woody vegetation counted as perennial. Later titling in the comparison
+group is unobserved, so present the result as a bound rather than a causal estimate.
+\end{enumerate}
+
+\end{document}

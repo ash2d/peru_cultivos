@@ -1,12 +1,12 @@
 # Peru crop classifier
 
-**Has Peruvian farmland shifted from domestic annual crops to export perennials — and does
-secure legal title cause it?**
+**Has Peruvian farmland moved from food crops grown for the home market to tree and vine crops
+grown for export? And does a legal land title make that move more likely?**
 
-Peru's land-titling programme recorded, for about a million parcels, the crop growing there and
-the parcel boundary, mostly between 1997 and 2006. It never went back. Satellite imagery exists
-for every year since 1996. This repository joins those two records into a land-use classifier
-and reads change out of it.
+Between 1997 and 2006, Peru's land-titling programme wrote down the crop growing on about a
+million farm parcels, along with the shape of each parcel. Nobody went back to check what
+happened since. Satellite images cover every year from 1996 on. This repository joins those two
+records, trains a model to read crops from the images, and measures the change.
 
 ![perennial share over time, by tenure](docs/figures/perennial_over_time_by_tenure.png)
 
@@ -14,67 +14,76 @@ and reads change out of it.
 
 ## What do you want to do?
 
-| | |
+| I want to | page |
 |---|---|
-| Install it | [`docs/howto/01_setup.md`](docs/howto/01_setup.md) |
-| **Reproduce the published results** — 2 commands, 90 seconds | [`docs/howto/02_reproduce_results.md`](docs/howto/02_reproduce_results.md) |
-| **Train a model** and read its score correctly | [`docs/howto/03_train_and_evaluate.md`](docs/howto/03_train_and_evaluate.md) |
-| **Predict on parcels**, including your own polygons | [`docs/howto/04_predict_new_parcels.md`](docs/howto/04_predict_new_parcels.md) |
-| Pull new satellite imagery | [`docs/howto/05_get_satellite_data.md`](docs/howto/05_get_satellite_data.md) |
-| **Label more parcels and retrain** — the loop that improves the classifier, written for someone who does not code | [`docs/howto/06_label_more_parcels.md`](docs/howto/06_label_more_parcels.md) |
-| Change which classes the model predicts | [`docs/howto/07_new_label_set.md`](docs/howto/07_new_label_set.md) |
-| Measure perennial change and its link to land title | [`docs/howto/08_perennial_change_by_tenure.md`](docs/howto/08_perennial_change_by_tenure.md) |
+| Install it. 15 minutes, once | [`docs/howto/01_setup.md`](docs/howto/01_setup.md) |
+| **Get one table of every parcel and its crop type**, from all four records: what the farmer declared, the 2012 census, what a person saw in 2025 images, and what the model predicts for 2025 | [`docs/howto/02_parcel_table.md`](docs/howto/02_parcel_table.md) |
+| **Run the model on parcels nobody has labelled.** A sample from all of Peru, or your own field boundaries | [`docs/howto/03_score_parcels.md`](docs/howto/03_score_parcels.md) |
+| **Label more images and train a better model.** Written for someone who does not write code | [`docs/howto/04_label_and_train.md`](docs/howto/04_label_and_train.md) |
+| **Get summary numbers:** share of land in tree crops, share of parcels with a title, and how both changed. For Peru, or one department at a time | [`docs/howto/05_summary_stats.md`](docs/howto/05_summary_stats.md) |
+| Everything else: check the published numbers, train a model, download images, change the list of crop classes | [`docs/howto/06_reference.md`](docs/howto/06_reference.md) |
 
 Quick start:
 
 ```bash
-uv sync                 # Python 3.11, exact versions
-uv run cc reproduce     # re-derive every published number, ~90 s
-uv run cc data verify   # what this clone can do, and what is missing
+uv sync                 # install, Python 3.11
+uv run cc reproduce     # recompute every published number, about 90 seconds
+uv run cc data verify   # what this copy can do, and what is missing
+uv run cc -w national analysis summary          # the main numbers, in one table
+uv run cc -w national analysis parcel-table     # one row per parcel, all four records
 uv run cc --help
 ```
 
-The data needed to reproduce the published results is committed — 642 MB of parcels, polygons,
-labels and satellite features. No Earth Engine account and no licensed archive are needed for
-that. [`docs/DATA_ACCESS.md`](docs/DATA_ACCESS.md) says what is here and what is not.
+The data needed to check the published results is included here: 642 MB of parcels, boundaries,
+labels and satellite measurements. You do not need a Google Earth Engine account or the
+restricted government files for that. [`docs/DATA_ACCESS.md`](docs/DATA_ACCESS.md) lists what is
+included and what is not.
 
 ---
 
 ## The answers
 
-**The shift is real and large.** Between about 1999 and 2012, on 63,766 parcels linked across
-all 14 departments, perennial crops go from 16.5 % to 26.4 % of parcels (+9.9 pp) and from
-21.0 % to 33.5 % of cadastral area (+12.5 pp). Flows run 3.9 : 1 toward perennials, so it is
-not a net figure hiding churn in both directions. No satellite imagery and no classifier enter
-that measurement: it compares two official declarations of the same land.
+**The shift is real and large.** Between about 1999 and 2012, across 63,766 parcels in all 14
+departments, tree and vine crops rose from 16.5 % to 26.4 % of parcels (+9.9 points) and from
+21.0 % to 33.5 % of the land area (+12.5 points). Parcels moving into tree crops outnumber those
+moving out by about 4 to 1, so this is not a small net figure hiding large movement both ways.
+No satellite images and no model are used in this measurement. It compares two official records
+of the same land.
 
-**Title does not appear to cause it.** Titled parcels shifted slightly less (−2.1 pp ± 0.6),
-and measured in hectares the gap disappears (+0.3 pp). A two-period difference-in-differences
-over 14,625 parcels returns a bounded null: −0.0011 [−0.0126, +0.0104].
+**A land title does not appear to cause the shift.** Parcels with a title shifted slightly less
+(−2.1 points, give or take 0.6), and measured in hectares the difference disappears
+(+0.3 points). The formal estimate is close to zero, and its range is narrow enough to say so:
+−0.0011, between −0.0126 and +0.0104.
 
-**The classifier works for one year, not for a time series.** Four attempts to turn it into a
-per-parcel trend all failed their pre-registered checks, for measured reasons.
+**The model is reliable for one year at a time, not for a trend.** Four attempts to turn it into
+a year-by-year history of each parcel all failed the checks written down in advance.
 
-Every number, with intervals and caveats: [`docs/RESULTS.md`](docs/RESULTS.md).
+Every number, with its uncertainty and its caveats: [`docs/RESULTS.md`](docs/RESULTS.md).
 
 ---
 
-## The current best classifier — Sentinel-2, 3 classes
+## The current best model: Sentinel-2, 3 classes
 
-LightGBM over per-parcel Sentinel-2 summaries for 2019 onward, plus the parcel's mean annual
-temperature. Labels come from photo-interpretation: 865 usable parcels across all 14
-departments, on a split frozen before any labelling began — 704 for training and
-cross-validation, 161 held back as a locked test.
+The model is LightGBM. Its inputs are summaries of Sentinel-2 satellite images from 2019 on,
+one set per parcel, plus the parcel's average yearly temperature. Its training labels come from
+people looking at aerial pictures: 865 usable parcels across all 14 departments. Which parcels
+would be used for training and which would be held back was decided before any labelling
+started: 704 for training, 161 kept aside as a final test.
 
-Classes (`t3w`): `ANNUAL`, `PERENNIAL` (including woody non-crop) and `OTHER`.
+Classes (`t3w`): `ANNUAL`, `PERENNIAL` (tree and vine crops, including non-crop tree cover) and
+`OTHER`.
 
-| evaluation | what it holds out | macro-F1 | accuracy | `PERENNIAL` F1 | floor |
+Scores are macro-F1, an average accuracy that counts each class equally, so a rare class matters
+as much as a common one. "Floor" is the score you would get by always guessing the most common
+class. A score is only meaningful next to its floor.
+
+| test | what was hidden from the model | macro-F1 | accuracy | `PERENNIAL` F1 | floor |
 |---|---|---:|---:|---:|---:|
-| Cross-validation (704 parcels) | 5 km blocks inside seen departments | 0.762 ± 0.038 | 0.783 | 0.789 | 0.228 |
-| Leave-one-department-out | a whole department, 14 of them | 0.724 ± 0.111 | 0.789 | 0.777 | 0.228 |
-| Locked test (161 parcels) | regions frozen before labelling | **0.774** [0.697, 0.845] | 0.789 | 0.780 | 0.219 |
+| Cross-validation (704 parcels) | 5 km blocks, inside departments it had seen | 0.762 ± 0.038 | 0.783 | 0.789 | 0.228 |
+| Leave one department out | a whole department, each of the 14 in turn | 0.724 ± 0.111 | 0.789 | 0.777 | 0.228 |
+| Final test (161 parcels) | areas set aside before labelling began | **0.774** [0.697, 0.845] | 0.789 | 0.780 | 0.219 |
 
-Per class on the locked test (κ = 0.647):
+Per class on the final test:
 
 | class | precision | recall | F1 | n |
 |---|---:|---:|---:|---:|
@@ -82,19 +91,21 @@ Per class on the locked test (κ = 0.647):
 | `OTHER` | 0.810 | 0.810 | 0.810 | 79 |
 | `PERENNIAL` | 0.727 | 0.842 | 0.780 | 57 |
 
-How to read it:
+How to read this:
 
-1. **The cross-validated estimate was honest** — the test scored 0.774 against a CV estimate
-   of 0.762, and `PERENNIAL` F1 reproduced to within 0.01.
-2. **0.774 is the in-department number.** Every department appears on both sides of the test
-   split. For a department the model has never seen, expect 0.724 ± 0.112.
-3. **The test is spent** (2026-09-01) and must not be scored again.
-4. **The label-noise floor is unmeasured** — one annotator, so this is agreement with those
-   labels, not with ground truth.
+1. **The cross-validation estimate was honest.** The final test scored 0.774 against an estimate
+   of 0.762, and the `PERENNIAL` score matched to within 0.01.
+2. **0.774 applies to departments the model has already seen.** For a new department, expect
+   0.724, give or take about 0.11.
+3. **The final test has been used** (2026-09-01). Do not score anything on it again, or it stops
+   being an independent check.
+4. **We do not know how often the human labels themselves are wrong.** Most parcels were labelled
+   by one person, so these scores measure agreement with those labels, not with the truth on the
+   ground.
 
-For comparison, the national Landsat model over the 1997–2006 label years scores 0.628 CV and
-0.479 leave-one-department-out, on a different 3-class question and much sparser imagery
-(13–24 clear dates per parcel-year against 47).
+For comparison, the older Landsat model, trained on the 1997–2006 declarations, scores 0.628 in
+cross-validation and 0.479 on a new department. It answers a slightly different question and has
+far fewer clear images per parcel (13–24 a year against 47).
 
 ```bash
 uv run cc reproduce s2-model     # refit it and compare against the published number
@@ -102,39 +113,42 @@ uv run cc reproduce s2-model     # refit it and compare against the published nu
 
 ---
 
-## The one thing to know before modelling anything
+## The one thing to know before training anything
 
-A parcel's latitude (`centroid_lat`) is worth +0.047 macro-F1 on cross-validation and −0.060
-when the department changes.
+Giving the model the parcel's latitude adds 0.047 to its cross-validation score and takes 0.060
+off its score on a department it has not seen.
 
-Cross-validation holds out 5 km blocks inside departments the model has already seen, so it
-cannot separate real signal from memorised location. Never select a feature or a model on
-cross-validation alone. `cc evaluate` prints CV, LODO, LOYO and LODYO together, each beside the
-score you would get by always guessing the largest class.
+Cross-validation hides small blocks of land, but the model has already seen the rest of that
+department. So a high cross-validation score can mean the model has memorised where things grow,
+not that it has learned to read the images. Never choose a feature or a model on
+cross-validation alone. `uv run cc evaluate` prints four tests side by side, each next to the
+score you would get by always guessing the most common class.
 
-The same lesson caught three features and then a whole architecture: LTAE wins Sentinel-2
-cross-validation in 8 arms of 8 and loses leave-one-department-out in 4 of 4. More:
-[`docs/LESSONS.md`](docs/LESSONS.md).
+The same mistake was caught three times with single features, and once with a whole model type:
+LTAE beat LightGBM in all 8 cross-validation runs and lost all 4 tests on unseen departments.
+More: [`docs/LESSONS.md`](docs/LESSONS.md).
 
 ---
 
-## The data, in one paragraph
+## The data, in short
 
-Three files chain into the training set, and the middle one is mandatory:
+Three files link together to make the training set. The middle one is required:
 
 ```
 BD SSET (crop, year) ──CodigoSSET──► Grafica_Tabular ──COD_PREDIO──► QGIS polygons
 ```
 
-`Grafica_Tabular` is the only file carrying both keys; fifteen exist and Callao yields nothing,
-so 14 departments are linkable and that limit is structural. There are no sierra or selva
-labels and there never will be. A fourth dataset, the 2012 agricultural census, links only by
-the farmer's name.
+`Grafica_Tabular` is the only file that carries both keys. Fifteen of these files exist and one
+(Callao) has no usable rows, so only 14 departments can be linked. That limit cannot be lifted
+with more work: the files do not exist. There are no labels for the highlands or the Amazon, and
+there never will be. A fourth dataset, the 2012 agricultural census, can only be matched by the
+farmer's name.
 
-Four traps in the raw data each return a plausible empty result instead of an error:
-zero-padded keys, 19 shapefiles shipping their attribute table under the wrong name, one 3D
-cadastre Earth Engine rejects, and departments whose rows are not in "their" workbook. Read raw
-data through `allperu.sources`, which handles all four. [`docs/DATA.md`](docs/DATA.md).
+Four problems in the raw files each return an empty but believable result instead of an error:
+keys padded with zeros on one side only, 19 map files that store their table under the wrong
+name, one department's boundaries stored in 3D which Earth Engine refuses, and departments whose
+rows sit in another department's spreadsheet. Read raw data through `allperu.sources`, which
+handles all four. [`docs/DATA.md`](docs/DATA.md).
 
 ---
 
@@ -148,7 +162,7 @@ data through `allperu.sources`, which handles all four. [`docs/DATA.md`](docs/DA
 | [`docs/DATA.md`](docs/DATA.md) | datasets, linkage chains, the four traps |
 | [`docs/DATA_ACCESS.md`](docs/DATA_ACCESS.md) | how to obtain the data, and what runs without it |
 | [`docs/PIPELINE.md`](docs/PIPELINE.md) | module and command reference |
-| [`docs/s2_labelling/`](docs/s2_labelling/plan.md) | the photo-interpretation campaign and its codebook |
+| [`docs/s2_labelling/`](docs/s2_labelling/plan.md) | the labelling work: how parcels were picked, and the rules labellers followed |
 | `reports/peru_report.tex` | the written-up narrative (PDF beside it) |
 | [`docs/repo_layout.md`](docs/repo_layout.md) | why the repository is shaped like this |
 | [`CLAUDE.md`](CLAUDE.md) | orientation for a coding agent |

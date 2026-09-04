@@ -181,7 +181,7 @@ def build_workspace(target: str, include_pilot: bool = False,
         raise SystemExit(
             f"no feature table at {lgbm}. Run `cc labelling campaign assemble` for this "
             f"round first — and `campaign combine` before training on a merged one "
-            f"(docs/howto/06_label_more_parcels.md).")
+            f"(docs/howto/04_label_and_train.md).")
     have = set(pd.read_parquet(lgbm, columns=["COD_PREDIO"])["COD_PREDIO"].astype(str))
     gap = sorted(set(df["COD_PREDIO"].astype(str)) - have)
     if gap:
@@ -190,7 +190,7 @@ def build_workspace(target: str, include_pilot: bool = False,
             f"(e.g. {gap[:3]}). Their features are missing, not zero, and training would "
             f"silently treat them as empty. Run `cc labelling campaign assemble` for this "
             f"round, and `campaign combine` before training on a merged one "
-            f"(docs/howto/06_label_more_parcels.md).")
+            f"(docs/howto/04_label_and_train.md).")
 
     if verbose:
         print(f"[{target}{'+pilot' if include_pilot else ''}] {len(df)} parcels "

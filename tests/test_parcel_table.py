@@ -68,10 +68,23 @@ def test_an_abstention_is_not_a_prediction(tmp_path):
     assert set(out["s2_pred_source"]) == {"applied"}
 
 
+def test_the_default_vocabulary_covers_every_class_every_instrument_records():
+    """`--classes 4` is the only vocabulary all four observations fit in: the declared side
+    has no word for woody canopy, and the imagery side has none for fallow, so each maps
+    onto the union rather than being dropped or guessed."""
+    recorded = {"PERENNIAL", "ANNUAL", "WOODY_NON_CROP", "NON_AGRICULTURE",  # imagery
+                "OTHER", "PASTURE_FALLOW"}                                   # declared
+    assert set(T.TO_4) == recorded
+    assert set(T.TO_4.values()) == set(T.CLASSES4)
+    # the two "not a crop" states collapse; woody canopy stays its own class
+    assert T.TO_4["PASTURE_FALLOW"] == T.TO_4["NON_AGRICULTURE"] == "OTHER"
+    assert T.TO_4["WOODY_NON_CROP"] == "WOODY_NON_CROP"
+
+
 def test_the_four_observations_share_one_vocabulary():
-    """`OTHER` (imagery) and `PASTURE_FALLOW` (declared) are the same class. The export maps
-    both sides onto the declared names, so `pett_class`, `cen_class`, `s2_class` and
-    `s2_pred_class` can be crosstabbed against each other without a rename."""
+    """`--classes 3` keeps the declared label space: `OTHER` (imagery) and `PASTURE_FALLOW`
+    (declared) are the same class, so the export maps both sides onto the declared names and
+    the columns can be crosstabbed against each other without a rename."""
     declared = {"PERENNIAL", "ANNUAL", "PASTURE_FALLOW"}
     assert set(T.PRED_TO_DECLARED.values()) <= declared
     assert {v for v in T.S2_TO_DECLARED.values() if v is not None} <= declared
@@ -89,7 +102,8 @@ def test_the_export_is_one_row_per_parcel_over_the_committed_panel(tmp_path):
     df = T.build(out=tmp_path / "t.parquet", verbose=False)
     assert len(df) == len(panel)
     assert not df["COD_PREDIO"].duplicated().any()
-    assert list(df.columns) == T.COLUMNS
+    assert list(df.columns) == T.COLUMNS4
+    assert set(df["s2_class"].dropna()) <= set(T.CLASSES4)
     assert df["pett_class"].notna().all() and df["cen_class"].notna().all()
     # the imagery columns are sparse by construction — the campaign drew from the PETT
     # population, not from this subset, so a full column here would mean a bad join

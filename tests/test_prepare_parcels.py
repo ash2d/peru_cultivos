@@ -1,4 +1,5 @@
-"""`tools/prepare_parcels.py` writes a parcel table the rest of the pipeline can read.
+"""`cc predict-s2` and `tools/prepare_parcels.py` write a parcel table the rest of the
+pipeline can read.
 
 The table's *shape* is the contract: `cc satellite extract`, `cc satellite assemble` and
 `cc predict` all read `modeling_parcels.parquet` and fail late and confusingly if a column
@@ -8,8 +9,6 @@ unlabelled. This pins the columns and the two conversions that are easy to get w
 
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
 
 import geopandas as gpd
@@ -23,12 +22,8 @@ REQUIRED = ["COD_PREDIO", "label", "label_id", "label_reason", "crop_set", "year
 
 
 def _module():
-    spec = importlib.util.spec_from_file_location(
-        "prepare_parcels", ROOT / "tools" / "prepare_parcels.py")
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules["prepare_parcels"] = mod
-    spec.loader.exec_module(mod)
-    return mod
+    from crop_classifier import prepare_parcels
+    return prepare_parcels
 
 
 @pytest.fixture

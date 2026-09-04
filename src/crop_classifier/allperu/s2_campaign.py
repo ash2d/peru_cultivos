@@ -290,7 +290,7 @@ def step_combine() -> None:
     od, of = proc() / "labels_s2", proc() / "features_s2"   # the campaign of record
     if rd == od:
         raise SystemExit("`combine` needs a round: pass --round <name>, the same one you "
-                         "drew and labelled (docs/howto/06_label_more_parcels.md)")
+                         "drew and labelled (docs/howto/04_label_and_train.md)")
     name = rd.name.replace("labels_s2_", "")
     md, mf = proc() / f"labels_s2_{name}_all", proc() / f"features_s2_{name}_all"
     md.mkdir(parents=True, exist_ok=True)

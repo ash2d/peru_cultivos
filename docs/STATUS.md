@@ -128,5 +128,5 @@ true of *this project right now*:
 | [`PIPELINE.md`](PIPELINE.md) | module reference, CLI table, cookbook |
 | [`cenagro_columns.md`](cenagro_columns.md) | the 2012 census extract, column by column |
 | [`s2_labelling/`](s2_labelling/plan.md) | the live campaign and its codebook |
-| [`howto/`](howto/01_setup.md) | task-shaped guides: set up, reproduce, train, predict, label |
+| [`howto/`](howto/README.md) | task-shaped guides: the parcel table, scoring parcels, labelling and training, summary statistics |
 | `../reports/peru_report.tex` | the written-up narrative, with its PDF |

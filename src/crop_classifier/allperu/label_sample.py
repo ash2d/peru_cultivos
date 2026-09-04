@@ -505,7 +505,7 @@ def draw(universe: gpd.GeoDataFrame | None = None, total: int = TOTAL,
                 f"the existing labels are keyed to.\n"
                 f"For a NEW round, point CC_LABELS at a new directory first:\n"
                 f"  CC_LABELS={d.parent / (d.name + '_round2')} uv run cc ... campaign draw\n"
-                f"docs/howto/06_label_more_parcels.md")
+                f"docs/howto/04_label_and_train.md")
         out.to_parquet(d / F_SAMPLE, index=False)
         alloc.to_csv(d / F_ALLOC, index=False)
         sweep = sensitivity_sweep()

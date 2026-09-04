@@ -742,7 +742,7 @@ def allperu_s2_labels(
             "", "--round", help="name a NEW labelling round; everything it writes goes to "
                                 "`labels_s2_<name>/` instead of over the campaign of "
                                 "record. Use this for any second batch of parcels "
-                                "(docs/howto/06_label_more_parcels.md)")):
+                                "(docs/howto/04_label_and_train.md)")):
     """S2 endpoint-labelling campaign (docs/s2_labelling/plan.md).
 
     The steps run in the plan's §11 order, cheapest-that-can-kill-it first::
@@ -897,27 +897,53 @@ def allperu_cenagro_shift(
 def allperu_parcel_table(
         out: Path = typer.Option(Path("data/processed/cenagro/parcel_table.parquet"),
                                  help="`.csv` writes CSV, anything else Parquet"),
-        run: Path = typer.Option(
-            Path("runs/s2_labels/ws_t3w_pilot__clim_temp/lightgbm"),
-            help="model run whose HELD-OUT predictions fill the 2025 column"),
+        classes: int = typer.Option(
+            4, "--classes", help="4: PERENNIAL / ANNUAL / WOODY_NON_CROP / OTHER, every "
+                                 "column in one vocabulary. 3: the declared label space, "
+                                 "where woody canopy has no class and is reported twice"),
+        universe: str = typer.Option(
+            "linked", "--universe", help="linked: the 95,941 parcels with both a "
+                                         "declaration and a 2012 census record (committed). "
+                                         "all: every PETT parcel, 726,808 — needs the "
+                                         "licensed archive"),
+        run: Path | None = typer.Option(
+            None, help="model run whose HELD-OUT predictions fill the 2025 column "
+                       "(default: the t4 or t3w run matching --classes)"),
         preds: Path | None = typer.Option(
             None, help="a `cc predict` output to use instead of the run's held-out "
                        "predictions — the way to cover parcels the model never saw "
-                       "(docs/howto/04_predict_new_parcels.md §C)")):
+                       "(docs/howto/03_score_parcels.md)")):
     """⭐ One row per parcel: tenure, the declared crop class, 2012, and 2019+ imagery.
 
-    The 95,941 parcels with both a PETT declaration and a CENAGRO 2012 observation — what a
-    clone can build — with every later observation left-joined on, so a column is null where
-    that instrument never looked. No analysis: `analysis perennial-shift` is what turns these
-    columns into an estimate.
+    Four instruments side by side, in one vocabulary, with no analysis on top:
+    the PETT declaration (~1997-2006), CENAGRO 2012, a human reading of 2019+ imagery, and
+    the Sentinel-2 classifier's reading of the same. Every later observation is a LEFT join,
+    so a column is null where that instrument never looked at that parcel.
 
-    ⚠️ The 2025 columns cover 157 of these parcels and are **design-weighted** (`weight`);
-    an unweighted share of them is about 3x the population's. ⚠️ `s2_pred_source` says
-    whether a prediction was held out — do not read an `applied` prediction on a parcel the
-    model trained on as skill.
+    ⚠️ The imagery columns are **design-weighted** (`weight`); an unweighted share of them is
+    about 3x the population's. ⚠️ `s2_pred_source` says whether a prediction was held out —
+    do not read an `applied` prediction on a parcel the model trained on as skill.
     """
     from crop_classifier.allperu import parcel_table as T
-    T.build(run=run, preds=preds, out=out)
+    T.build(run=run, preds=preds, out=out, classes=classes, which=universe)
+
+
+@allperu_app.command("summary")
+def allperu_summary(
+        dept: str = typer.Option("", help="one department instead of the national row"),
+        by_dept: bool = typer.Option(False, "--by-dept",
+                                     help="add a row per department under the national one"),
+        out: Path | None = typer.Option(None, help="also write the table as CSV")):
+    """⭐ Descriptive statistics of the PETT registry and the 2012 census, in one table.
+
+    Crop mix, share registered at the declaration and at the ~2011 cadastre, the share that
+    moved between them, and the perennial change from the declaration to the census — with
+    the titled minus untitled gap in that change beside it.
+
+    ⚠️ Three different universes in one row; the `n_` column beside each block says which.
+    """
+    from crop_classifier.allperu import summary as S
+    S.report(dept or None, by_dept, out)
 
 
 @allperu_app.command("climate")
@@ -1117,6 +1143,43 @@ def predict(run: Path, polygons: Path | None = None, out: Path | None = None,
     _infer(run, polygons, out, tau)
 
 
+@app.command("predict-s2")
+def predict_s2(
+        parcels: Path | None = typer.Option(
+            None, help="your own polygons (shapefile / GeoPackage / GeoJSON / parquet). "
+                       "Omit to draw a random sample of Peru's own parcels"),
+        n: int = typer.Option(500, "--n", help="how many parcels to draw (0 = all of them)"),
+        date: str = typer.Option("2025-03-01", help="the date to read. The agricultural "
+                                                    "year around it (Aug-Jul) is summarised"),
+        model: Path | None = typer.Option(None, help="run directory of the model to apply"),
+        climate: str = typer.Option("temp", help="climate columns the model was fitted "
+                                                 "with: temp|rain|both|none"),
+        tau: float = typer.Option(0.0, help="abstain below this probability"),
+        work: Path = typer.Option(Path("data/predict_s2"),
+                                  help="scratch workspace for the parcels and their imagery"),
+        out: Path | None = typer.Option(None, help="predictions file (default <work>/"
+                                                   "predictions.parquet)"),
+        seed: int = typer.Option(0, help="seed for the draw"),
+        id_col: str | None = typer.Option(None, help="column naming each parcel"),
+        workers: int = typer.Option(4, help="parallel Earth Engine requests"),
+        resume: bool = typer.Option(False, "--resume",
+                                    help="skip straight to predicting: the parcels and "
+                                         "features in --work are already built")):
+    """⭐ Run the Sentinel-2 classifier on parcels that have no label.
+
+    Draws the parcels, pulls the imagery, builds the features, adds the climate column and
+    predicts — the five steps of `docs/howto/03_score_parcels.md` in one command, against a
+    scratch workspace so nothing is added to `workspaces.yaml`.
+
+    ⚠️ Needs Earth Engine, and that is the slow step: minutes for a few hundred parcels.
+    It fails quietly — check the extraction by counting rows, never by "it finished".
+    """
+    from crop_classifier import predict_s2 as P
+    P.run(parcels=parcels, n=n, date=date, work=work,
+          model=model or P.DEFAULT_RUN, climate=climate, tau=tau, out=out, seed=seed,
+          id_col=id_col, workers=workers, skip_extract=resume)
+
+
 @app.command("infer", hidden=True)
 def infer(run: Path, polygons: Path | None = None, out: Path | None = None,
           tau: float = 0.0):
@@ -1226,6 +1289,7 @@ satellite_app.command("assemble")(features_assemble)
 # ── analysis: what the project is actually for ────────────────────────────────────────
 analysis_app.command("perennial-shift")(allperu_cenagro_shift)
 analysis_app.command("parcel-table")(allperu_parcel_table)
+analysis_app.command("summary")(allperu_summary)
 analysis_app.command("tenure-gap")(allperu_tenure_xsec)
 analysis_app.command("did")(allperu_tenure_did2)
 analysis_app.command("did-sample")(allperu_did_sample)

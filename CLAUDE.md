@@ -8,10 +8,11 @@
 4. **[`docs/DATA.md`](docs/DATA.md)** — datasets, linkage chains, the four silent traps.
 
 `cc reproduce` re-derives every published number from the committed data (~90 s); `cc data
-verify` says what a clone can do. [`docs/howto/`](docs/howto/01_setup.md) is the task-shaped
-documentation, written for a non-programmer: setup, reproduce, train, predict (04, including
-`tools/prepare_parcels.py` for polygons of the user's own), imagery, label-and-retrain (06),
-label sets, tenure. Also
+verify` says what a clone can do. [`docs/howto/`](docs/howto/README.md) is the task-shaped
+documentation, written for a non-programmer, organised around the four things people ask for:
+**02** the per-parcel export (`analysis parcel-table`), **03** scoring unlabelled parcels
+(`predict-s2`, one command), **04** labelling more imagery and retraining, **05** the
+descriptive statistics (`analysis summary`); **06** is everything else. Also
 [`docs/LESSONS.md`](docs/LESSONS.md) (method findings worth reusing),
 [`docs/s2_labelling/plan.md`](docs/s2_labelling/plan.md) (the only live work),
 [`docs/cenagro_columns.md`](docs/cenagro_columns.md) (the 2012 census columns), and
@@ -188,11 +189,12 @@ src/crop_classifier/
   build_training_data.py   Chain A end-to-end for Piura
   labels.py  splits.py     label policy; spatially blocked splits + autocorrelation audit
   data.py                  datasets, fold selection, feature exclusion
-  train.py evaluate.py infer.py
+  train.py evaluate.py infer.py  prepare_parcels.py  predict_s2.py
   features/                landsat_gee, s2_gee, indices, assemble, s2_assemble
   models/                  lazy registry: trees (LightGBM), ltae, psetae, torch_common
   perennial/               3-class strand: labels3, panel, diagnostics (the gate), rules, …
-  allperu/                 national: sources, build_labels, sample, lodo, loyo, tenure_did, …
+  allperu/                 national: sources, build_labels, lodo, loyo, tenure_did,
+                           parcel_table + summary (the two exports), …
   labelling/               chips, build_html, ingest, train_prep  (the S2 campaign)
   config/                  data.yaml, split*.yaml, perennial*.yaml
 ```

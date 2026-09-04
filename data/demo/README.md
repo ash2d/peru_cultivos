@@ -28,7 +28,7 @@ LODO         0.4940 ± 0.0516   0.5015   0.167   0.393      6 departments     1,
 
 Cross-validation says 0.538. Holding out a **whole department** says 0.494. That gap is the thing
 this repository is mostly about, and you can see it here before you have any data of your own.
-[`docs/howto/03_train_and_evaluate.md`](../../docs/howto/03_train_and_evaluate.md).
+[`docs/howto/06_reference.md`](../../docs/howto/06_reference.md).
 
 The six departments were chosen to span the country's range of class balance — TUMBES is 75 %
 perennial nationally, LAMBAYEQUE 6 %. Six similar departments would have made

@@ -67,7 +67,7 @@ CAPABILITIES: tuple[Capability, ...] = (
          Need("data/processed/all_peru/lodo_predictions_nolat_aug_yleak10.parquet", "repo",
               "the held-out predictions; without them `cc evaluate` cannot print the "
               "majority-class floor")),
-        "docs/howto/03_train_and_evaluate.md"),
+        "docs/howto/06_reference.md"),
 
     Capability(
         "s2-labels",
@@ -79,7 +79,7 @@ CAPABILITIES: tuple[Capability, ...] = (
               "the LTAE sequence input"),
          Need("data/processed/all_peru/labels_s2/ws_t3w_pilot", "derive",
               "cc labelling train prep  (add --target/--climate for a climate arm)")),
-        "docs/howto/06_label_more_parcels.md"),
+        "docs/howto/04_label_and_train.md"),
 
     Capability(
         "perennial-shift",
@@ -95,7 +95,7 @@ CAPABILITIES: tuple[Capability, ...] = (
               "the department x class counts post-stratification reweights to"),
          Need("data/processed/pett_crop_year.parquet", "repo"),
          Need("data/processed/all_peru/tenure_by_predio.parquet", "repo")),
-        "docs/howto/08_perennial_change_by_tenure.md"),
+        "docs/howto/05_summary_stats.md"),
 
     Capability(
         "tenure-did",
@@ -109,7 +109,7 @@ CAPABILITIES: tuple[Capability, ...] = (
               "the 15-year panel extraction, ~13.5 h on 5 GEE workers — needed only to "
               "rebuild the predictions above from pixels, not to run the DiD",
               optional=True)),
-        "docs/howto/08_perennial_change_by_tenure.md"),
+        "docs/howto/06_reference.md"),
 
     Capability(
         "piura",
@@ -128,7 +128,7 @@ CAPABILITIES: tuple[Capability, ...] = (
          Need("data/raw/QGIS", "obtain",
               "only if you need parcels beyond the 56,419 already linked — 3 GB, licensed",
               optional=True)),
-        "docs/howto/05_get_satellite_data.md"),
+        "docs/howto/06_reference.md"),
 
     Capability(
         "rebuild-from-raw",

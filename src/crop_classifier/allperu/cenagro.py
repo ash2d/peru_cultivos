@@ -187,7 +187,7 @@ def build(config_path: Path | None = None, save: bool = True) -> dict:
             f"{PETT_NATIONAL.relative_to(ROOT)} is 437 MB and is not committed, and this "
             f"Piura-only comparison rebuilds from it. The national comparison that "
             f"supersedes it does reproduce from the clone: `cc -w national analysis "
-            f"perennial-shift` (docs/howto/08_perennial_change_by_tenure.md).")
+            f"perennial-shift` (docs/howto/05_summary_stats.md).")
     pett = pd.read_parquet(PETT_NATIONAL,
                            columns=["COD_PREDIO", "dept", "label", "year", "area_ha"])
     pett["COD_PREDIO"] = pett["COD_PREDIO"].astype(str)

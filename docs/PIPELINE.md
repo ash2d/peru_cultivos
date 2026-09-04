@@ -74,7 +74,7 @@ creates and selects `…/labels_s2/ws_<target>[_pilot][_clim_<arm>]` per arm, so
 cannot contaminate one another's tables.
 
 Adding your own workspace, to score parcels of your own:
-[`howto/04_predict_new_parcels.md`](howto/04_predict_new_parcels.md).
+[`howto/03_score_parcels.md`](howto/03_score_parcels.md).
 
 ---
 
@@ -97,6 +97,7 @@ abandoned — the code is built and unit-tested, and it stays unrun (`RESULTS.md
 | `sweep <model> [--trials 30]` | Optuna on CV macro-F1; never touches the locked test |
 | `eval <run_dir> [--preds preds_cv.parquet]` | the full report bundle |
 | `infer <run_dir> [--polygons f.parquet] [--tau 0.5]` | batch prediction with abstention |
+| **`predict-s2 [--parcels F] [--n 500] [--date D] [--model R] [--tau T] [--resume]`** | ⭐ draw → GEE → features → climate → predict, in one command, against a scratch workspace. `howto/03_score_parcels.md` |
 
 ### `perennial` — the 3-class strand
 
@@ -133,7 +134,8 @@ abandoned — the code is built and unit-tested, and it stays unrun (`RESULTS.md
 | **`allperu cenagro-extract [--dept D] [--overwrite] [--verify]`** | slim the 25 OneDrive CENAGRO 2012 `.dta` files (409 cols, ~18 GB) to `data/raw/Cenagro_IV/<Dept>.parquet` (76 cols, ~0.3 GB). `--verify` runs the audit. `DATA.md` §1.5 |
 | **`allperu cenagro-link`** | the NATIONAL census⇄PETT crosswalk by farmer name, 14 depts → `cenagro_pett_link.parquet`. farmer-level, not parcel-level |
 | **`allperu cenagro-shift`** | PETT → CENAGRO 2012 → photo-interpreted 2019+, nationally, split by tenure. Perennial share of parcels and of **cadastral** area. `RESULTS.md` §8.6 |
-| **`analysis parcel-table [--out F] [--run R] [--preds P]`** | ⭐ the export: one row per parcel, one column per observation of it — tenure, declared class + year, CENAGRO 2012 class, the human 2019+ label and the classifier's. 95,941 parcels, no analysis |
+| **`analysis parcel-table [--out F] [--classes 4\|3] [--universe linked\|all] [--run R] [--preds P]`** | ⭐ the export: one row per parcel, one column per observation of it — tenure, declared class + year, CENAGRO 2012 class, the human 2019+ label and the classifier's, all in `PERENNIAL / ANNUAL / WOODY_NON_CROP / OTHER`. 95,941 parcels, or 726,808 with `--universe all`. No analysis |
+| **`analysis summary [--by-dept] [--dept D] [--out F]`** | ⭐ the descriptive table: PETT crop mix, `inscrito` share at the declaration and at the ~2011 cadastre, the share that moved between them, and the perennial change with its tenure gap. National row post-stratified; three universes, one per `n_` column |
 | **`allperu cenagro`** | CENAGRO 2012 as the 'before' instead of the PETT declaration — paired change, area-weighted, by link quality. **Piura only**, farmer-level link. `RESULTS.md` §8.5 |
 | **`allperu s2-labels <step>`** | the live campaign — steps below |
 | **`allperu s2-train <step>`** | train/compare models on the returned labels — steps below |
@@ -164,7 +166,7 @@ record, because `draw` replaces a sample and `assemble` replaces a feature table
 would make the committed 865 labels unreadable. `combine` then writes the union as
 `labels_s2_<name>_all`, which `labelling train --round <name>_all` trains on. The
 step-by-step version, written for a non-programmer, is
-[`howto/06_label_more_parcels.md`](howto/06_label_more_parcels.md). **`html` takes `--lang en|es`**; anything but
+[`howto/04_label_and_train.md`](howto/04_label_and_train.md). **`html` takes `--lang en|es`**; anything but
 English writes to `labels_s2/html_<lang>/`, and the delivered set is `html_es/`. Only the
 interface and codebook are translated — the label values written to the CSV stay the canonical
 English constants, because `ingest.py` compares against them.
@@ -263,7 +265,7 @@ QA_PIXEL bits 1–4 + QA_RADSAT masked.
   offline.
 
 Robustness (all unit-tested without GEE). The three ways Earth Engine fails quietly are in
-[`howto/05_get_satellite_data.md`](howto/05_get_satellite_data.md); what the code does about
+[`howto/06_reference.md`](howto/06_reference.md); what the code does about
 them:
 
 * Chunks are **resumable** and **content-addressed** (filename = hash of the chunk's parcel
@@ -506,7 +508,7 @@ cannot see an additive-only claim in a full copy; you have to diff it.
 | `climate/parcel_climate_normals.parquet` | `allperu climate normals` | 726,808 parcels × 34: `tmean_c` (°C), `precip_mm_yr` (mm/yr), monthly profile, seasonality. **Static** (1970–2000 normal) |
 | `climate/parcel_rainfall_annual.parquet` | `allperu climate rainfall` | 726,808 parcels × 33: `precip_mm_<year>` (mm) for 1996–2024. **Year-resolved** — the one safe across years |
 | `cenagro/*.csv` | `allperu cenagro` | PETT→CENAGRO 2012 paired change: raw, like-for-like, area-weighted, by link quality, plus the token audit |
-| `cenagro/parcel_table.parquet` | `analysis parcel-table` | ⭐ one row per parcel × 23 columns: tenure, `pett_year`/`pett_class`, `cen_class`, `s2_label`/`s2_class`, `s2_pred_class` + `s2_pred_source`, `weight`, `n_observations`. 95,941 rows, the imagery columns null on all but 157 |
+| `cenagro/parcel_table.parquet` | `analysis parcel-table` | ⭐ one row per parcel × 22 columns: tenure, `pett_year`/`pett_class`, `cen_class`, `s2_label`/`s2_class`, `s2_pred_class` + `s2_pred_source`, `weight`, `n_observations`. 95,941 rows (726,808 under `--universe all`), the imagery columns null on all but 157 (865) |
 | `labels_s2/skill_by_target.csv` | `report_s2.skill_table` | every target's macro-F1 **against its own majority floor**, plus `PERENNIAL` F1 — the only cross-target-comparable columns |
 
 The **only** NaN in either climate table is `precip_seasonality_cv` for 1,275 Ica parcels
@@ -631,8 +633,19 @@ uv run python docs/figures/perennial_over_time_by_tenure.py      # standalone, n
 # runs off the committed panel — no licensed archive, no GEE.
 uv run cc -w national analysis parcel-table                          # ~10 s
 uv run cc -w national analysis parcel-table --out parcels.csv        # CSV instead
-uv run cc -w national analysis parcel-table --preds preds2025.parquet   # howto/04 §C
+uv run cc -w national analysis parcel-table --preds preds2025.parquet   # howto/02_parcel_table.md
+uv run cc -w national analysis parcel-table --universe all           # all 726,808 (licensed)
 # -> data/processed/cenagro/parcel_table.parquet
+
+# ── the descriptive statistics behind it, nationally and per department ──────
+uv run cc -w national analysis summary --by-dept --out summary.csv   # ~10 s
+```
+
+```bash
+# ── score parcels the classifier has never seen: draw -> GEE -> features -> predict ──
+uv run cc predict-s2 --n 500                      # a random sample of the national registry
+uv run cc predict-s2 --parcels my_farms.shp --n 0 # polygons of your own
+# -> data/predict_s2/predictions.parquet
 ```
 
 ```bash

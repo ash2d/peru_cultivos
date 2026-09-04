@@ -129,7 +129,7 @@ uv run earthengine authenticate
 ```
 
 Free research access: <https://earthengine.google.com/>. What extraction costs and how it fails
-quietly: [`howto/05_get_satellite_data.md`](howto/05_get_satellite_data.md).
+quietly: [`howto/06_reference.md`](howto/06_reference.md).
 
 ## 6. Licence
 

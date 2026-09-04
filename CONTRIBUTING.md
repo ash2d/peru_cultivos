@@ -54,7 +54,7 @@ project, each time only when a whole department was held out. See
 ## Adding things
 
 **A new label set** is a YAML file in `src/crop_classifier/config/labels/` — no Python.
-[`docs/howto/07_new_label_set.md`](docs/howto/07_new_label_set.md).
+[`docs/howto/06_reference.md`](docs/howto/06_reference.md).
 
 **A new workspace** is an entry in `workspaces.yaml`.
 
